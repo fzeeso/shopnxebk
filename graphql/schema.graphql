@@ -1,0 +1,8 @@
+scalar DateTime @scalar(class: "Nuwave\\Lighthouse\\Schema\\Types\\Scalars\\DateTime")
+
+type Query {
+    apiVersion: String! @field(resolver: "App\\GraphQL\\Queries\\GraphqlApiVersion")
+}
+
+#import ../Modules/Authentication/graphql/schema.graphql
+#import ../Modules/Tenancy/graphql/schema.graphql

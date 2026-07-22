@@ -1,0 +1,10 @@
+extend type Query {
+    activeTenant: Tenant! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Tenancy\\GraphQL\\Queries\\ActiveTenant")
+}
+
+type Tenant {
+    id: ID!
+    name: String!
+    slug: String!
+    status: String!
+}

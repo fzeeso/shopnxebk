@@ -1,0 +1,1 @@
+{"name":"Authentication","alias":"authentication","description":"REST authentication and account security.","keywords":["auth","sanctum"],"priority":20,"providers":["Modules\\Authentication\\Providers\\AuthenticationServiceProvider"],"files":[]}

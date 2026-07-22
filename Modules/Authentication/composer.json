@@ -1,0 +1,1 @@
+{"name":"shopnxe/authentication","type":"laravel-module","autoload":{"psr-4":{"Modules\\Authentication\\":"app/"}}}

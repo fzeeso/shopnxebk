@@ -1,0 +1,148 @@
+openapi: 3.1.0
+info:
+  title: shopnxebk REST API
+  version: 1.0.0
+  description: Authentication and health endpoints. GraphQL is documented by the Lighthouse schema.
+servers:
+  - url: http://localhost:8000
+paths:
+  /api/health/live:
+    get:
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Process is responding
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Health'}
+  /api/health/ready:
+    get:
+      summary: Readiness probe
+      responses:
+        '200': {description: Dependencies are ready}
+        '503': {description: A required dependency is unavailable}
+  /api/v1/auth/register:
+    post:
+      summary: Register a user and first tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/RegisterRequest'}
+      responses:
+        '201': {description: User and tenant created}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/auth/login:
+    post:
+      summary: Start a stateful session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string, format: password}
+      responses:
+        '200': {description: Session established}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {description: Rate limited}
+  /api/v1/auth/token:
+    post:
+      summary: Issue a tenant-scoped bearer token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, device_name, tenant_id]
+              properties:
+                email: {type: string, format: email}
+                password: {type: string, format: password}
+                device_name: {type: string, maxLength: 255}
+                tenant_id: {type: string, format: uuid}
+      responses:
+        '200': {description: Plain token returned once}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/auth/me:
+    get:
+      security: [{sanctum: []}]
+      summary: Current user
+      responses:
+        '200': {description: User resource}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/logout:
+    post:
+      security: [{sanctum: []}]
+      summary: Revoke the current session or token
+      responses:
+        '200': {description: Logged out}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/tenants:
+    get:
+      security: [{sanctum: []}]
+      summary: List active memberships
+      responses:
+        '200': {description: Tenant resources}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/forgot-password:
+    post:
+      summary: Queue a password reset notification
+      responses:
+        '202': {description: Generic response}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/auth/reset-password:
+    post:
+      summary: Reset a password with a broker token
+      responses:
+        '200': {description: Password reset}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/auth/verify-email/{id}/{hash}:
+    get:
+      summary: Verify a signed email link
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: hash, in: path, required: true, schema: {type: string}}
+      responses:
+        '200': {description: Email verified}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /graphql:
+    post:
+      summary: Lighthouse GraphQL endpoint
+      description: See graphql/schema.graphql; authentication mutations are not exposed here.
+      responses:
+        '200': {description: GraphQL response envelope}
+components:
+  securitySchemes:
+    sanctum: {type: http, scheme: bearer}
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: {type: string, example: ok}
+        checks: {type: object, additionalProperties: {type: string}}
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation, tenant_name, tenant_slug]
+      properties:
+        name: {type: string, maxLength: 255}
+        email: {type: string, format: email}
+        password: {type: string, format: password, minLength: 12}
+        password_confirmation: {type: string, format: password}
+        tenant_name: {type: string, maxLength: 255}
+        tenant_slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+  responses:
+    Unauthenticated:
+      description: Authentication required
+      content: {application/json: {schema: {type: object, properties: {message: {type: string}}}}}
+    Forbidden:
+      description: Forbidden
+      content: {application/json: {schema: {type: object, properties: {message: {type: string}}}}}
+    ValidationError:
+      description: Validation failed
+      content: {application/json: {schema: {type: object, properties: {message: {type: string}, errors: {type: object}}}}}

@@ -1,0 +1,11 @@
+extend type Query {
+    viewer: User! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Authentication\\GraphQL\\Queries\\Viewer")
+    viewerTenants: [Tenant!]! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Authentication\\GraphQL\\Queries\\ViewerTenants")
+}
+
+type User {
+    id: ID!
+    name: String!
+    email: String!
+    emailVerifiedAt: DateTime @rename(attribute: "email_verified_at")
+}
