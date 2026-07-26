@@ -2,6 +2,8 @@
 
 ShopNXE is an API-only Laravel 13 modular monolith for a multi-tenant SaaS commerce platform. It contains no customer or administration frontend. Authentication and tenant context are implemented; commerce modules remain intentionally deferred.
 
+Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. Its [generated system inventory](docs/generated/system-inventory.md) stays synchronized with dependencies, modules, routes, GraphQL operations, migrations, commands, and environment variables.
+
 ## Prerequisites
 
 - PHP 8.4 with `pdo_pgsql`, `redis`, `mbstring`, `openssl`, `pcntl`, `intl`, `zip`, and `exif`

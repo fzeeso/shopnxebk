@@ -64,6 +64,8 @@
             "@php artisan serve"
         ],
         "analyse": "phpstan analyse --memory-limit=1G",
+        "docs:update": "@php scripts/update-developer-guide.php",
+        "docs:check": "@php scripts/update-developer-guide.php --check",
         "format": "pint",
         "format:check": "pint --test",
         "horizon": "@php artisan horizon",
@@ -75,7 +77,8 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi"
+            "@php artisan package:discover --ansi",
+            "@docs:update"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""

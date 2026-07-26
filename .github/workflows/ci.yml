@@ -53,6 +53,7 @@ jobs:
         with: {composer-options: "--prefer-dist --no-interaction"}
       - run: php artisan migrate --force
       - run: composer validate --strict
+      - run: composer docs:check
       - run: vendor/bin/pint --test
       - run: vendor/bin/phpstan analyse --memory-limit=1G
       - run: php artisan test
