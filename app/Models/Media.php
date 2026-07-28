@@ -4,20 +4,21 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Modules\Tenancy\Contracts\TenantContext;
-use Modules\Tenancy\Models\Concerns\TenantScoped;
+use App\Models\Concerns\HasPublicId;
+use Illuminate\Support\Str;
+use Modules\Stores\Contracts\StoreContext;
+use Modules\Stores\Models\Concerns\StoreScoped;
 use Spatie\MediaLibrary\MediaCollections\Models\Media as BaseMedia;
 
 final class Media extends BaseMedia
 {
-    use HasUuids, TenantScoped;
+    use HasPublicId, StoreScoped;
 
     protected static function booted(): void
     {
         self::creating(function (self $media): void {
-            $media->tenant_id ??= app(TenantContext::class)->require()->getKey();
-            $media->uuid ??= $media->newUniqueId();
+            $media->store_id ??= app(StoreContext::class)->require()->getKey();
+            $media->uuid ??= (string) Str::uuid();
         });
     }
 }

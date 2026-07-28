@@ -4,22 +4,42 @@ declare(strict_types=1);
 
 namespace Modules\Authentication\Models;
 
+use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
-use Modules\Tenancy\Models\Tenant;
+use Modules\Stores\Models\Store;
 
-#[Fillable(['name', 'token', 'abilities', 'tenant_id', 'expires_at', 'metadata'])]
-/** @property string|null $tenant_id @property \Carbon\CarbonImmutable|null $expires_at */
+#[Fillable(['name', 'token', 'abilities', 'store_id', 'expires_at', 'metadata'])]
+/** @property string|null $legacy_id @property int|null $store_id @property \Carbon\CarbonImmutable|null $expires_at */
 final class PersonalAccessToken extends SanctumPersonalAccessToken
 {
-    use HasUuids;
+    use HasPublicId;
 
-    /** @return BelongsTo<Tenant, self> */
-    public function tenant(): BelongsTo
+    public static function findToken($token)
     {
-        return $this->belongsTo(Tenant::class);
+        if (! str_contains((string) $token, '|')) {
+            return parent::findToken($token);
+        }
+
+        [$id, $plainTextToken] = explode('|', (string) $token, 2);
+        $instance = ctype_digit($id)
+            ? self::query()->find($id)
+            : self::query()->where('legacy_id', $id)->first();
+
+        if ($instance === null) {
+            return null;
+        }
+
+        return hash_equals($instance->token, hash('sha256', $plainTextToken))
+            ? $instance
+            : null;
+    }
+
+    /** @return BelongsTo<Store, self> */
+    public function store(): BelongsTo
+    {
+        return $this->belongsTo(Store::class);
     }
 
     protected function casts(): array

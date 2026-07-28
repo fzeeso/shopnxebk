@@ -11,10 +11,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('media', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->foreignUuid('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->id();
+            $table->ulid('public_id')->unique();
+            $table->foreignId('store_id')->constrained('stores')->cascadeOnDelete();
             $table->string('model_type');
-            $table->uuid('model_id');
+            $table->unsignedBigInteger('model_id');
             $table->uuid('uuid')->unique();
             $table->string('collection_name');
             $table->string('name');
@@ -29,7 +30,7 @@ return new class extends Migration
             $table->jsonb('responsive_images');
             $table->unsignedInteger('order_column')->nullable()->index();
             $table->timestampsTz();
-            $table->index(['tenant_id', 'model_type', 'model_id']);
+            $table->index(['store_id', 'model_type', 'model_id']);
         });
     }
 

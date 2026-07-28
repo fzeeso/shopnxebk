@@ -16,6 +16,22 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-28 — Store terminology, bigint keys, public ULIDs, and scoped authorization
+
+- Changed: Replaced the application’s Tenancy module/domain vocabulary with Stores; changed domain primary and foreign keys to bigint; added public ULIDs; unified every staff/merchant identity in `users`; added extendable platform/Store roles and permissions; updated REST, GraphQL, tokens, channels, media paths, tests, and module contracts.
+- Reason: Keep joins and internal queries efficient while exposing non-sequential identifiers, make Store language clear throughout the product, and replace fixed user-type flags with extendable scoped authorization.
+- Data/configuration impact: Added a transactional PostgreSQL migration that preserves legacy users, stores, memberships, tokens, MFA data, and authorization assignments while mapping UUIDs to bigint IDs/ULIDs. `X-Store-ID`, `store_id`, `activeStore`, `viewerStores`, and `/api/v1/auth/stores` are the public contracts.
+- Compatibility or rollout notes: Tenant-named application APIs are intentionally replaced, so clients must move to Store names and ULIDs. Existing bearer credentials remain valid through a private legacy token-key lookup. Third-party Spatie Multitenancy class/config names remain vendor terminology. A database backup is required before production rollout; the migration is intentionally irreversible.
+- Verification: Proved fresh migrations, rehearsed the upgrade against a clone of the existing PostgreSQL database, verified record/role preservation and ULID shape, ran PostgreSQL-backed feature tests, Pint, documentation checks, and PHPStan over `app` and `Modules`.
+
+## 2026-07-28 — TOTP multi-factor authentication
+
+- Changed: Added Fortify-backed TOTP enrollment, QR provisioning, confirmation, encrypted recovery codes, MFA management, and two-stage session and store-token login.
+- Reason: Require a standards-compatible second factor before issuing authenticated sessions or Sanctum bearer tokens for MFA-enabled users.
+- Data/configuration impact: Added nullable MFA columns to `users`, Fortify and its locked dependencies, Redis/cache-backed short-lived challenges, TOTP replay markers, MFA rate limits, and optional challenge tuning environment variables.
+- Compatibility or rollout notes: Existing users remain password-only until they confirm MFA. Google Authenticator, Microsoft Authenticator, Authy mobile, 1Password, and standard TOTP apps are supported. Preserve `APP_KEY`; rotating it requires an explicit MFA re-enrollment plan.
+- Verification: Added PostgreSQL-backed feature coverage for enrollment, encrypted recovery material, session and token challenges, recovery-code consumption, and replay rejection; refreshed generated documentation and ran formatting and documentation checks.
+
 ## 2026-07-26 — Infrastructure-only development Compose
 
 - Changed: Replaced the full application Compose stack with Redis, Meilisearch, Mailpit, and MinIO services.
@@ -42,8 +58,8 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 
 ## 2026-07-22 — Backend foundation
 
-- Changed: Bootstrapped the Laravel 13 API-only backend with Authentication and Tenancy modules, PostgreSQL UUID persistence, REST authentication, GraphQL, Redis/Horizon, search, private media, Reverb, Octane, observability, health endpoints, tests, CI, and architecture documentation.
+- Changed: Bootstrapped the Laravel 13 API-only backend with Authentication and Stores modules, initial PostgreSQL UUID persistence, REST authentication, GraphQL, Redis/Horizon, search, private media, Reverb, Octane, observability, health endpoints, tests, CI, and architecture documentation.
 - Reason: Establish the production-oriented ShopNXE SaaS foundation before commerce modules.
-- Data/configuration impact: Added foundational users, tenants, memberships, tokens, permissions, queue, notification, media, Pulse, and Telescope migrations plus the environment contract.
+- Data/configuration impact: Added foundational users, stores, memberships, tokens, permissions, queue, notification, media, Pulse, and Telescope migrations plus the environment contract.
 - Compatibility or rollout notes: PostgreSQL is mandatory for tests. Commerce modules remain intentionally deferred.
 - Verification: Applied migrations, verified routes, passed Pint, and passed the PostgreSQL-backed test suite.

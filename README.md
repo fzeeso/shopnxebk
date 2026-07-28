@@ -1,6 +1,6 @@
 # shopnxebk
 
-ShopNXE is an API-only Laravel 13 modular monolith for a multi-tenant SaaS commerce platform. It contains no customer or administration frontend. Authentication and tenant context are implemented; commerce modules remain intentionally deferred.
+ShopNXE is an API-only Laravel 13 modular monolith for a multi-store SaaS commerce platform. It contains no customer or administration frontend. Authentication and store context are implemented; commerce modules remain intentionally deferred.
 
 Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. Its [generated system inventory](docs/generated/system-inventory.md) stays synchronized with dependencies, modules, routes, GraphQL operations, migrations, commands, and environment variables.
 
@@ -38,25 +38,25 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 - REST base: `/api/v1`
 - Health: `GET /api/health/live` and `GET /api/health/ready`
 - GraphQL: `POST /graphql`
-- Tenant-scoped requests use `X-Tenant-ID: <tenant UUID>`.
+- Store-scoped requests use `X-Store-ID: <store ULID>`.
 - Every response includes an `X-Request-ID` header. A valid incoming ID is preserved; otherwise one is generated.
 
 Authentication examples (use placeholders only):
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/register -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -d '{"name":"Ada","email":"ada@example.test","password":"StrongPassword!123","password_confirmation":"StrongPassword!123","tenant_name":"Acme","tenant_slug":"acme"}'
+  -d '{"name":"Ada","email":"ada@example.test","password":"StrongPassword!123","password_confirmation":"StrongPassword!123","store_name":"Acme","store_slug":"acme"}'
 
 curl -c cookies.txt -X POST http://localhost:8000/api/v1/auth/login -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -d '{"email":"ada@example.test","password":"StrongPassword!123"}'
 
 curl -X POST http://localhost:8000/api/v1/auth/token -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -d '{"email":"ada@example.test","password":"StrongPassword!123","device_name":"cli","tenant_id":"<tenant-uuid>"}'
+  -d '{"email":"ada@example.test","password":"StrongPassword!123","device_name":"cli","store_id":"<store-ulid>"}'
 
 curl http://localhost:8000/api/v1/auth/me -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 
 curl http://localhost:8000/graphql -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer <token>' -H 'X-Tenant-ID: <tenant-uuid>' -d '{"query":"{ viewer { id email } activeTenant { id slug } }"}'
+  -H 'Authorization: Bearer <token>' -H 'X-Store-ID: <store-ulid>' -d '{"query":"{ viewer { id email } activeStore { id slug } }"}'
 
 curl -X POST http://localhost:8000/api/v1/auth/logout -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
@@ -80,11 +80,11 @@ php artisan test
 
 CI provisions PostgreSQL, Redis, and Meilisearch, then runs the same checks. `composer format` applies Pint.
 
-Internal dashboards, when explicitly enabled, are protected by the platform super-admin attribute and an optional IP allow-list. No application Blade views or public web routes are present.
+Internal dashboards, when explicitly enabled, are protected by the global `Super Admin` role and an optional IP allow-list. No application Blade views or public web routes are present.
 
 ## Modules
 
-`Authentication` owns REST authentication, users, tokens, notifications, and permission models. `Tenancy` owns tenants, memberships, tenant context, and tenant resolution. To add a module, create it with the configured API-only nwidart generator, keep migrations/routes/schema/tests inside the module, expose cross-module contracts or events instead of importing another module's models, and register only the module provider. See `docs/architecture.md`, `docs/modules.md`, and the ADRs for boundaries and security rules.
+`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Stores` owns stores, memberships, store context, and store resolution. Start with the [canonical application context](docs/context.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
 
 ## Package baseline
 

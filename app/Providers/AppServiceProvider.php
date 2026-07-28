@@ -11,13 +11,14 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
+use Laravel\Fortify\Fortify;
 use Laravel\Horizon\Horizon;
 use Laravel\Octane\Events\RequestTerminated;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Sanctum\Sanctum;
 use Modules\Authentication\Models\PersonalAccessToken;
-use Modules\Tenancy\Contracts\TenantContext;
-use Modules\Tenancy\Models\Tenant;
+use Modules\Stores\Contracts\StoreContext;
+use Modules\Stores\Models\Store;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        Fortify::ignoreRoutes();
+
         if (! (bool) config('observability.internal_dashboards_enabled')) {
             Pulse::ignoreRoutes();
         }
@@ -42,27 +45,41 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+        Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {
+            $token = $request->bearerToken();
+            if ($token === null || ! str_contains($token, '|')) {
+                return $token;
+            }
+
+            [$id, $plainTextToken] = explode('|', $token, 2);
+
+            return $plainTextToken !== '' && (ctype_digit($id) || Str::isUuid($id))
+                ? $token
+                : null;
+        });
 
         Model::shouldBeStrict($this->app->isLocal() || $this->app->runningUnitTests());
 
-        Gate::before(fn ($user, string $ability): ?bool => $user->is_platform_admin ? true : null);
+        Gate::before(fn ($user, string $ability): ?bool => $user->isPlatformSuperAdmin() ? true : null);
         Gate::define('viewHorizon', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));
         Gate::define('viewPulse', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));
         Gate::define('viewTelescope', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));
 
         Horizon::auth(fn (Request $request): bool => InternalDashboardAccess::allows($request, $request->user()));
-        Pulse::user(fn ($user) => $user->is_platform_admin ? ['name' => $user->name, 'extra' => $user->email] : null);
+        Pulse::user(fn ($user) => $user->isPlatformSuperAdmin() ? ['name' => $user->name, 'extra' => $user->email] : null);
 
         RateLimiter::for('auth.login', fn (Request $request) => Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('auth.token', fn (Request $request) => Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
+        RateLimiter::for('auth.mfa', fn (Request $request) => Limit::perMinute(5)->by(hash('sha256', (string) $request->input('challenge_token')).'|'.$request->ip()));
+        RateLimiter::for('auth.mfa-management', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('graphql', fn (Request $request) => Limit::perMinute(60)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
         ResetPassword::createUrlUsing(fn ($user, string $token): string => rtrim((string) config('app.frontend_reset_password_url'), '/').'?token='.urlencode($token).'&email='.urlencode($user->getEmailForPasswordReset()));
 
         if (class_exists(RequestTerminated::class)) {
             $this->app['events']->listen(RequestTerminated::class, function (): void {
-                app(TenantContext::class)->clear();
-                Tenant::forgetCurrent();
+                app(StoreContext::class)->clear();
+                Store::forgetCurrent();
                 setPermissionsTeamId(null);
                 auth()->forgetGuards();
                 app()->setLocale((string) config('app.locale'));

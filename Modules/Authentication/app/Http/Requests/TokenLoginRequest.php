@@ -26,7 +26,7 @@ final class TokenLoginRequest extends FormRequest
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'device_name' => ['required', 'string', 'max:120'],
-            'tenant_id' => ['required', 'uuid'],
+            'store_id' => ['required', 'ulid'],
         ];
     }
 }

@@ -17,7 +17,7 @@ final class FoundationTest extends TestCase
     {
         self::assertSame('shopnxebk', config('app.name'));
         self::assertTrue(Module::isEnabled('Authentication'));
-        self::assertTrue(Module::isEnabled('Tenancy'));
+        self::assertTrue(Module::isEnabled('Stores'));
         self::assertFalse(Route::has('welcome'));
         self::assertDirectoryDoesNotExist(resource_path('views'));
 

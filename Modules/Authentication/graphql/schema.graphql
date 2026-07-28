@@ -1,10 +1,10 @@
 extend type Query {
     viewer: User! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Authentication\\GraphQL\\Queries\\Viewer")
-    viewerTenants: [Tenant!]! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Authentication\\GraphQL\\Queries\\ViewerTenants")
+    viewerStores: [Store!]! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Authentication\\GraphQL\\Queries\\ViewerStores")
 }
 
 type User {
-    id: ID!
+    id: ID! @rename(attribute: "public_id")
     name: String!
     email: String!
     emailVerifiedAt: DateTime @rename(attribute: "email_verified_at")

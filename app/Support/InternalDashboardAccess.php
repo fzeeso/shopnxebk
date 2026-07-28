@@ -11,7 +11,7 @@ final class InternalDashboardAccess
 {
     public static function allows(Request $request, ?User $user): bool
     {
-        if (! (bool) config('observability.internal_dashboards_enabled') || $user?->is_platform_admin !== true) {
+        if (! (bool) config('observability.internal_dashboards_enabled') || ! $user?->isPlatformSuperAdmin()) {
             return false;
         }
 

@@ -1,0 +1,1 @@
+{"name":"shopnxe/stores","type":"laravel-module","autoload":{"psr-4":{"Modules\\Stores\\":"app/"}}}

@@ -49,7 +49,7 @@ return [
         'middleware' => [
             'api',
             'throttle:graphql',
-            'tenant.optional',
+            'store.optional',
             // Ensures the request is not vulnerable to cross-site request forgery.
             // Nuwave\Lighthouse\Http\Middleware\EnsureXHR::class,
 
@@ -112,7 +112,7 @@ return [
         /*
          * Setting to true enables schema caching.
          */
-        'enable' => env('LIGHTHOUSE_SCHEMA_CACHE_ENABLE', env('APP_ENV') !== 'local'),
+        'enable' => env('LIGHTHOUSE_SCHEMA_CACHE_ENABLE', env('APP_ENV') === 'production'),
 
         /*
          * File path to store the lighthouse schema.

@@ -2,4 +2,4 @@
 
 Status: accepted
 
-Phase 1 stores all tenants in one PostgreSQL schema with UUID foreign keys and a request-scoped tenant context. It minimizes operational overhead while policies, scopes, token checks, and tests enforce isolation. RLS/database-per-tenant can be evaluated later with Octane/connection-pooling integration evidence.
+Phase 1 stores all stores in one PostgreSQL schema with bigint primary/foreign keys, public ULIDs, and a request-scoped Store context. It minimizes operational overhead while policies, scopes, token checks, and tests enforce isolation. RLS/database-per-store can be evaluated later with Octane/connection-pooling integration evidence.

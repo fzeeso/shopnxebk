@@ -2,7 +2,7 @@
 
 This is the working guide for developers extending the ShopNXE backend. It explains what is installed, why it exists, how information moves through the system, which process executes each kind of work, and how to make changes safely.
 
-Exact package versions, enabled modules, routes, GraphQL operations, migrations, commands, and environment-variable names are maintained in the [generated system inventory](generated/system-inventory.md). Architectural decisions are recorded in the [ADRs](adr/001-modular-monolith.md), and meaningful behavioral changes belong in the [development log](development-log.md).
+The [canonical application context](context.md) defines domain language, identifiers, authorization, and module boundaries. Exact package versions, enabled modules, routes, GraphQL operations, migrations, commands, and environment-variable names are maintained in the [generated system inventory](generated/system-inventory.md). Architectural decisions are recorded in the [ADRs](adr/001-modular-monolith.md), and meaningful behavioral changes belong in the [development log](development-log.md).
 
 ## 1. System shape
 
@@ -13,7 +13,7 @@ flowchart LR
     Client["Admin SPA, mobile client, CLI, or integration"]
     HTTP["Laravel HTTP API"]
     Auth["Authentication module"]
-    Tenant["Tenancy module"]
+    Store["Stores module"]
     GraphQL["Lighthouse GraphQL"]
     DB[("PostgreSQL")]
     Redis[("Redis")]
@@ -25,10 +25,10 @@ flowchart LR
 
     Client -->|"REST / GraphQL"| HTTP
     HTTP --> Auth
-    HTTP --> Tenant
+    HTTP --> Store
     HTTP --> GraphQL
     Auth --> DB
-    Tenant --> DB
+    Store --> DB
     GraphQL --> DB
     HTTP --> Redis
     HTTP --> Files
@@ -51,13 +51,14 @@ There is no storefront or administration frontend here. Responses are JSON, Grap
 | Laravel | HTTP, validation, Eloquent, events, notifications, queues, cache, and service container | `bootstrap/app.php`, `config/*.php` |
 | Nwidart Modules | Finds enabled modules and boots their providers | `config/modules.php`, `modules_statuses.json`, `Modules/*/module.json` |
 | Sanctum | First-party cookie authentication and hashed bearer tokens | `config/sanctum.php`, custom `PersonalAccessToken` |
+| Fortify | TOTP secrets, QR provisioning, recovery codes, and MFA lifecycle actions | `config/fortify.php`, custom JSON MFA controllers |
 | Lighthouse | `/graphql`, schema loading, guards, query limits, and errors | `config/lighthouse.php`, `graphql/schema.graphql` |
-| Spatie Permission | Tenant-specific roles and permissions using `tenant_id` as team key | `config/permission.php` |
-| Spatie Multitenancy | Current tenant lifecycle and tenant-aware queues | `config/multitenancy.php` |
+| Spatie Permission | Store-specific roles and permissions using `store_id` as team key | `config/permission.php` |
+| Spatie Multitenancy | Current store lifecycle and store-aware queues | `config/multitenancy.php` |
 | Horizon and Redis | Background jobs, retries, cache, sessions, and rate limits | `config/queue.php`, `config/horizon.php` |
-| Scout and Meilisearch | Tenant-filtered search; database driver is the local fallback | `config/scout.php` |
-| Media Library and Flysystem | Media metadata, tenant paths, conversions, local/S3 storage | `config/media-library.php`, `config/filesystems.php` |
-| Reverb | Private tenant/user real-time channels | `config/reverb.php`, `routes/channels.php` |
+| Scout and Meilisearch | Store-filtered search; database driver is the local fallback | `config/scout.php` |
+| Media Library and Flysystem | Media metadata, store paths, conversions, local/S3 storage | `config/media-library.php`, `config/filesystems.php` |
+| Reverb | Private store/user real-time channels | `config/reverb.php`, `routes/channels.php` |
 | Octane and FrankenPHP | Production-style long-running PHP workers | `config/octane.php`, `Dockerfile` |
 | Pulse and Telescope | Performance visibility and local diagnostics | `config/pulse.php`, `config/telescope.php`, `config/observability.php` |
 
@@ -69,9 +70,17 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Authentication/` owns users, credentials, sessions, Sanctum tokens, password reset, email verification, resources, and authentication routes.
 
-`Modules/Tenancy/` owns tenants, memberships, tenant context, tenant resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, memberships, store context, store resolution, policies, cache keys, and provisioning.
 
 Each future business module owns its migrations, models, Actions, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
+
+### Identifier and identity rules
+
+All human and staff identities use the global `users` table. Do not create separate admin, owner, manager, or customer-login tables merely to represent a role.
+
+Domain entities use bigint `id` for primary keys, bigint `*_id` foreign keys for internal joins, and ULID `public_id` for REST, GraphQL, URLs, public events, and file paths. Middleware and actions resolve a public ULID once, then keep the internal bigint through the database flow. API resources and GraphQL fields serialize `public_id` as `id`; they must not expose bigint keys.
+
+Pure relationship/package tables and protocol identifiers follow the documented exceptions in [application context](context.md). New business entity tables require both `id` and `public_id`.
 
 ## 4. Application boot sequence
 
@@ -80,7 +89,7 @@ Each future business module owns its migrations, models, Actions, policies, rout
 3. `bootstrap/providers.php` registers global providers.
 4. Nwidart reads `modules_statuses.json` and registers providers declared by enabled `module.json` files.
 5. `AuthenticationServiceProvider` loads authentication routes and migrations.
-6. `TenancyServiceProvider` binds request-scoped tenant context, tenant provisioning, policies, migrations, and queue context hooks.
+6. `StoresServiceProvider` binds request-scoped store context, store provisioning, policies, migrations, and queue context hooks.
 7. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
 8. Laravel accepts the request and runs the middleware pipeline.
 
@@ -100,14 +109,14 @@ flowchart TD
     RequestId["Assign or validate X-Request-ID"]
     Api["API middleware"]
     Auth["Sanctum authentication when required"]
-    Resolve["Resolve X-Tenant-ID"]
-    Member["Validate membership and token tenant"]
-    Team["Set permission team to tenant_id"]
+    Resolve["Resolve X-Store-ID"]
+    Member["Validate membership and token store"]
+    Team["Set permission team to store_id"]
     Handler["Form Request + controller or GraphQL resolver"]
     Action["Typed Action"]
     Data["Database / cache / queue / search / storage"]
     Resource["API Resource or GraphQL result"]
-    Cleanup["Clear tenant, team, guards, locale, logs"]
+    Cleanup["Clear store, team, guards, locale, logs"]
     Response["JSON with X-Request-ID"]
 
     Request --> RequestId --> Api --> Auth --> Resolve --> Member --> Team --> Handler --> Action --> Data --> Resource --> Cleanup --> Response
@@ -115,11 +124,11 @@ flowchart TD
 
 `AssignRequestId` accepts a safe incoming request ID or creates a UUIDv7, then adds it to logs and the response.
 
-`ResolveTenant` validates `X-Tenant-ID`, loads and activates the tenant, and places it in request-scoped `TenantContext`.
+`ResolveStore` validates `X-Store-ID`, loads and activates the store, and places it in request-scoped `StoreContext`.
 
-`EnsureTenantMembership` requires an active membership, rejects a bearer token issued for another tenant, activates the Spatie permission team, and adds tenant/user IDs to logs.
+`EnsureStoreMembership` requires an active membership, rejects a bearer token issued for another store, activates the Spatie permission team, and adds store/user IDs to logs.
 
-`ClearRequestContext` executes in a `finally` block. Tenant state, permission-team state, guards, locale, and log context are cleared even after an exception. Octane repeats cleanup after worker termination.
+`ClearRequestContext` executes in a `finally` block. Store state, permission-team state, guards, locale, and log context are cleared even after an exception. Octane repeats cleanup after worker termination.
 
 ## 6. Registration execution
 
@@ -129,7 +138,7 @@ sequenceDiagram
     participant Request as RegisterRequest
     participant Controller as AuthController
     participant Register as RegisterUser
-    participant Provision as TenantProvisioner
+    participant Provision as StoreProvisioner
     participant DB as PostgreSQL
     participant Queue as Redis queue
 
@@ -138,33 +147,127 @@ sequenceDiagram
     Request->>Controller: Validated data
     Controller->>Register: handle(data)
     Register->>DB: Begin transaction and create user
-    Register->>Provision: provision(user, tenant name, slug)
-    Provision->>DB: Create tenant and active owner membership
-    Provision->>DB: Create roles/permissions and assign owner
+    Register->>Provision: provision(user, store name, slug)
+    Provision->>DB: Create store and active owner membership
+    Provision->>DB: Ensure authorization catalog and assign Owner
     Register->>DB: Commit
     Register-->>Queue: Events and verification after commit
-    Register-->>Controller: User and tenant
+    Register-->>Controller: User and store
     Controller-->>Client: 201 JSON
 ```
 
 The transaction prevents partial registration. External side effects run after commit. Password hashes and plain passwords never appear in resources.
 
-## 7. Authentication and tenant selection
+## 7. Authentication and store selection
 
 ### Stateful browser login
 
-The browser obtains `/sanctum/csrf-cookie`, posts credentials to `/api/v1/auth/login`, and sends cookies with credentialed CORS. Laravel authenticates with the `web` session guard and regenerates the session. The browser adds `X-Tenant-ID` on tenant-required operations.
+The browser obtains `/sanctum/csrf-cookie`, posts credentials to `/api/v1/auth/login`, and sends cookies with credentialed CORS. Without MFA, Laravel authenticates with the `web` session guard and regenerates the session. With MFA enabled, login returns `202` and a short-lived challenge without authenticating; completing `/api/v1/auth/mfa/challenge` creates and regenerates the session. The browser adds `X-Store-ID` on store-required operations.
 
 ### Bearer-token login
 
-1. Post email, password, device name, and tenant UUID to `/api/v1/auth/token`.
-2. `IssueTenantToken` verifies credentials and active membership.
-3. Sanctum generates a token, stores only its hash, and records tenant, abilities, expiry, and metadata.
-4. The plain token is returned once.
-5. Later requests send `Authorization: Bearer …` and `X-Tenant-ID: …`.
-6. Middleware rejects a token when its tenant differs from the selected tenant.
+1. Post email, password, device name, and Store ULID to `/api/v1/auth/token`.
+2. `IssueStoreToken` resolves the Store ULID, verifies credentials and active membership, and retains the internal Store ID.
+3. When MFA is disabled, Sanctum generates a token immediately. When MFA is enabled, the response is `202` with `mfa_required`, a short-lived `challenge_token`, and no bearer token.
+4. The client posts the challenge token plus either a six-digit TOTP code or a recovery code to `/api/v1/auth/mfa/challenge`; only then is the store token issued and returned once.
+5. Later requests send `Authorization: Bearer …` and `X-Store-ID: …`.
+6. Middleware rejects a token when its store differs from the selected store. Issued-token metadata records whether MFA was verified.
 
-Authorization has three layers: Sanctum abilities, tenant permissions, and model policies. Passing one never bypasses the others.
+Authorization has four layers: Sanctum authentication/abilities, active Store membership, scoped Spatie permissions, and model policies. Passing one never bypasses the others. Platform roles (`Super Admin`, `Support`, `Billing`) are evaluated without a Store team; Store roles (`Owner`, `Manager`, `Sales`, `Inventory`) are assigned under an internal Store team. The catalog is extendable.
+
+### TOTP multi-factor authentication
+
+MFA uses standard time-based one-time passwords and is compatible with Google Authenticator, Microsoft Authenticator, Authy mobile, 1Password, and other RFC 6238 applications. Provisioning returns both an `otpauth://` URI and an SVG QR code. Fortify's generated secret and recovery-code list are encrypted with `APP_KEY`; `two_factor_confirmed_at` prevents an unfinished setup from locking the user out.
+
+Authenticated management routes are:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/auth/mfa` | Return enabled, pending-confirmation, and confirmation-time status. |
+| `POST` | `/api/v1/auth/mfa/setup` | Require `current_password`, replace any pending setup, and return the secret, URI, and QR SVG. |
+| `POST` | `/api/v1/auth/mfa/confirm` | Require `current_password` plus the first six-digit code and return eight recovery codes once setup is confirmed. |
+| `POST` | `/api/v1/auth/mfa/recovery-codes` | Require `current_password`, invalidate the old recovery-code set, and return a replacement set. |
+| `DELETE` | `/api/v1/auth/mfa` | Require `current_password` and remove the secret, recovery codes, and confirmation timestamp. |
+
+Both stateful login and store-token login use the public `POST /api/v1/auth/mfa/challenge` completion endpoint. A challenge lasts five minutes by default, is stored in the configured cache rather than the database, allows five failed code attempts, is rate-limited, is bound to the current password hash and MFA secret, and is consumed after success. Password reset or an MFA-secret change therefore invalidates outstanding challenges. Successful TOTP timesteps are cached per secret so the same code cannot be replayed.
+
+Session clients must remain Sanctum-stateful for both login requests: first fetch `/sanctum/csrf-cookie`, then send the session cookie, CSRF header, and an allowed `Origin` while posting credentials and the MFA challenge. API and CLI clients use the bearer-token flow.
+
+Keep `APP_KEY` stable and backed up. Changing it makes existing TOTP secrets and recovery-code lists undecryptable. Redis should be the normal local and production cache because MFA challenges and replay markers are short-lived security state.
+
+### Test TOTP MFA locally
+
+Apply the migration, ensure Redis is running, and start Laravel:
+
+```powershell
+docker compose up -d redis
+& "C:\xampp\php\php.exe" artisan migrate
+& "C:\xampp\php\php.exe" artisan serve --host=127.0.0.1 --port=8000
+```
+
+The following PowerShell flow registers a disposable store owner, obtains the initial password-only token, enables MFA, saves the returned QR SVG, confirms the first code, and proves that the next token login requires MFA:
+
+```powershell
+$baseUrl = 'http://127.0.0.1:8000'
+$stamp = Get-Date -Format 'yyyyMMddHHmmss'
+$email = "mfa-local-$stamp@example.test"
+$password = 'StrongPassword!123'
+
+$registration = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/register" `
+    -ContentType 'application/json' `
+    -Body (@{
+        name = 'MFA Local Tester'
+        email = $email
+        password = $password
+        password_confirmation = $password
+        store_name = 'MFA Local Shop'
+        store_slug = "mfa-local-$stamp"
+    } | ConvertTo-Json)
+
+$storeId = $registration.store.id
+$loginPayload = @{
+    email = $email
+    password = $password
+    device_name = 'powershell-setup'
+    store_id = $storeId
+}
+
+$initialLogin = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/token" `
+    -ContentType 'application/json' -Body ($loginPayload | ConvertTo-Json)
+$headers = @{
+    Accept = 'application/json'
+    Authorization = "Bearer $($initialLogin.token)"
+}
+
+$setup = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/mfa/setup" `
+    -Headers $headers -ContentType 'application/json' `
+    -Body (@{ current_password = $password } | ConvertTo-Json)
+$setup.qr_code_svg | Set-Content -Path .\mfa-qr.svg -Encoding utf8
+Start-Process .\mfa-qr.svg
+
+# Scan mfa-qr.svg with a TOTP app, then enter the displayed six-digit code.
+$firstCode = Read-Host 'Authenticator code'
+$confirmation = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/mfa/confirm" `
+    -Headers $headers -ContentType 'application/json' `
+    -Body (@{ current_password = $password; code = $firstCode } | ConvertTo-Json)
+$confirmation.recovery_codes
+
+# Store the displayed recovery codes safely. A fresh login now returns a challenge, not a token.
+$challenge = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/token" `
+    -ContentType 'application/json' -Body ($loginPayload | ConvertTo-Json)
+$challenge.mfa_required
+
+$loginCode = Read-Host 'Next authenticator code'
+$completedLogin = Invoke-RestMethod -Method Post -Uri "$baseUrl/api/v1/auth/mfa/challenge" `
+    -ContentType 'application/json' `
+    -Body (@{
+        challenge_token = $challenge.challenge_token
+        code = $loginCode
+    } | ConvertTo-Json)
+$completedLogin.token
+```
+
+Wait for the next 30-second code after enrollment confirmation because successful TOTP values are intentionally single-use. To test account recovery, create another login challenge and submit one value from `$confirmation.recovery_codes` as `recovery_code` instead of `code`; submitting that recovery code again must fail.
 
 ## 8. GraphQL execution
 
@@ -172,13 +275,13 @@ Authorization has three layers: Sanctum abilities, tenant permissions, and model
 
 1. API middleware creates a request ID.
 2. The GraphQL rate limiter keys by user or IP.
-3. Optional tenant middleware resolves the tenant header when present.
+3. Optional store middleware resolves the store header when present.
 4. Lighthouse attempts Sanctum authentication.
 5. Public fields execute without authentication only when explicitly public.
 6. Protected fields use `@guard(with: ["sanctum"])`.
-7. Tenant operations require `TenantContext` and authorization.
+7. Store operations require `StoreContext` and authorization.
 8. Lighthouse applies depth, complexity, pagination, introspection, and error policies.
-9. Resolvers call typed Actions; tenant-sensitive mutations never use automatic create/update/delete directives.
+9. Resolvers call typed Actions; store-sensitive mutations never use automatic create/update/delete directives.
 
 After schema changes:
 
@@ -186,7 +289,7 @@ After schema changes:
 & "C:\xampp\php\php.exe" artisan lighthouse:validate-schema
 ```
 
-Add success, validation, authentication, authorization, and cross-tenant tests.
+Add success, validation, authentication, authorization, and cross-store tests.
 
 ## 9. Queue execution
 
@@ -196,19 +299,19 @@ sequenceDiagram
     participant DB as PostgreSQL
     participant Redis
     participant Horizon
-    participant Tenant as TenantContext
+    participant Store as StoreContext
     participant Job
 
     HTTP->>DB: Commit transaction
-    HTTP-->>Redis: Dispatch after commit with tenant metadata
+    HTTP-->>Redis: Dispatch after commit with store metadata
     Horizon->>Redis: Reserve job
-    Horizon->>Tenant: Restore tenant and permission team
+    Horizon->>Store: Restore store and permission team
     Horizon->>Job: Execute idempotent work
     Job->>DB: Persist result
-    Horizon->>Tenant: Clear after success or exception
+    Horizon->>Store: Clear after success or exception
 ```
 
-Use named queues such as `notifications`, `webhooks`, `exports`, `media`, `search`, and `billing`. Tenant-aware jobs inherit the active Spatie tenant. Global jobs use the global-job marker. Jobs need explicit retries/timeouts, idempotency, small serialized payloads, and no dependence on previous worker state.
+Use named queues such as `notifications`, `webhooks`, `exports`, `media`, `search`, and `billing`. Store-aware jobs inherit the active Spatie store. Global jobs use the global-job marker. Jobs need explicit retries/timeouts, idempotency, small serialized payloads, and no dependence on previous worker state.
 
 ```powershell
 & "C:\xampp\php\php.exe" artisan horizon
@@ -216,13 +319,13 @@ Use named queues such as `notifications`, `webhooks`, `exports`, `media`, `searc
 
 ## 10. Cache, search, storage, and real-time flow
 
-Tenant cache keys include a tenant prefix, preventing collisions.
+Store cache keys include a store prefix, preventing collisions.
 
-Future searchable documents include `tenant_id`; every search applies the active tenant filter. Meilisearch is a projection, while PostgreSQL remains authoritative.
+Future searchable documents include `store_id`; every search applies the active store filter. Meilisearch is a projection, while PostgreSQL remains authoritative.
 
-Media uses UUID morphs and tenant-prefixed paths. Development uses private local storage; staging and production use private S3-compatible storage and temporary URLs.
+Media uses bigint morph keys, a package UUID where Media Library requires it, and public Store/media ULIDs in private paths. Development uses private local storage; staging and production use private S3-compatible storage and temporary URLs.
 
-Reverb authorizes tenant channels through `/api/broadcasting/auth`. It checks the user, active tenant, membership, token tenant, and `tenant.access`. Events carry identifiers and small summaries rather than full models.
+Reverb authorizes Store channels through `/api/broadcasting/auth`. It checks the user, active Store, membership, token Store, and `access store`. Public channel names use ULIDs. Events carry public identifiers and small summaries rather than full models.
 
 ## 11. Development execution
 
@@ -272,28 +375,29 @@ Never use `migrate:fresh` against a valuable database.
 1. Put the route in the owning module.
 2. Use a Form Request for normalization, validation, and authorization.
 3. Keep the controller limited to an Action and API Resource.
-4. Put transactions, policies, tenant enforcement, and events in the Action.
-5. Test success, validation, unauthenticated, unauthorized, and cross-tenant behavior.
+4. Put transactions, policies, store enforcement, and events in the Action.
+5. Test success, validation, unauthenticated, unauthorized, and cross-store behavior.
 6. Update OpenAPI and the development log.
 
 ### GraphQL field
 
 1. Add it to the owning module schema.
 2. Mark authentication explicitly.
-3. Require tenant context for tenant-owned data.
+3. Require store context for store-owned data.
 4. Use an explicit resolver and typed Action for mutations.
 5. Restrict filters/order columns and avoid N+1 queries.
-6. Test validation, authorization, tenant isolation, and success.
+6. Test validation, authorization, store isolation, and success.
 
 ### Database change
 
 1. Put the migration in the owning module.
-2. Use PostgreSQL UUID foreign keys and timezone timestamps.
-3. Add indexed `tenant_id` to tenant-owned records.
-4. Include `tenant_id` in tenant-local uniqueness constraints.
-5. Use integer minor units plus ISO currency for future money.
-6. Test against PostgreSQL, never SQLite.
-7. Update factories, resources, policies, API contracts, and the log.
+2. Add bigint `id`, unique ULID `public_id`, and timezone timestamps to a domain entity.
+3. Use bigint foreign keys; add indexed non-null bigint `store_id` to Store-owned records.
+4. Include `store_id` in Store-local uniqueness constraints.
+5. Return `public_id` as API/GraphQL `id`; never expose the bigint key.
+6. Use integer minor units plus ISO currency for future money.
+7. Test against PostgreSQL, never SQLite.
+8. Update factories, resources, policies, API contracts, affected module/communication docs, and the log.
 
 ### New module
 
@@ -315,7 +419,7 @@ composer analyse
 & "C:\xampp\php\php.exe" artisan test
 ```
 
-Then add a concise entry to `docs/development-log.md`, update the relevant narrative document, confirm no secrets are tracked, and recheck tenant isolation/context cleanup.
+Then add a concise entry to `docs/development-log.md`, update the relevant module and directional communication documents, confirm no secrets are tracked, and recheck Store isolation/context cleanup.
 
 `composer docs:update` regenerates factual inventory. Composer also runs it after autoload dumps. CI runs `composer docs:check` and rejects stale inventory.
 
@@ -326,7 +430,7 @@ Automation cannot infer why a business decision was made. That part remains a sh
 1. Find `X-Request-ID` in response and logs.
 2. Check route registration.
 3. Check Sanctum guard and abilities.
-4. Check tenant header, membership, token tenant, and permission team.
+4. Check store header, membership, token store, and permission team.
 5. Check validation and policies.
 6. Check migrations and PostgreSQL constraints.
 7. Check Redis, failed jobs, and Horizon.
@@ -337,9 +441,14 @@ Automation cannot infer why a business decision was made. That part remains a sh
 ## 15. Related documentation
 
 - [Architecture](architecture.md)
+- [Canonical application context](context.md)
+- [Authorization](authorization.md)
 - [Module boundaries](modules.md)
+- [Authentication module](modules/authentication.md)
+- [Stores module](modules/stores.md)
+- [Module communication contracts](module-communication/)
 - [Authentication](authentication.md)
-- [Tenancy](tenancy.md)
+- [Stores](stores.md)
 - [GraphQL](graphql.md)
 - [REST API](rest-api.md)
 - [Local development](local-development.md)

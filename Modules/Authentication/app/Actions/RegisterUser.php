@@ -8,24 +8,24 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\DB;
 use Modules\Authentication\Data\RegistrationResult;
 use Modules\Authentication\Models\User;
-use Modules\Tenancy\Contracts\TenantProvisioner;
+use Modules\Stores\Contracts\StoreProvisioner;
 
 final readonly class RegisterUser
 {
-    public function __construct(private TenantProvisioner $tenantProvisioner) {}
+    public function __construct(private StoreProvisioner $storeProvisioner) {}
 
-    /** @param array{name: string, email: string, password: string, tenant_name: string, tenant_slug: string} $data */
+    /** @param array{name: string, email: string, password: string, store_name: string, store_slug: string} $data */
     public function handle(array $data): RegistrationResult
     {
         return DB::transaction(function () use ($data): RegistrationResult {
             $user = User::query()->create(['name' => $data['name'], 'email' => $data['email'], 'password' => $data['password']]);
-            $tenant = $this->tenantProvisioner->provision($user, $data['tenant_name'], $data['tenant_slug']);
+            $store = $this->storeProvisioner->provision($user, $data['store_name'], $data['store_slug']);
             DB::afterCommit(function () use ($user): void {
                 event(new Registered($user));
                 $user->sendEmailVerificationNotification();
             });
 
-            return new RegistrationResult($user, $tenant);
+            return new RegistrationResult($user, $store);
         });
     }
 }

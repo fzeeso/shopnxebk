@@ -18,9 +18,9 @@ final class CreateTokenRequest extends FormRequest
     {
         return [
             'device_name' => ['required', 'string', 'max:120'],
-            'tenant_id' => ['nullable', 'uuid'],
+            'store_id' => ['nullable', 'ulid'],
             'abilities' => ['sometimes', 'array', 'max:20'],
-            'abilities.*' => ['string', 'in:account:read,tenant:access,files:write,exports:write'],
+            'abilities.*' => ['string', 'in:account:read,store:access,files:write,exports:write'],
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
     }

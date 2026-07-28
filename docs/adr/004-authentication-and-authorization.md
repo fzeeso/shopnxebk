@@ -2,4 +2,4 @@
 
 Status: accepted
 
-Sanctum provides stateful cookies and tenant-scoped bearer tokens without OAuth refresh tokens. Authorization is layered across token abilities, Spatie teams/permissions, and Laravel policies, with an explicit global platform-admin gate.
+Sanctum provides stateful cookies and Store-scoped bearer tokens without OAuth refresh tokens. Authorization is layered across token abilities, active membership, Spatie teams/permissions, and Laravel policies. The global `Super Admin` role is the only Gate bypass; platform and Store roles are extendable catalog data rather than boolean user types.

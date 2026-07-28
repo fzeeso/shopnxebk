@@ -9,6 +9,7 @@
         "php": "^8.4",
         "http-interop/http-factory-guzzle": "^1.2",
         "laravel/framework": "^13.8",
+        "laravel/fortify": "^1.37",
         "laravel/horizon": "^5.48",
         "laravel/octane": "^2.18",
         "laravel/pulse": "^1.7",
@@ -41,7 +42,7 @@
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
             "Modules\\Authentication\\": "Modules/Authentication/app/",
-            "Modules\\Tenancy\\": "Modules/Tenancy/app/"
+            "Modules\\Stores\\": "Modules/Stores/app/"
         }
     },
     "autoload-dev": {
@@ -49,7 +50,7 @@
             "Tests\\": "tests/",
             "Modules\\Authentication\\Database\\Factories\\": "Modules/Authentication/database/factories/",
             "Modules\\Authentication\\Database\\Seeders\\": "Modules/Authentication/database/seeders/",
-            "Modules\\Tenancy\\Database\\Factories\\": "Modules/Tenancy/database/factories/"
+            "Modules\\Stores\\Database\\Factories\\": "Modules/Stores/database/factories/"
         }
     },
     "scripts": {
@@ -63,7 +64,7 @@
             "Composer\\Config::disableProcessTimeout",
             "@php artisan serve"
         ],
-        "analyse": "phpstan analyse --memory-limit=1G",
+        "analyse": "phpstan analyse app Modules --memory-limit=1G",
         "docs:update": "@php scripts/update-developer-guide.php",
         "docs:check": "@php scripts/update-developer-guide.php --check",
         "format": "pint",

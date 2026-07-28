@@ -23,14 +23,14 @@ paths:
         '503': {description: A required dependency is unavailable}
   /api/v1/auth/register:
     post:
-      summary: Register a user and first tenant
+      summary: Register a user and first store
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/RegisterRequest'}
       responses:
-        '201': {description: User and tenant created}
+        '201': {description: User and store created}
         '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/auth/login:
     post:
@@ -51,19 +51,19 @@ paths:
         '429': {description: Rate limited}
   /api/v1/auth/token:
     post:
-      summary: Issue a tenant-scoped bearer token
+      summary: Issue a store-scoped bearer token
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, password, device_name, tenant_id]
+              required: [email, password, device_name, store_id]
               properties:
                 email: {type: string, format: email}
                 password: {type: string, format: password}
                 device_name: {type: string, maxLength: 255}
-                tenant_id: {type: string, format: uuid}
+                store_id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$', description: Public Store ULID}
       responses:
         '200': {description: Plain token returned once}
         '401': {$ref: '#/components/responses/Unauthenticated'}
@@ -82,12 +82,12 @@ paths:
       responses:
         '200': {description: Logged out}
         '401': {$ref: '#/components/responses/Unauthenticated'}
-  /api/v1/auth/tenants:
+  /api/v1/auth/stores:
     get:
       security: [{sanctum: []}]
       summary: List active memberships
       responses:
-        '200': {description: Tenant resources}
+        '200': {description: Store resources}
         '401': {$ref: '#/components/responses/Unauthenticated'}
   /api/v1/auth/forgot-password:
     post:
@@ -105,7 +105,7 @@ paths:
     get:
       summary: Verify a signed email link
       parameters:
-        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: id, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
         - {name: hash, in: path, required: true, schema: {type: string}}
       responses:
         '200': {description: Email verified}
@@ -128,14 +128,14 @@ components:
         checks: {type: object, additionalProperties: {type: string}}
     RegisterRequest:
       type: object
-      required: [name, email, password, password_confirmation, tenant_name, tenant_slug]
+      required: [name, email, password, password_confirmation, store_name, store_slug]
       properties:
         name: {type: string, maxLength: 255}
         email: {type: string, format: email}
         password: {type: string, format: password, minLength: 12}
         password_confirmation: {type: string, format: password}
-        tenant_name: {type: string, maxLength: 255}
-        tenant_slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+        store_name: {type: string, maxLength: 255}
+        store_slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
   responses:
     Unauthenticated:
       description: Authentication required

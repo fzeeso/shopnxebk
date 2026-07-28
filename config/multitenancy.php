@@ -5,8 +5,8 @@ use Illuminate\Events\CallQueuedListener;
 use Illuminate\Mail\SendQueuedMailable;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Queue\CallQueuedClosure;
-use Modules\Tenancy\Models\Tenant;
-use Modules\Tenancy\TenantFinder\HeaderTenantFinder;
+use Modules\Stores\Models\Store;
+use Modules\Stores\StoreFinder\HeaderStoreFinder;
 use Spatie\Multitenancy\Actions\ForgetCurrentTenantAction;
 use Spatie\Multitenancy\Actions\MakeQueueTenantAwareAction;
 use Spatie\Multitenancy\Actions\MakeTenantCurrentAction;
@@ -22,13 +22,13 @@ return [
      * This class should extend `Spatie\Multitenancy\TenantFinder\TenantFinder`
      *
      */
-    'tenant_finder' => HeaderTenantFinder::class,
+    'tenant_finder' => HeaderStoreFinder::class,
 
     /*
      * These fields are used by tenant:artisan command to match one or more tenant.
      */
     'tenant_artisan_search_fields' => [
-        'id',
+        'public_id',
     ],
 
     /*
@@ -48,7 +48,7 @@ return [
      * It must  extend `Spatie\Multitenancy\Models\Tenant::class` or
      * implement `Spatie\Multitenancy\Contracts\IsTenant::class` interface
      */
-    'tenant_model' => Tenant::class,
+    'tenant_model' => Store::class,
 
     /*
      * If there is a current tenant when dispatching a job, the id of the current tenant
@@ -72,12 +72,12 @@ return [
     /*
      * This key will be used to associate the current tenant in the context
      */
-    'current_tenant_context_key' => 'tenantId',
+    'current_tenant_context_key' => 'storeId',
 
     /*
      * This key will be used to bind the current tenant in the container.
      */
-    'current_tenant_container_key' => 'currentTenant',
+    'current_tenant_container_key' => 'currentStore',
 
     /*
      * Set it to `true` if you like to cache the tenant(s) routes

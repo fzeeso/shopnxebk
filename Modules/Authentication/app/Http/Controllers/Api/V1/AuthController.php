@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use Modules\Authentication\Actions\IssueTenantToken;
+use Modules\Authentication\Actions\IssueStoreToken;
 use Modules\Authentication\Actions\RegisterUser;
 use Modules\Authentication\Http\Requests\CreateTokenRequest;
 use Modules\Authentication\Http\Requests\ForgotPasswordRequest;
@@ -22,10 +22,12 @@ use Modules\Authentication\Http\Requests\LoginRequest;
 use Modules\Authentication\Http\Requests\RegisterRequest;
 use Modules\Authentication\Http\Requests\ResetPasswordRequest;
 use Modules\Authentication\Http\Requests\TokenLoginRequest;
+use Modules\Authentication\Http\Resources\PersonalAccessTokenResource;
 use Modules\Authentication\Http\Resources\UserResource;
 use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Authentication\Models\User;
-use Modules\Tenancy\Http\Resources\TenantResource;
+use Modules\Authentication\Support\MfaChallengeStore;
+use Modules\Stores\Http\Resources\StoreResource;
 
 final class AuthController extends Controller
 {
@@ -33,26 +35,63 @@ final class AuthController extends Controller
     {
         $result = $action->handle($request->validated());
 
-        return response()->json(['user' => new UserResource($result->user), 'tenant' => new TenantResource($result->tenant)], 201);
+        return response()->json(['user' => new UserResource($result->user), 'store' => new StoreResource($result->store)], 201);
     }
 
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request, MfaChallengeStore $challenges): JsonResponse
     {
-        $credentials = ['email' => Str::lower($request->string('email')->toString()), 'password' => $request->string('password')->toString()];
-        if (! Auth::guard('web')->attempt($credentials)) {
+        $email = Str::lower($request->string('email')->toString());
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user === null || ! Hash::check($request->string('password')->toString(), $user->password)) {
             throw ValidationException::withMessages(['email' => ['The provided credentials are invalid.']]);
         }
 
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return response()->json([
+                'mfa_required' => true,
+                'authentication_type' => MfaChallengeStore::SESSION,
+                ...$challenges->create($user, MfaChallengeStore::SESSION),
+            ], 202);
+        }
+
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
 
-        return response()->json(['user' => new UserResource($request->user())]);
+        return response()->json(['mfa_required' => false, 'user' => new UserResource($user)]);
     }
 
-    public function token(TokenLoginRequest $request, IssueTenantToken $action): JsonResponse
-    {
-        $issued = $action->forCredentials($request->validated(), (string) $request->ip(), $request->userAgent());
+    public function token(
+        TokenLoginRequest $request,
+        IssueStoreToken $action,
+        MfaChallengeStore $challenges,
+    ): JsonResponse {
+        $data = $request->validated();
+        $user = $action->userForCredentials($data);
 
-        return response()->json(['token' => $issued->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $issued->accessToken->expires_at?->toISOString()]);
+        if ($user->hasEnabledTwoFactorAuthentication()) {
+            return response()->json([
+                'mfa_required' => true,
+                'authentication_type' => MfaChallengeStore::TOKEN,
+                ...$challenges->create($user, MfaChallengeStore::TOKEN, [
+                    'device_name' => $data['device_name'],
+                    'store_id' => $data['store_id'],
+                    'ip' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                ]),
+            ], 202);
+        }
+
+        $issued = $action->issue(
+            $user,
+            $data['device_name'],
+            $data['store_id'],
+            ['store:access'],
+            null,
+            ['ip' => $request->ip(), 'user_agent' => $request->userAgent(), 'mfa_verified' => false],
+        );
+
+        return response()->json(['mfa_required' => false, 'token' => $issued->plainTextToken, 'token_type' => 'Bearer', 'expires_at' => $issued->accessToken->expires_at?->toISOString()]);
     }
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
@@ -78,7 +117,7 @@ final class AuthController extends Controller
 
     public function verifyEmail(Request $request, string $id, string $hash): JsonResponse
     {
-        $user = User::query()->findOrFail($id);
+        $user = User::query()->where('public_id', $id)->firstOrFail();
         if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
             abort(403, 'Invalid verification link.');
         }
@@ -117,29 +156,31 @@ final class AuthController extends Controller
         return response()->json(['user' => new UserResource($request->user())]);
     }
 
-    public function tenants(Request $request): JsonResponse
+    public function stores(Request $request): JsonResponse
     {
-        return response()->json(['data' => TenantResource::collection($request->user()->tenants()->wherePivot('status', 'active')->get())]);
+        return response()->json(['data' => StoreResource::collection($request->user()->stores()->wherePivot('status', 'active')->get())]);
     }
 
     public function tokens(Request $request): JsonResponse
     {
-        return response()->json(['data' => $request->user()->tokens()->latest()->get(['id', 'name', 'tenant_id', 'abilities', 'last_used_at', 'expires_at', 'created_at'])]);
+        $tokens = $request->user()->tokens()->with('store')->latest()->get();
+
+        return response()->json(['data' => PersonalAccessTokenResource::collection($tokens)]);
     }
 
-    public function createToken(CreateTokenRequest $request, IssueTenantToken $action): JsonResponse
+    public function createToken(CreateTokenRequest $request, IssueStoreToken $action): JsonResponse
     {
         $data = $request->validated();
-        $tenantId = $data['tenant_id'] ?? null;
-        $abilities = $data['abilities'] ?? ($tenantId === null ? ['account:read'] : ['tenant:access']);
-        $issued = $action->issue($request->user(), $data['device_name'], $tenantId, $abilities, $data['expires_at'] ?? null, ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]);
+        $storePublicId = $data['store_id'] ?? null;
+        $abilities = $data['abilities'] ?? ($storePublicId === null ? ['account:read'] : ['store:access']);
+        $issued = $action->issue($request->user(), $data['device_name'], $storePublicId, $abilities, $data['expires_at'] ?? null, ['ip' => $request->ip(), 'user_agent' => $request->userAgent()]);
 
-        return response()->json(['token' => $issued->plainTextToken, 'token_type' => 'Bearer', 'id' => $issued->accessToken->getKey()], 201);
+        return response()->json(['token' => $issued->plainTextToken, 'token_type' => 'Bearer', 'id' => $issued->accessToken->public_id], 201);
     }
 
     public function revokeToken(Request $request, string $token): JsonResponse
     {
-        $deleted = $request->user()->tokens()->whereKey($token)->delete();
+        $deleted = $request->user()->tokens()->where('public_id', $token)->delete();
         if ($deleted === 0) {
             abort(404, 'Token not found.');
         }

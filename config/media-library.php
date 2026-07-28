@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Media;
-use App\Support\Media\TenantPathGenerator;
+use App\Support\Media\StorePathGenerator;
 use Spatie\ImageOptimizer\Optimizers\Avifenc;
 use Spatie\ImageOptimizer\Optimizers\Cwebp;
 use Spatie\ImageOptimizer\Optimizers\Gifsicle;
@@ -141,7 +141,7 @@ return [
     /*
      * The class that contains the strategy for determining a media file's path.
      */
-    'path_generator' => TenantPathGenerator::class,
+    'path_generator' => StorePathGenerator::class,
 
     /*
      * The class that contains the strategy for determining how to remove files.

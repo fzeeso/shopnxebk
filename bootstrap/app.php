@@ -10,9 +10,9 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use Modules\Tenancy\Http\Middleware\EnsureTenantMembership;
-use Modules\Tenancy\Http\Middleware\ResolveOptionalTenant;
-use Modules\Tenancy\Http\Middleware\ResolveTenant;
+use Modules\Stores\Http\Middleware\EnsureStoreMembership;
+use Modules\Stores\Http\Middleware\ResolveOptionalStore;
+use Modules\Stores\Http\Middleware\ResolveStore;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -22,16 +22,16 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withBroadcasting(__DIR__.'/../routes/channels.php', [
         'prefix' => 'api',
-        'middleware' => ['api', 'auth:sanctum', 'tenant', 'tenant.member'],
+        'middleware' => ['api', 'auth:sanctum', 'store', 'store.member'],
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->append(AssignRequestId::class);
         $middleware->append(ClearRequestContext::class);
         $middleware->alias([
-            'tenant' => ResolveTenant::class,
-            'tenant.member' => EnsureTenantMembership::class,
-            'tenant.optional' => ResolveOptionalTenant::class,
+            'store' => ResolveStore::class,
+            'store.member' => EnsureStoreMembership::class,
+            'store.optional' => ResolveOptionalStore::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

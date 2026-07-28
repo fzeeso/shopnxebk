@@ -1,0 +1,1 @@
+{"name":"Stores","alias":"stores","description":"Shared-schema store context, memberships, and store lifecycle.","keywords":["store","saas"],"priority":10,"providers":["Modules\\Stores\\Providers\\StoresServiceProvider"],"files":[]}

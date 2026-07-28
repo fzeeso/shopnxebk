@@ -19,7 +19,7 @@ final class RegisterRequest extends FormRequest
     {
         $this->merge([
             'email' => Str::lower(trim((string) $this->input('email'))),
-            'tenant_slug' => Str::lower(trim((string) $this->input('tenant_slug'))),
+            'store_slug' => Str::lower(trim((string) $this->input('store_slug'))),
         ]);
     }
 
@@ -30,8 +30,8 @@ final class RegisterRequest extends FormRequest
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
-            'tenant_name' => ['required', 'string', 'max:120'],
-            'tenant_slug' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', 'unique:tenants,slug'],
+            'store_name' => ['required', 'string', 'max:120'],
+            'store_slug' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', 'unique:stores,slug'],
         ];
     }
 }

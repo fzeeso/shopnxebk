@@ -5,4 +5,4 @@ type Query {
 }
 
 #import ../Modules/Authentication/graphql/schema.graphql
-#import ../Modules/Tenancy/graphql/schema.graphql
+#import ../Modules/Stores/graphql/schema.graphql

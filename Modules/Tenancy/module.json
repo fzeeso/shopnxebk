@@ -1,1 +1,0 @@
-{"name":"Tenancy","alias":"tenancy","description":"Shared-schema tenant context and memberships.","keywords":["tenant","saas"],"priority":10,"providers":["Modules\\Tenancy\\Providers\\TenancyServiceProvider"],"files":[]}

@@ -2,6 +2,7 @@
 
 use Modules\Authentication\Models\Permission;
 use Modules\Authentication\Models\Role;
+use Modules\Stores\Models\Store;
 use Spatie\Permission\DefaultTeamResolver;
 
 return [
@@ -35,7 +36,7 @@ return [
          * Eloquent model should be used to retrieve your teams. Of course, it
          * is often just the "Team" model but you may use whatever you like.
          */
-        'team' => null,
+        'team' => Store::class,
 
         /*
          * When using the "HasModels" trait and passing raw IDs to syncModels,
@@ -110,7 +111,7 @@ return [
          * foreign key is other than `team_id`.
          */
 
-        'team_foreign_key' => 'tenant_id',
+        'team_foreign_key' => 'store_id',
     ],
 
     /*

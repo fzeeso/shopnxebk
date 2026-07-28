@@ -1,1 +1,0 @@
-{"name":"shopnxe/tenancy","type":"laravel-module","autoload":{"psr-4":{"Modules\\Tenancy\\":"app/"}}}

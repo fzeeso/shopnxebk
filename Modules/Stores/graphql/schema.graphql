@@ -1,0 +1,10 @@
+extend type Query {
+    activeStore: Store! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Stores\\GraphQL\\Queries\\ActiveStore")
+}
+
+type Store {
+    id: ID! @rename(attribute: "public_id")
+    name: String!
+    slug: String!
+    status: String!
+}

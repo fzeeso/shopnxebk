@@ -10,6 +10,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Package | Scope | Constraint | Locked version | Role |
 | --- | --- | --- | --- | --- |
 | `http-interop/http-factory-guzzle` | runtime | `^1.2` | `1.2.1` | Supporting package; see its integration configuration. |
+| `laravel/fortify` | runtime | `^1.37` | `v1.37.3` | TOTP generation, QR provisioning, encrypted recovery codes, and MFA events. |
 | `laravel/framework` | runtime | `^13.8` | `v13.21.1` | Core framework, HTTP, Eloquent, validation, events, notifications, and queues. |
 | `laravel/horizon` | runtime | `^5.48` | `v5.48.1` | Redis queue supervision. |
 | `laravel/octane` | runtime | `^2.18` | `v2.18.0` | FrankenPHP long-running workers. |
@@ -25,8 +26,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `php` | runtime | `^8.4` | `runtime 8.4.x` | Required language runtime. |
 | `predis/predis` | runtime | `^3.5` | `v3.5.1` | Redis client fallback. |
 | `spatie/laravel-medialibrary` | runtime | `^11.23` | `11.23.3` | Media and conversion foundation. |
-| `spatie/laravel-multitenancy` | runtime | `^4.1` | `4.1.5` | Tenant lifecycle and tenant-aware jobs. |
-| `spatie/laravel-permission` | runtime | `^8.3` | `8.3.0` | Tenant-team roles and permissions. |
+| `spatie/laravel-multitenancy` | runtime | `^4.1` | `4.1.5` | Store context lifecycle and store-aware jobs. |
+| `spatie/laravel-permission` | runtime | `^8.3` | `8.3.0` | Store-team roles and permissions. |
 | `fakerphp/faker` | development | `^1.23` | `v1.24.1` | Supporting package; see its integration configuration. |
 | `larastan/larastan` | development | `^3.10` | `v3.10.0` | Laravel-aware static analysis. |
 | `laravel/pail` | development | `^1.2.5` | `v1.2.7` | Supporting package; see its integration configuration. |
@@ -41,13 +42,13 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Module | Enabled | Priority | Description | Providers |
 | --- | --- | ---: | --- | --- |
 | Authentication | yes | 20 | REST authentication and account security. | `Modules\Authentication\Providers\AuthenticationServiceProvider` |
-| Tenancy | yes | 10 | Shared-schema tenant context and memberships. | `Modules\Tenancy\Providers\TenancyServiceProvider` |
+| Stores | yes | 10 | Shared-schema store context, memberships, and store lifecycle. | `Modules\Stores\Providers\StoresServiceProvider` |
 
 ## HTTP routes
 
 | Method | URI | Name | Middleware |
 | --- | --- | --- | --- |
-| `GET\|POST\|HEAD` | `/api/broadcasting/auth` | `` | api, auth:sanctum, tenant, tenant.member |
+| `GET\|POST\|HEAD` | `/api/broadcasting/auth` | `` | api, auth:sanctum, store, store.member |
 | `GET\|HEAD` | `/api/health/live` | `health.live` | api |
 | `GET\|HEAD` | `/api/health/ready` | `health.ready` | api |
 | `POST` | `/api/v1/auth/email/verification-notification` | `api.v1.auth.verification.send` | api, auth:sanctum, throttle:6,1 |
@@ -55,25 +56,31 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/auth/login` | `api.v1.auth.login` | api, throttle:auth.login |
 | `POST` | `/api/v1/auth/logout` | `api.v1.auth.logout` | api, auth:sanctum |
 | `GET\|HEAD` | `/api/v1/auth/me` | `api.v1.auth.me` | api, auth:sanctum |
+| `DELETE` | `/api/v1/auth/mfa` | `api.v1.auth.mfa.disable` | api, auth:sanctum, throttle:auth.mfa-management |
+| `GET\|HEAD` | `/api/v1/auth/mfa` | `api.v1.auth.mfa.status` | api, auth:sanctum |
+| `POST` | `/api/v1/auth/mfa/challenge` | `api.v1.auth.mfa.challenge` | api, throttle:auth.mfa |
+| `POST` | `/api/v1/auth/mfa/confirm` | `api.v1.auth.mfa.confirm` | api, auth:sanctum, throttle:auth.mfa-management |
+| `POST` | `/api/v1/auth/mfa/recovery-codes` | `api.v1.auth.mfa.recovery-codes` | api, auth:sanctum, throttle:auth.mfa-management |
+| `POST` | `/api/v1/auth/mfa/setup` | `api.v1.auth.mfa.setup` | api, auth:sanctum, throttle:auth.mfa-management |
 | `POST` | `/api/v1/auth/register` | `api.v1.auth.register` | api |
 | `POST` | `/api/v1/auth/reset-password` | `api.v1.auth.reset-password` | api, throttle:6,1 |
-| `GET\|HEAD` | `/api/v1/auth/tenants` | `api.v1.auth.tenants` | api, auth:sanctum |
+| `GET\|HEAD` | `/api/v1/auth/stores` | `api.v1.auth.stores` | api, auth:sanctum |
 | `POST` | `/api/v1/auth/token` | `api.v1.auth.token` | api, throttle:auth.token |
 | `GET\|HEAD` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.index` | api, auth:sanctum |
 | `POST` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.store` | api, auth:sanctum |
 | `DELETE` | `/api/v1/auth/tokens/{token}` | `api.v1.auth.tokens.destroy` | api, auth:sanctum |
 | `GET\|HEAD` | `/api/v1/auth/verify-email/{id}/{hash}` | `api.v1.auth.verification.verify` | api, signed, throttle:6,1 |
-| `GET\|POST\|HEAD` | `/graphql` | `graphql` | api, throttle:graphql, tenant.optional, lighthouse.accept-json, lighthouse.authenticate |
+| `GET\|POST\|HEAD` | `/graphql` | `graphql` | api, throttle:graphql, store.optional, lighthouse.accept-json, lighthouse.authenticate |
 | `GET\|HEAD` | `/sanctum/csrf-cookie` | `sanctum.csrf-cookie` | web |
 
 ## GraphQL operations
 
 | Type | Field | Protection | Schema owner |
 | --- | --- | --- | --- |
-| Query | `activeTenant` | Sanctum guard | `Modules/Tenancy/graphql/schema.graphql` |
+| Query | `activeStore` | Sanctum guard | `Modules/Stores/graphql/schema.graphql` |
 | Query | `apiVersion` | Public | `graphql/schema.graphql` |
 | Query | `viewer` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
-| Query | `viewerTenants` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
+| Query | `viewerStores` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
 
 ## Migrations
 
@@ -81,7 +88,10 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | --- | --- |
 | Authentication | `Modules/Authentication/database/migrations/0001_01_01_000000_create_users_table.php` |
 | Authentication | `Modules/Authentication/database/migrations/2026_07_22_000200_create_authentication_tables.php` |
-| Tenancy | `Modules/Tenancy/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
+| Authentication | `Modules/Authentication/database/migrations/2026_07_28_000300_add_mfa_to_users_table.php` |
+| Authentication | `Modules/Authentication/database/migrations/2026_07_28_000500_add_legacy_token_lookup.php` |
+| Stores | `Modules/Stores/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
+| Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |
@@ -93,7 +103,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 
 | Command | Execution |
 | --- | --- |
-| `composer analyse` | phpstan analyse --memory-limit=1G |
+| `composer analyse` | phpstan analyse app Modules --memory-limit=1G |
 | `composer dev` | Composer\Config::disableProcessTimeout -> @php artisan serve |
 | `composer docs:check` | @php scripts/update-developer-guide.php --check |
 | `composer docs:update` | @php scripts/update-developer-guide.php |
@@ -115,7 +125,7 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 
 | Area | Variables |
 | --- | --- |
-| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS` |
+| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW` |
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |
