@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication and health endpoints. GraphQL is documented by the Lighthouse schema.
+  description: Authentication, Store management, Platform settings, and Plans & Pricing endpoints. GraphQL is documented by the Lighthouse schema.
 servers:
   - url: http://localhost:8000
 paths:
@@ -141,6 +141,75 @@ paths:
       responses:
         '200': {description: Email verified}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/currencies:
+    get:
+      security: [{sanctum: []}]
+      summary: List the platform currency catalog
+      responses:
+        '200':
+          description: Complete platform currency catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Currency'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      security: [{sanctum: []}]
+      summary: Add a platform currency
+      description: Requires a Platform-scoped user with manage platform settings. USD is reserved as the base currency.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateCurrencyRequest'}
+      responses:
+        '201':
+          description: Currency created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Currency'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/currencies/{currency}:
+    patch:
+      security: [{sanctum: []}]
+      summary: Update a platform currency and its USD-relative rate
+      description: Requires manage platform settings. Rates mean 1 USD equals X target currency units.
+      parameters:
+        - name: currency
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateCurrencyRequest'}
+      responses:
+        '200':
+          description: Currency updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Currency'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Currency not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/platform/languages:
     get:
       security: [{sanctum: []}]
@@ -215,6 +284,176 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/stores:
+    post:
+      security: [{sanctum: []}]
+      summary: Create an additional Store and Owner membership
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateStoreRequest'}
+      responses:
+        '201': {description: Store created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store:
+    get:
+      security: [{sanctum: []}]
+      summary: View the selected Store profile
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200': {description: Store profile}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+  /api/v1/store/profile:
+    patch:
+      security: [{sanctum: []}]
+      summary: Update merchant-owned Store profile fields
+      description: Requires manage store. Platform-controlled Billing, lifecycle, verification, entitlement, trial, and raw JSON fields are prohibited.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateStoreProfileRequest'}
+      responses:
+        '200': {description: Updated Store}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/settings:
+    get:
+      security: [{sanctum: []}]
+      summary: View Store locale, preferences, and read-only capabilities
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200': {description: Store settings}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    patch:
+      security: [{sanctum: []}]
+      summary: Merge validated Store locale and preferences
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateStoreSettingsRequest'}
+      responses:
+        '200': {description: Updated Store settings}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/plans:
+    get:
+      security: [{sanctum: []}]
+      summary: List plans with feature/add-on assignments
+      responses:
+        '200': {description: Plan catalog}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      security: [{sanctum: []}]
+      summary: Create a plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlanWriteRequest'}
+      responses:
+        '201': {description: Plan created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/plans/{plan}:
+    parameters:
+      - {name: plan, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+    get:
+      security: [{sanctum: []}]
+      summary: View a plan
+      responses:
+        '200': {description: Plan resource}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Plan not found}
+    patch:
+      security: [{sanctum: []}]
+      summary: Update a plan or its price
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlanWriteRequest'}
+      responses:
+        '200': {description: Plan updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      security: [{sanctum: []}]
+      summary: Remove an unassigned plan
+      description: A plan referenced by a Store must be archived instead.
+      responses:
+        '204': {description: Plan removed}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/features:
+    get:
+      security: [{sanctum: []}]
+      summary: List reusable features
+      responses:
+        '200': {description: Feature catalog}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      security: [{sanctum: []}]
+      summary: Create a reusable feature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FeatureWriteRequest'}
+      responses:
+        '201': {description: Feature created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/features/{feature}:
+    parameters:
+      - {name: feature, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+    patch:
+      security: [{sanctum: []}]
+      summary: Update a reusable feature
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/FeatureWriteRequest'}
+      responses:
+        '200': {description: Feature updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      security: [{sanctum: []}]
+      summary: Remove an unassigned feature
+      responses:
+        '204': {description: Feature removed}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/plans/{plan}/features/{feature}:
+    parameters:
+      - {name: plan, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+      - {name: feature, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+    put:
+      security: [{sanctum: []}]
+      summary: Add or update a plan feature/add-on
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PlanFeatureWriteRequest'}
+      responses:
+        '200': {description: Plan feature assignment}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      security: [{sanctum: []}]
+      summary: Detach a feature from a plan
+      responses:
+        '204': {description: Feature detached}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /graphql:
     post:
       summary: Lighthouse GraphQL endpoint
@@ -287,6 +526,189 @@ components:
         is_marketplace_enabled: {type: boolean}
         launched_at: {type: [string, 'null'], format: date-time}
         trial_ends_at: {type: [string, 'null'], format: date-time}
+    CreateStoreRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: {type: string, maxLength: 120}
+        slug: {type: string, pattern: '^[a-z0-9_-]+$'}
+        legal_name: {type: [string, 'null'], maxLength: 255}
+        description: {type: [string, 'null'], maxLength: 5000}
+        email: {type: [string, 'null'], format: email}
+        phone: {type: [string, 'null'], maxLength: 32}
+        business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
+        language_code: {type: string}
+        timezone: {type: string}
+        country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+        preferences: {$ref: '#/components/schemas/StorePreferences'}
+    UpdateStoreProfileRequest:
+      type: object
+      properties:
+        name: {type: string, maxLength: 120}
+        slug: {type: string, pattern: '^[a-z0-9_-]+$'}
+        legal_name: {type: [string, 'null'], maxLength: 255}
+        description: {type: [string, 'null'], maxLength: 5000}
+        email: {type: [string, 'null'], format: email}
+        phone: {type: [string, 'null'], maxLength: 32}
+        primary_domain: {type: [string, 'null']}
+        logo: {type: [string, 'null']}
+        favicon: {type: [string, 'null']}
+        cover_image: {type: [string, 'null']}
+        industry: {type: [string, 'null']}
+        business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+    UpdateStoreSettingsRequest:
+      type: object
+      properties:
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
+        language_code: {type: string}
+        timezone: {type: string}
+        country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+        preferences: {$ref: '#/components/schemas/StorePreferences'}
+    StorePreferences:
+      type: object
+      additionalProperties: false
+      properties:
+        order_prefix: {type: string, maxLength: 12}
+        date_format: {type: string, enum: ['Y-m-d', 'd/m/Y', 'm/d/Y']}
+        time_format: {type: string, enum: [12h, 24h]}
+        weight_unit: {type: string, enum: [kg, lb]}
+        dimension_unit: {type: string, enum: [cm, in]}
+        inventory_tracking: {type: boolean}
+        guest_checkout: {type: boolean}
+        tax_inclusive_pricing: {type: boolean}
+        low_stock_threshold: {type: integer, minimum: 0, maximum: 1000000}
+        support_email: {type: [string, 'null'], format: email}
+    Plan:
+      type: object
+      required: [id, name, slug, price, status, is_featured, sort_order, features]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string}
+        slug: {type: string}
+        description: {type: [string, 'null']}
+        best_for: {type: [string, 'null']}
+        price:
+          type: object
+          properties:
+            amount_minor: {type: [integer, 'null'], minimum: 0}
+            currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+            billing_interval: {type: [string, 'null'], enum: [month, year, null]}
+            is_custom: {type: boolean}
+        status: {type: string, enum: [draft, active, archived]}
+        is_featured: {type: boolean}
+        sort_order: {type: integer}
+        features: {type: array, items: {$ref: '#/components/schemas/PlanFeature'}}
+    Feature:
+      type: object
+      required: [id, key, name, value_type, is_addon_eligible, is_active]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        key: {type: string, pattern: '^[a-z0-9]+(?:_[a-z0-9]+)*$'}
+        name: {type: string}
+        description: {type: [string, 'null']}
+        value_type: {type: string, enum: [boolean, integer, decimal, text]}
+        unit: {type: [string, 'null']}
+        is_addon_eligible: {type: boolean}
+        is_active: {type: boolean}
+    PlanFeature:
+      type: object
+      required: [id, feature, is_included, is_addon, sort_order]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        feature: {$ref: '#/components/schemas/Feature'}
+        value: {}
+        is_included: {type: boolean}
+        is_addon: {type: boolean}
+        addon_price:
+          type: [object, 'null']
+          properties:
+            amount_minor: {type: [integer, 'null'], minimum: 0}
+            currency_code: {type: [string, 'null']}
+            billing_interval: {type: [string, 'null'], enum: [month, year, null]}
+        sort_order: {type: integer}
+    PlanWriteRequest:
+      type: object
+      properties:
+        name: {type: string, maxLength: 120}
+        slug: {type: string}
+        description: {type: [string, 'null']}
+        best_for: {type: [string, 'null']}
+        price_amount: {type: [integer, 'null'], minimum: 0, description: Integer minor units}
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
+        billing_interval: {type: [string, 'null'], enum: [month, year, null]}
+        is_custom_pricing: {type: boolean}
+        status: {type: string, enum: [draft, active, archived]}
+        is_featured: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+    FeatureWriteRequest:
+      type: object
+      properties:
+        key: {type: string}
+        name: {type: string}
+        description: {type: [string, 'null']}
+        value_type: {type: string, enum: [boolean, integer, decimal, text]}
+        unit: {type: [string, 'null']}
+        is_addon_eligible: {type: boolean}
+        is_active: {type: boolean}
+    PlanFeatureWriteRequest:
+      type: object
+      properties:
+        value: {}
+        is_included: {type: boolean}
+        is_addon: {type: boolean}
+        addon_price_amount: {type: [integer, 'null'], minimum: 0}
+        addon_currency_code: {type: [string, 'null'], pattern: '^[A-Za-z]{3}$'}
+        addon_billing_interval: {type: [string, 'null'], enum: [month, year, null]}
+        sort_order: {type: integer, minimum: 0}
+    Currency:
+      type: object
+      required: [id, name, code, symbol, symbol_position, decimal_places, usd_exchange_rate, is_base, is_active]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string, maxLength: 100}
+        code: {type: string, pattern: '^[A-Z]{3}$'}
+        symbol: {type: string, maxLength: 16}
+        symbol_position: {type: string, enum: [before, after]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        usd_exchange_rate:
+          type: [string, 'null']
+          pattern: '^[0-9]+(?:\.[0-9]{8})$'
+          description: Target currency units per 1 USD; null means unconfigured.
+        is_base: {type: boolean}
+        is_active: {type: boolean}
+        exchange_rate_updated_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CreateCurrencyRequest:
+      type: object
+      required: [name, code, symbol, symbol_position, decimal_places]
+      properties:
+        name: {type: string, maxLength: 100}
+        code: {type: string, pattern: '^[A-Za-z]{3}$', description: Normalized to uppercase; USD is reserved.}
+        symbol: {type: string, maxLength: 16}
+        symbol_position: {type: string, enum: [before, after]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        usd_exchange_rate:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          maximum: 999999999999.99999999
+          description: Target currency units per 1 USD.
+        is_active: {type: boolean, default: true}
+    UpdateCurrencyRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: {type: string, maxLength: 100}
+        symbol: {type: string, maxLength: 16}
+        symbol_position: {type: string, enum: [before, after]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        usd_exchange_rate:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          maximum: 999999999999.99999999
+          description: Target currency units per 1 USD; null clears a non-base rate.
+        is_active: {type: boolean}
     Language:
       type: object
       required: [id, name, native_name, locale, direction, is_active]
@@ -356,13 +778,23 @@ components:
           properties:
             platform_admin:
               type: object
-              required: [interface, label, available, roles, permissions]
+              required: [interface, label, available, roles, permissions, navigation]
               properties:
                 interface: {type: string, const: platform_admin}
                 label: {type: string, example: Platform Admin (SaaS Owner)}
                 available: {type: boolean}
                 roles: {type: array, items: {type: string}}
                 permissions: {type: array, items: {type: string}}
+                navigation:
+                  type: array
+                  items:
+                    type: object
+                    required: [key, label, path, permission]
+                    properties:
+                      key: {type: string, example: plans_pricing}
+                      label: {type: string, example: Plans & Pricing}
+                      path: {type: string, example: /admin/plans}
+                      permission: {type: string, example: manage plans}
             store_admin:
               type: object
               required: [interface, label, available, stores]

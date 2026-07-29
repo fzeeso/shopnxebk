@@ -14,6 +14,7 @@ flowchart LR
     HTTP["Laravel HTTP API"]
     Auth["Authentication module"]
     Store["Stores module"]
+    Billing["Billing module"]
     GraphQL["Lighthouse GraphQL"]
     DB[("PostgreSQL")]
     Redis[("Redis")]
@@ -26,9 +27,11 @@ flowchart LR
     Client -->|"REST / GraphQL"| HTTP
     HTTP --> Auth
     HTTP --> Store
+    HTTP --> Billing
     HTTP --> GraphQL
     Auth --> DB
     Store --> DB
+    Billing --> DB
     GraphQL --> DB
     HTTP --> Redis
     HTTP --> Files
@@ -70,9 +73,11 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Authentication/` owns users, credentials, sessions, Sanctum tokens, password reset, email verification, resources, and authentication routes.
 
-`Modules/Stores/` owns stores, memberships, the global language catalog, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, memberships, the global language and currency catalogs, Store language selections, USD-relative exchange rates, store context, store resolution, policies, cache keys, and provisioning.
 
-Each future business module owns its migrations, models, Actions, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
+`Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
+
+Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 
 ### Identifier and identity rules
 
@@ -100,7 +105,7 @@ Pure relationship/package tables and protocol identifiers follow the documented 
 
 Registration sets `legal_name` from `store_name`; database defaults provide `USD`, `en`, `UTC`, and disabled flags. `Store` casts business type/status to enums, flags to booleans, and lifecycle values to immutable datetimes. `StoreResource` and the GraphQL `Store` type serialize the public-safe values. Numeric `plan_id` and `subscription_id` remain internal Billing integration keys and never cross the API boundary.
 
-Branding columns contain storage references only. A future Store-management endpoint must validate locale codes, contact values, status transitions, capability authorization, and Store-owned media before saving. No profile-write endpoint is introduced by this schema change.
+Branding columns contain storage references only. `CreateStoreService`, `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` now own Store creation/read/profile/settings writes. Existing-Store operations require `X-Store-ID` and active membership; writes additionally require `manage store`. Merchant validation prohibits lifecycle, Billing, verification, capability, trial, and raw JSON fields. See [Store management](store-management.md).
 
 ### Language catalog and Store language selection
 
@@ -110,6 +115,22 @@ Branding columns contain storage references only. A future Store-management endp
 
 Platform users call `GET /api/v1/platform/languages`. Creating another catalog entry through `POST /api/v1/platform/languages` requires `manage platform settings`, initially assigned only to `Super Admin`. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
 
+### Currency catalog and USD exchange rates
+
+`currencies` is the platform-owned money-formatting and exchange-rate catalog. Each record has a public ULID, ISO-style three-letter code, display name and symbol, symbol placement, zero-to-four decimal places, active state, and a nullable decimal exchange rate. The rate convention is always `1 USD = X target currency units`; USD is the only base row, remains active, and is database-constrained to rate `1.00000000`.
+
+`EnsureCurrencyCatalog` idempotently maintains 25 commonly used currencies without overwriting administrator-configured rates. Non-USD seed rates intentionally remain null because financial rates become stale; a Platform administrator enters or clears rates explicitly and `exchange_rate_updated_at` records when a configured rate changed.
+
+Any Platform-scoped user may read `GET /api/v1/platform/currencies`. Creating a currency through `POST /api/v1/platform/currencies` or changing format, active state, or rate through `PATCH /api/v1/platform/currencies/{currency}` requires `manage platform settings`, initially assigned only to `Super Admin`. Store accounts cannot use this API. The existing `stores.currency_code` remains the Store compatibility setting; Store-level catalog selection is outside this change.
+
+### Plans, features, and add-ons
+
+`plans` stores an editable name/slug, audience, fixed or custom price, currency, monthly/yearly interval, lifecycle status, featured flag, and display order. Money uses integer minor units. `features` is the reusable definition catalog; `plan_features` assigns typed values to plans and can mark an assignment as an optional add-on with its own price.
+
+Platform plan routes require Platform scope plus `manage plans`, initially held by `Super Admin` and `Billing`. `PlanAdminService`, `FeatureAdminService`, and `PlanFeatureAdminService` own transactions, validation, typed assignments, and safe deletion. Plans referenced by a Store are archived instead of deleted. `GET /api/v1/auth/interfaces` supplies the `Plans & Pricing` `/admin/plans` navigation item only when the permission is present.
+
+The idempotent sample seeder inserts Launch 1 ($3), Launch 5 ($5), Starter ($9), Growth ($29), Professional ($79), Business ($199), and custom Enterprise. Existing admin edits are not overwritten. See [Plans & Pricing](plans-and-pricing.md).
+
 ## 4. Application boot sequence
 
 1. `public/index.php` loads Composer and creates the application from `bootstrap/app.php`.
@@ -118,8 +139,9 @@ Platform users call `GET /api/v1/platform/languages`. Creating another catalog e
 4. Nwidart reads `modules_statuses.json` and registers providers declared by enabled `module.json` files.
 5. `AuthenticationServiceProvider` loads authentication routes and migrations.
 6. `StoresServiceProvider` binds request-scoped store context, store provisioning, policies, migrations, and queue context hooks.
-7. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
-8. Laravel accepts the request and runs the middleware pipeline.
+7. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
+8. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
+9. Laravel accepts the request and runs the middleware pipeline.
 
 Diagnose discovery with:
 
@@ -208,7 +230,7 @@ Authorization has five layers: Sanctum authentication/abilities, exclusive user 
 
 After login, call `GET /api/v1/auth/interfaces`. The response has two stable keys:
 
-- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions and never Stores.
+- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Stores. `Plans & Pricing` appears only with `manage plans`.
 - `store_admin` is available only for `users.scope = store` with at least one active membership. It returns only that userâ€™s Stores and Store-isolated roles/permissions.
 
 An account can never have both interfaces. The frontend selects the shell from `user.scope` and `available`; backend scope middleware remains authoritative. Store requests still send the selected Store ULID through `X-Store-ID`.
@@ -490,9 +512,12 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Module boundaries](modules.md)
 - [Authentication module](modules/authentication.md)
 - [Stores module](modules/stores.md)
+- [Billing module](modules/billing.md)
 - [Module communication contracts](module-communication/)
 - [Authentication](authentication.md)
 - [Stores](stores.md)
+- [Store management](store-management.md)
+- [Plans & Pricing](plans-and-pricing.md)
 - [GraphQL](graphql.md)
 - [REST API](rest-api.md)
 - [Local development](local-development.md)

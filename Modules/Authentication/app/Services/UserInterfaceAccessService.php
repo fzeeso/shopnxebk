@@ -21,7 +21,8 @@ final class UserInterfaceAccessService
      *         label: string,
      *         available: bool,
      *         roles: list<string>,
-     *         permissions: list<string>
+     *         permissions: list<string>,
+     *         navigation: list<array{key: string, label: string, path: string, permission: string}>
      *     },
      *     store_admin: array{
      *         interface: string,
@@ -66,6 +67,7 @@ final class UserInterfaceAccessService
                 'available' => $user->isPlatformUser(),
                 'roles' => $platformRoles,
                 'permissions' => $platformPermissions,
+                'navigation' => $this->platformNavigation($platformPermissions),
             ],
             UserInterface::StoreAdmin->value => [
                 'interface' => UserInterface::StoreAdmin->value,
@@ -130,5 +132,23 @@ final class UserInterfaceAccessService
         return $storeId === null
             ? $query->whereNull('assignments.store_id')
             : $query->where('assignments.store_id', $storeId);
+    }
+
+    /**
+     * @param  list<string>  $permissions
+     * @return list<array{key: string, label: string, path: string, permission: string}>
+     */
+    private function platformNavigation(array $permissions): array
+    {
+        if (! in_array('manage plans', $permissions, true)) {
+            return [];
+        }
+
+        return [[
+            'key' => 'plans_pricing',
+            'label' => 'Plans & Pricing',
+            'path' => '/admin/plans',
+            'permission' => 'manage plans',
+        ]];
     }
 }

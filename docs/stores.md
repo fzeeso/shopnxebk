@@ -8,6 +8,29 @@ Authenticated Store REST and GraphQL operations send `X-Store-ID: <store-ulid>`.
 
 Store cache keys and search documents are filtered by internal `store_id`. Public events, media paths, and URLs use Store/entity ULIDs. Public storefront domain resolution and PostgreSQL RLS are future hardening work.
 
+## Profile and settings services
+
+The Stores module now exposes `POST /api/v1/stores`, `GET /api/v1/store`, `PATCH /api/v1/store/profile`, and Store settings read/update routes. Creation gives the Store-scoped caller an active Owner membership. Existing Store reads require active membership; profile/settings writes require `manage store`.
+
+Merchant-editable profile, locale, branding, and validated preference fields are separated from Platform-controlled status, Billing links, verification, capability entitlements, trial dates, and raw JSON. See [Store management](store-management.md) for the complete service, endpoint, field-ownership, and error contract.
+
+## Currencies
+
+`currencies` is the Platform master catalog for currency codes and display
+formatting. Each currency has a public ULID, unique three-letter code, name,
+symbol, symbol placement, decimal places, active state, nullable
+`usd_exchange_rate`, and rate-update timestamp. USD is the only base currency
+and is constrained to active rate `1.00000000`.
+
+All rates mean `1 USD = X target currency units`. The idempotent seed action
+creates 25 common currencies and leaves non-USD rates null so ShopNXE does not
+silently publish stale financial data. A Platform user can list the catalog at
+`GET /api/v1/platform/currencies`; `POST /api/v1/platform/currencies` and
+`PATCH /api/v1/platform/currencies/{currency}` require
+`manage platform settings`. The route parameter and response IDs are public
+ULIDs. The existing Store `currency_code` field remains compatible and is not
+changed by catalog administration.
+
 ## Languages
 
 `languages` is the platform master catalog. Each language has a public ULID,

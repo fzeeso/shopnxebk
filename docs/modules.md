@@ -1,6 +1,14 @@
-# Future module map
+# Module map
 
-The following modules are planned but are not created in this foundation:
+Implemented modules:
+
+| Module | Responsibility |
+| --- | --- |
+| Authentication | Identity, credentials, MFA, exclusive account scopes, tokens, roles, and permissions |
+| Stores | Store profiles/settings, memberships/context, language/currency catalogs, and isolation |
+| Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
+
+The following modules are planned but are not created:
 
 | Module | Responsibility | Main dependencies |
 | --- | --- | --- |
@@ -15,7 +23,7 @@ The following modules are planned but are not created in this foundation:
 | Search | indexing and store-filtered queries | Catalog, events |
 | CMS | pages and content blocks | Files |
 | Notifications | email, SMS, in-app delivery | Authentication, Orders |
-| Billing | SaaS plans, subscriptions, invoices | Payments |
+| Subscriptions and Invoicing | Store subscriptions, invoices, renewals, provider state | Billing catalog, Payments |
 | Analytics | asynchronous event ingestion and reporting | all domain events |
 | Apps | installed integrations and credentials | Webhooks, OAuth adapters |
 | Files and Exports | media ownership, uploads, export jobs | Media Library, Queues |

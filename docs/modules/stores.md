@@ -4,9 +4,9 @@
 
 `Modules/Stores` owns:
 
-- `stores`, `store_memberships`, `languages`, and `store_languages`;
+- `stores`, `store_memberships`, `languages`, `store_languages`, and `currencies`;
 - Store identity, contact, branding, classification, locale, lifecycle, billing-link, and capability fields;
-- Platform language catalog and Store language selection/default workflows;
+- Platform language and currency catalogs, USD-relative exchange rates, and Store language selection/default workflows;
 - Store and membership status enums;
 - `StoreProvisioner`;
 - Store ULID resolution from `X-Store-ID`;
@@ -34,7 +34,16 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 | Capabilities | `is_verified`, `is_ai_enabled`, `is_pos_enabled`, `is_b2b_enabled`, `is_marketplace_enabled` | Boolean switches default to `false`. Authorization is still permission/policy based. |
 | Extensibility | `settings`, `metadata` | JSON objects for non-core configuration; do not move stable first-class fields back into JSON. |
 
-`BusinessType` and `StoreStatus` provide typed Eloquent casts. Store resources and GraphQL expose public-safe profile, locale, lifecycle, and capability values. Internal `id`, `plan_id`, and `subscription_id` are deliberately omitted. The current work establishes persistence and read contracts; a future Store-management action/request will own validated profile updates.
+`BusinessType` and `StoreStatus` provide typed Eloquent casts. Store resources and GraphQL expose public-safe profile, locale, lifecycle, and capability values. Internal `id`, `plan_id`, and `subscription_id` are deliberately omitted.
+
+## Store management flow
+
+1. `POST /api/v1/stores` calls `CreateStoreService`, provisions an active Owner membership/role, and applies validated initial profile/settings.
+2. Existing Store routes resolve `X-Store-ID` and require an active membership.
+3. `GET /api/v1/store` and `GET /api/v1/store/settings` allow active members to view their own Store.
+4. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; `PATCH /api/v1/store/settings` calls `StoreSettingsService`.
+5. Both write paths require `manage store`, use a transaction, and return public-safe resources.
+6. Merchant validation prohibits Platform-owned lifecycle, Billing, verification, capability, and raw JSON fields.
 
 ## Store selection flow
 
@@ -64,8 +73,20 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
    rows in one transaction, preserves the one-default database constraint, and
    synchronizes `stores.language_code`.
 
+## Currency flow
+
+1. `EnsureCurrencyCatalog` idempotently creates 25 common currencies. It fixes
+   USD as the active base at rate `1` and preserves configured non-USD rates.
+2. Any Platform-scoped user may list the catalog.
+3. A Platform user with `manage platform settings` may add a non-USD currency
+   or update a currency's display settings, active state, and rate.
+4. Rates use the single convention `1 USD = X target currency units`.
+   An omitted rate is stored as null rather than inventing or retaining stale
+   market data.
+5. Currency public ULIDs cross the REST boundary; internal bigints do not.
+
 ## Outbound communication
 
-Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md) and [Stores to Files](../module-communication/stores-to-files.md).
+Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md) and [Stores to Files](../module-communication/stores-to-files.md). See the dedicated [Store management contract](../store-management.md).
 
 See [Stores → Authentication](../module-communication/stores-to-authentication.md). Business modules should depend on `StoreContext`, Store ULIDs in public contracts, and bigint `store_id` in their own persistence.

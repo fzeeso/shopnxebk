@@ -6,6 +6,44 @@ Reserved route families are intentionally not implemented yet: uploads and presi
 
 Every response receives `X-Request-ID`. 401, 403, 404, and 422 responses are structured JSON and never redirect to a login page.
 
+Store management REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `POST` | `/api/v1/stores` | Create another Store for the authenticated Store account and assign Owner. |
+| `GET` | `/api/v1/store` | View the active member's selected `X-Store-ID`. |
+| `PATCH` | `/api/v1/store/profile` | Update merchant-owned profile fields; requires `manage store`. |
+| `GET` | `/api/v1/store/settings` | View selected Store locale, preferences, and read-only capabilities. |
+| `PATCH` | `/api/v1/store/settings` | Merge validated locale/preferences; requires `manage store`. |
+
+Platform lifecycle, Billing links, verification, capabilities, trial dates, and raw JSON are prohibited in Store profile/settings requests. See [Store management](store-management.md).
+
+Plans & Pricing REST contracts:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/plans` | List or add plans. |
+| `GET/PATCH/DELETE` | `/api/v1/platform/plans/{plan}` | View, edit, or safely remove a plan by public ULID. |
+| `GET/POST` | `/api/v1/platform/features` | List or add reusable feature definitions. |
+| `PATCH/DELETE` | `/api/v1/platform/features/{feature}` | Edit or remove an unassigned feature. |
+| `PUT/DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | Add/update or detach a plan feature/add-on. |
+
+All plan routes require Platform scope and `manage plans`. Fixed and add-on prices are integer minor units. Assigned plans must be archived instead of deleted. See [Plans & Pricing](plans-and-pricing.md).
+
+Currency REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/platform/currencies` | List the complete currency catalog for a Platform-scoped user. |
+| `POST` | `/api/v1/platform/currencies` | Add a non-USD currency; requires `manage platform settings`. |
+| `PATCH` | `/api/v1/platform/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
+
+Currency rates are returned as fixed-scale decimal strings and mean
+`1 USD = X target currency units`. A null rate is deliberately unconfigured.
+USD is the active base and cannot be deactivated or changed from rate `1`.
+Codes are normalized to uppercase; symbols may contain Unicode; decimal places
+must be between zero and four.
+
 Language REST contracts:
 
 | Method | Route | Scope and purpose |

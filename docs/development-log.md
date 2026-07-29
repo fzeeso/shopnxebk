@@ -16,6 +16,30 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-29 — Platform Plans & Pricing administration
+
+- Changed: Added the Billing module with `plans`, reusable `features`, `plan_features`, fixed/custom minor-unit prices, optional add-ons, Platform CRUD services/routes/resources, safe deletion rules, a permission-filtered `Plans & Pricing` menu item, and an idempotent seven-plan sample catalog.
+- Reason: Let Platform administrators change plan prices and feature composition without code changes while keeping Billing administration completely separate from Store accounts.
+- Data/configuration impact: Added three bigint/ULID tables and enabled the Billing module. Seeded Launch 1, Launch 5, Starter, Growth, Professional, Business, Enterprise, and the supplied Launch feature assignments without overwriting later edits.
+- Compatibility or rollout notes: All writes require Platform scope plus `manage plans`. Prices are integer minor units. Plans referenced by Stores must be archived; subscription/provider/invoice workflows remain future work.
+- Verification: Applied the PostgreSQL migration, seeded and queried the local catalog, registered all Platform routes, and passed four focused tests with 36 assertions.
+
+## 2026-07-29 — Store profile and settings services
+
+- Changed: Added Store creation, view, profile update, and settings services plus Store-scoped REST controllers, Form Requests, resources, and route registration.
+- Reason: Give Store owners/managers a clear application-service flow for maintaining only their own merchant information and validated settings.
+- Data/configuration impact: No additional Store columns. Settings updates merge approved preference keys; creating another Store provisions an active Owner membership and role.
+- Compatibility or rollout notes: Existing Store operations require `X-Store-ID` and active membership; writes require `manage store`. Merchant requests cannot modify Platform-controlled Billing, lifecycle, verification, entitlement, trial, or raw JSON fields.
+- Verification: Registered the five Store routes and added membership, role, cross-Store, Platform-account, and protected-field coverage.
+
+## 2026-07-29 — Platform currency catalog and USD exchange rates
+
+- Changed: Added a 25-entry currency catalog, an immutable USD base rate, display-format metadata, public currency ULIDs, and Platform list/create/update REST endpoints protected by `manage platform settings`.
+- Reason: Give the ShopNXE Platform Admin one authoritative place to maintain currency presentation and manual USD-relative exchange rates for future Store and Billing workflows.
+- Data/configuration impact: Adds `currencies`. USD is constrained to active base rate `1`; non-USD rates start null and use the convention `1 USD = X target currency units`. Seeding is idempotent and preserves administrator-entered rates.
+- Compatibility or rollout notes: Run the migration and seeder before opening the admin currency screen. `stores.currency_code` remains unchanged. This release does not fetch rates from an external financial provider.
+- Verification: Added PostgreSQL feature coverage for all 25 seed rows, USD invariants, idempotent rate preservation, Platform role permissions, public REST contracts, create/update behavior, and Support write denial.
+
 ## 2026-07-29 — Platform and Store language settings
 
 - Changed: Added the 21-entry language catalog, Store language selections with one PostgreSQL-enforced default, public language ULIDs, platform catalog list/create endpoints, Store list/update endpoints, and the `manage platform settings` permission for Super Admin.

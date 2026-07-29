@@ -40,6 +40,8 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 - GraphQL: `POST /graphql`
 - Interface access profile: `GET /api/v1/auth/interfaces`
 - Store-scoped requests use `X-Store-ID: <store ULID>`.
+- Store management: `/api/v1/stores` and `/api/v1/store/*`
+- Platform Plans & Pricing: `/api/v1/platform/plans` and `/api/v1/platform/features`
 - Every response includes an `X-Request-ID` header. A valid incoming ID is preserved; otherwise one is generated.
 
 Authentication examples (use placeholders only):
@@ -85,7 +87,7 @@ Internal dashboards, when explicitly enabled, are protected by the global `Super
 
 ## Modules
 
-`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Stores` owns stores, memberships, store context, and store resolution. Start with the [canonical application context](docs/context.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
+`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Stores` owns Store profile/settings services, memberships, context, languages, and currencies. `Billing` owns Platform plan prices, reusable features, and add-on assignments. Start with the [canonical application context](docs/context.md), [Store management](docs/store-management.md), and [Plans & Pricing](docs/plans-and-pricing.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
 
 ## Package baseline
 

@@ -17,7 +17,7 @@ The two account classes and interfaces are mutually exclusive:
 | `platform_admin` | `Super Admin` is the SaaS Owner | `Support` and `Billing` are platform staff | Platform scope; no Store header |
 | `store_admin` | `Owner` and `Manager` administer the merchant | `Sales`, `Inventory`, and future Store roles are Store staff | One selected Store ULID |
 
-After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions and can never have Store membership, Store roles, or Store-bound tokens. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. The `Plans & Pricing` menu is returned only with `manage plans`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
 
 ## Identifier contract
 
@@ -37,9 +37,17 @@ Entity tables such as `users`, `stores`, `store_memberships`, `roles`, `permissi
 
 The `stores` table is the source of truth for merchant identity, contact details, branding references, classification, locale, lifecycle, and Store-level capability switches. `business_type` is nullable during onboarding and, when present, is one of `ecommerce`, `b2b`, `services`, `digital`, `restaurant`, or `marketplace`. `status` is one of `pending`, `active`, `suspended`, or `cancelled`.
 
-`plan_id` and `subscription_id` are nullable internal bigint integration keys reserved for the future Billing module. They are indexed but do not have foreign-key constraints until the Billing tables exist, and they must never be returned as public identifiers. `logo`, `favicon`, and `cover_image` hold nullable storage references; upload authorization and file delivery remain Files/media responsibilities.
+`plan_id` and `subscription_id` are nullable internal bigint Billing integration keys. The Billing plan catalog now exists, but the historical Store columns remain unconstrained until existing values are audited and a subscription assignment workflow is implemented. They must never be returned as public identifiers. `logo`, `favicon`, and `cover_image` hold nullable storage references; upload authorization and file delivery remain Files/media responsibilities.
 
 Currency uses a three-character ISO 4217 code, country uses a two-character ISO 3166-1 alpha-2 code, language accepts a BCP 47-style code, and timezone stores an IANA timezone name. The database defaults new Stores to `USD`, `en`, `UTC`, and all capability/verification flags to `false`. Provisioning copies the display name into `legal_name`; imported historical Stores may keep optional profile values null until onboarding completes.
+
+Store management is service-based. `CreateStoreService` creates an additional Store and Owner membership for a Store-scoped identity. `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` require the selected Store ULID and active membership; profile/settings writes additionally require `manage store`. Merchant requests cannot change lifecycle, Billing links, verification, entitlements, launch/trial timestamps, or raw metadata/settings.
+
+## Plans and pricing contract
+
+Billing owns `plans`, reusable `features`, and `plan_features`. A plan-feature assignment carries a typed JSON value and may be included or an optional add-on with its own nullable minor-unit price. Fixed plan prices and add-on prices use integer minor units; billing intervals are `month` or `year`. Plans are `draft`, `active`, or `archived`; custom-priced plans store no fixed amount/interval.
+
+Plan administration is Platform-only and requires `manage plans`. `Super Admin` and `Billing` can initially manage the catalog; `Support` and all Store users cannot. Assigned plans are archived rather than deleted. Public APIs use plan/feature ULIDs and never expose bigint relationships.
 
 ## Store context and request flow
 
@@ -87,11 +95,12 @@ Platform roles are evaluated without an active store team. Store-role assignment
 ## Module boundaries
 
 - Authentication owns global identities, credentials, sessions, MFA, tokens, email verification, password reset, and the role/permission catalog.
-- Stores owns stores, memberships, store resolution, context lifecycle, provisioning, and store isolation helpers.
+- Stores owns stores, memberships, profile/settings management, language/currency catalogs, store resolution, context lifecycle, provisioning, and store isolation helpers.
+- Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See [Authentication module](modules/authentication.md), [Stores module](modules/stores.md), and the directional communication contracts in [module communication](module-communication/).
+See [Authentication module](modules/authentication.md), [Stores module](modules/stores.md), [Billing module](modules/billing.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

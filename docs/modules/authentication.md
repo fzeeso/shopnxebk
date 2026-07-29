@@ -43,10 +43,13 @@ Interface selection:
 
 1. An authenticated client calls `GET /api/v1/auth/interfaces`.
 2. It checks exclusive `users.scope`.
-3. Platform users receive only Platform assignments; Store users load only active Store memberships and Store-scoped roles/permissions.
-4. The response keeps both stable keys, but only one interface can be available.
-5. The frontend chooses the matching shell, while scope middleware and policies continue to authorize every request.
+3. Platform users receive only Platform assignments and permission-filtered navigation; Store users load only active Store memberships and Store-scoped roles/permissions.
+4. `Plans & Pricing` is returned only when the Platform user has `manage plans`.
+5. The response keeps both stable keys, but only one interface can be available.
+6. The frontend chooses the matching shell, while scope middleware and policies continue to authorize every request.
 
 ## Outbound communication
+
+Billing's dependency on Platform identity and `manage plans` is documented in [Billing to Authentication](../module-communication/billing-to-authentication.md).
 
 See [Authentication → Stores](../module-communication/authentication-to-stores.md). When another module needs identity information, prefer a small identity contract or event rather than importing credentials or token internals.

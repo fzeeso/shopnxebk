@@ -11,6 +11,7 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
             <directory>Modules/Authentication/tests/Feature</directory>
+            <directory>Modules/Billing/tests/Feature</directory>
             <directory>Modules/Stores/tests/Feature</directory>
         </testsuite>
     </testsuites>

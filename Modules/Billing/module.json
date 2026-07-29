@@ -1,0 +1,1 @@
+{"name":"Billing","alias":"billing","description":"Platform plan, pricing, reusable feature, and plan-feature administration.","keywords":["billing","plans","pricing"],"priority":5,"providers":["Modules\\Billing\\Providers\\BillingServiceProvider"],"files":[]}

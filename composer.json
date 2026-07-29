@@ -42,6 +42,7 @@
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
             "Modules\\Authentication\\": "Modules/Authentication/app/",
+            "Modules\\Billing\\": "Modules/Billing/app/",
             "Modules\\Stores\\": "Modules/Stores/app/"
         },
         "files": [
@@ -53,6 +54,7 @@
             "Tests\\": "tests/",
             "Modules\\Authentication\\Database\\Factories\\": "Modules/Authentication/database/factories/",
             "Modules\\Authentication\\Database\\Seeders\\": "Modules/Authentication/database/seeders/",
+            "Modules\\Billing\\Database\\Factories\\": "Modules/Billing/database/factories/",
             "Modules\\Stores\\Database\\Factories\\": "Modules/Stores/database/factories/"
         }
     },
