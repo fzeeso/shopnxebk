@@ -11,7 +11,8 @@ final class StorePolicy
 {
     public function view(User $user, Store $store): bool
     {
-        return $user->stores()->whereKey($store->getKey())->wherePivot('status', 'active')->exists();
+        return $user->isStoreUser()
+            && $user->stores()->whereKey($store->getKey())->wherePivot('status', 'active')->exists();
     }
 
     public function update(User $user, Store $store): bool

@@ -43,7 +43,10 @@
             "Database\\Seeders\\": "database/seeders/",
             "Modules\\Authentication\\": "Modules/Authentication/app/",
             "Modules\\Stores\\": "Modules/Stores/app/"
-        }
+        },
+        "files": [
+            "database/ShopNxeDatabaseSeeder.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

@@ -18,6 +18,7 @@ return new class extends Migration
             $table->ulid('public_id')->unique();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('scope')->default('store')->index();
             $table->timestampTz('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();

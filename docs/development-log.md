@@ -16,6 +16,38 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-29 — Platform and Store language settings
+
+- Changed: Added the 21-entry language catalog, Store language selections with one PostgreSQL-enforced default, public language ULIDs, platform catalog list/create endpoints, Store list/update endpoints, and the `manage platform settings` permission for Super Admin.
+- Reason: Let ShopNXE control supported languages centrally while each merchant chooses the languages and default locale their Store operates in.
+- Data/configuration impact: Adds `languages` and `store_languages`; seeding is idempotent and backfills existing Stores from `stores.language_code`, falling back to English.
+- Compatibility or rollout notes: Run the migration and seeder before using the admin language screen. Store updates keep `stores.language_code` synchronized for existing consumers. Numeric identifiers remain internal.
+- Verification: Added PostgreSQL feature coverage for all 21 seeds, RTL data, Super Admin creation, Support denial, Store selection/default persistence, compatibility-field synchronization, permissions, and cross-scope rejection.
+
+## 2026-07-29 — Exclusive Platform and Store user scopes
+
+- Changed: Added mandatory `users.scope` (`platform` or `store`), scope-aware API/GraphQL resources, scoped role-assignment service, route/middleware checks, Store-token restrictions, and PostgreSQL enforcement triggers.
+- Reason: Make Platform Admin/staff and Store Admin/staff separate account classes so neither can receive the other class’s memberships, roles, permissions, tokens, interfaces, or data.
+- Data/configuration impact: Existing users with global Platform assignments were classified as Platform; all others remain Store. The migration refuses ambiguous mixed accounts. `admin@shopnxe.com` is Platform-scoped with `Super Admin`; four existing merchant accounts are Store-scoped.
+- Compatibility or rollout notes: Accounts can no longer access both interfaces. Remove all memberships/assignments before deliberately changing a user’s scope. Use `ScopedRoleAssignmentService`; direct incompatible pivot writes are rejected by PostgreSQL.
+- Verification: Proved fresh and existing migrations, confirmed zero cross-scope conflicts, and added Platform/Store interface, role, Store route, token, and context isolation coverage.
+
+## 2026-07-29 — Store profile, lifecycle, and capabilities
+
+- Changed: Expanded `stores` with legal/contact details, branding references, industry/business type, internal Billing links, locale, lifecycle dates/statuses, verification, and AI/POS/B2B/marketplace switches; added typed casts, public-safe REST/GraphQL fields, factory defaults, and database value checks.
+- Reason: Make Store onboarding and merchant configuration explicit first-class data while preserving the internal-bigint/public-ULID boundary.
+- Data/configuration impact: Added nullable profile/media/Billing columns, `USD`/`en`/`UTC` defaults, false capability defaults, and the `pending`, `active`, `suspended`, `cancelled` plus six-business-type constraints. Existing Store records retain their data and receive defaults where applicable.
+- Compatibility or rollout notes: Run migrations before deploying the updated model. `plan_id` and `subscription_id` remain internal nullable keys without foreign constraints until Billing exists; media values are storage references. No Store profile write endpoint is included.
+- Verification: Added PostgreSQL-backed Store cast, persistence, REST, GraphQL, registration-default, and internal-ID non-disclosure coverage.
+
+## 2026-07-29 — Scoped administration interfaces
+
+- Changed: Added `UserInterfaceAccessService` and authenticated `GET /api/v1/auth/interfaces` to distinguish the Platform Admin (SaaS Owner/platform staff) interface from the Store Admin (Merchant/Store staff) interface.
+- Reason: Let clients select the correct application shell and navigation from roles/permissions without introducing separate user tables or a fixed user-type column.
+- Data/configuration impact: No schema or environment changes. The response contains Platform roles/permissions and active Stores with isolated Store roles/permissions, exposing only public ULIDs.
+- Compatibility or rollout notes: This entry records the endpoint’s initial dual-interface behavior, which was superseded by the later exclusive Platform/Store user-scope change.
+- Verification: Initial dual-interface coverage was replaced by exclusive account-scope and cross-boundary rejection tests.
+
 ## 2026-07-28 — Store terminology, bigint keys, public ULIDs, and scoped authorization
 
 - Changed: Replaced the application’s Tenancy module/domain vocabulary with Stores; changed domain primary and foreign keys to bigint; added public ULIDs; unified every staff/merchant identity in `users`; added extendable platform/Store roles and permissions; updated REST, GraphQL, tokens, channels, media paths, tests, and module contracts.

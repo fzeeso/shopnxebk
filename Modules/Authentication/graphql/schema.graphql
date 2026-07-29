@@ -7,5 +7,6 @@ type User {
     id: ID! @rename(attribute: "public_id")
     name: String!
     email: String!
+    scope: String! @method(name: "scopeValue")
     emailVerifiedAt: DateTime @rename(attribute: "email_verified_at")
 }

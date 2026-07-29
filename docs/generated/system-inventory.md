@@ -53,6 +53,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/health/ready` | `health.ready` | api |
 | `POST` | `/api/v1/auth/email/verification-notification` | `api.v1.auth.verification.send` | api, auth:sanctum, throttle:6,1 |
 | `POST` | `/api/v1/auth/forgot-password` | `api.v1.auth.forgot-password` | api, throttle:6,1 |
+| `GET\|HEAD` | `/api/v1/auth/interfaces` | `api.v1.auth.interfaces` | api, auth:sanctum |
 | `POST` | `/api/v1/auth/login` | `api.v1.auth.login` | api, throttle:auth.login |
 | `POST` | `/api/v1/auth/logout` | `api.v1.auth.logout` | api, auth:sanctum |
 | `GET\|HEAD` | `/api/v1/auth/me` | `api.v1.auth.me` | api, auth:sanctum |
@@ -64,12 +65,21 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/auth/mfa/setup` | `api.v1.auth.mfa.setup` | api, auth:sanctum, throttle:auth.mfa-management |
 | `POST` | `/api/v1/auth/register` | `api.v1.auth.register` | api |
 | `POST` | `/api/v1/auth/reset-password` | `api.v1.auth.reset-password` | api, throttle:6,1 |
-| `GET\|HEAD` | `/api/v1/auth/stores` | `api.v1.auth.stores` | api, auth:sanctum |
+| `GET\|HEAD` | `/api/v1/auth/stores` | `api.v1.auth.stores` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
 | `POST` | `/api/v1/auth/token` | `api.v1.auth.token` | api, throttle:auth.token |
 | `GET\|HEAD` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.index` | api, auth:sanctum |
 | `POST` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.store` | api, auth:sanctum |
 | `DELETE` | `/api/v1/auth/tokens/{token}` | `api.v1.auth.tokens.destroy` | api, auth:sanctum |
 | `GET\|HEAD` | `/api/v1/auth/verify-email/{id}/{hash}` | `api.v1.auth.verification.verify` | api, signed, throttle:6,1 |
+| `GET\|HEAD` | `/api/v1/platform/languages` | `api.v1.platform.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/languages` | `api.v1.platform.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/store` | `api.v1.store.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/settings` | `api.v1.store.settings.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/stores` | `api.v1.stores.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
 | `GET\|POST\|HEAD` | `/graphql` | `graphql` | api, throttle:graphql, store.optional, lighthouse.accept-json, lighthouse.authenticate |
 | `GET\|HEAD` | `/sanctum/csrf-cookie` | `sanctum.csrf-cookie` | web |
 
@@ -90,8 +100,11 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Authentication | `Modules/Authentication/database/migrations/2026_07_22_000200_create_authentication_tables.php` |
 | Authentication | `Modules/Authentication/database/migrations/2026_07_28_000300_add_mfa_to_users_table.php` |
 | Authentication | `Modules/Authentication/database/migrations/2026_07_28_000500_add_legacy_token_lookup.php` |
+| Authentication | `Modules/Authentication/database/migrations/2026_07_29_000600_enforce_exclusive_user_scopes.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
+| Stores | `Modules/Stores/database/migrations/2026_07_29_000500_add_profile_and_capabilities_to_stores.php` |
+| Stores | `Modules/Stores/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |

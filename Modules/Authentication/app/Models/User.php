@@ -16,12 +16,13 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Sanctum\HasApiTokens;
 use Modules\Authentication\Database\Factories\UserFactory;
+use Modules\Authentication\Enums\AccessScope;
 use Modules\Authentication\Notifications\QueuedResetPassword;
 use Modules\Authentication\Notifications\QueuedVerifyEmail;
 use Modules\Stores\Models\Store;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'scope'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes'])]
 /**
  * @property string $password
@@ -55,6 +56,10 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function isPlatformSuperAdmin(): bool
     {
+        if (! $this->isPlatformUser()) {
+            return false;
+        }
+
         $previousStoreId = getPermissionsTeamId();
         setPermissionsTeamId(null);
 
@@ -63,6 +68,21 @@ class User extends Authenticatable implements MustVerifyEmail
         } finally {
             setPermissionsTeamId($previousStoreId);
         }
+    }
+
+    public function isPlatformUser(): bool
+    {
+        return $this->scope === AccessScope::Platform;
+    }
+
+    public function isStoreUser(): bool
+    {
+        return $this->scope === AccessScope::Store;
+    }
+
+    public function scopeValue(): string
+    {
+        return $this->scope instanceof AccessScope ? $this->scope->value : (string) $this->scope;
     }
 
     public function sendEmailVerificationNotification(): void
@@ -89,6 +109,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected function casts(): array
     {
         return [
+            'scope' => AccessScope::class,
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',

@@ -73,7 +73,27 @@ paths:
       security: [{sanctum: []}]
       summary: Current user
       responses:
-        '200': {description: User resource}
+        '200':
+          description: User resource including exclusive account scope
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user]
+                properties:
+                  user: {$ref: '#/components/schemas/User'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/interfaces:
+    get:
+      security: [{sanctum: []}]
+      summary: Resolve Platform Admin and Store Admin interfaces
+      description: Returns stable Platform and Store keys, but exclusive user scope permits only one interface to be available.
+      responses:
+        '200':
+          description: Scoped interface access profile
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AccessInterfacesResponse'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
   /api/v1/auth/logout:
     post:
@@ -87,8 +107,19 @@ paths:
       security: [{sanctum: []}]
       summary: List active memberships
       responses:
-        '200': {description: Store resources}
+        '200':
+          description: Public-safe Store resources
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Store'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {description: Platform account cannot list Stores}
   /api/v1/auth/forgot-password:
     post:
       summary: Queue a password reset notification
@@ -110,6 +141,80 @@ paths:
       responses:
         '200': {description: Email verified}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/languages:
+    get:
+      security: [{sanctum: []}]
+      summary: List the platform language catalog
+      responses:
+        '200':
+          description: Complete platform language catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: {$ref: '#/components/schemas/Language'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      security: [{sanctum: []}]
+      summary: Add a supported platform language
+      description: Requires a Platform-scoped user with manage platform settings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateLanguageRequest'}
+      responses:
+        '201':
+          description: Language created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Language'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/languages:
+    get:
+      security: [{sanctum: []}]
+      summary: List active catalog languages and Store selection state
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+      responses:
+        '200':
+          description: Store language settings
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreLanguagesResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    put:
+      security: [{sanctum: []}]
+      summary: Replace the Store language selection and default
+      description: Requires an active Store member with manage store.
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateStoreLanguagesRequest'}
+      responses:
+        '200':
+          description: Store language settings updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreLanguagesResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /graphql:
     post:
       summary: Lighthouse GraphQL endpoint
@@ -119,6 +224,13 @@ paths:
 components:
   securitySchemes:
     sanctum: {type: http, scheme: bearer}
+  parameters:
+    StoreId:
+      name: X-Store-ID
+      in: header
+      required: true
+      description: Public Store ULID
+      schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
   schemas:
     Health:
       type: object
@@ -136,6 +248,140 @@ components:
         password_confirmation: {type: string, format: password}
         store_name: {type: string, maxLength: 255}
         store_slug: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+    User:
+      type: object
+      required: [id, name, email, scope]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string}
+        email: {type: string, format: email}
+        scope: {type: string, enum: [platform, store], description: Exclusive account class}
+        email_verified_at: {type: [string, 'null'], format: date-time}
+    Store:
+      type: object
+      description: Public Store data. Internal bigint id, plan_id, and subscription_id are never serialized.
+      required: [id, name, slug, status, currency_code, language_code, timezone, is_verified, is_ai_enabled, is_pos_enabled, is_b2b_enabled, is_marketplace_enabled]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string}
+        legal_name: {type: [string, 'null']}
+        description: {type: [string, 'null']}
+        email: {type: [string, 'null'], format: email}
+        phone: {type: [string, 'null']}
+        slug: {type: string}
+        status: {type: string, enum: [pending, active, suspended, cancelled]}
+        primary_domain: {type: [string, 'null']}
+        logo: {type: [string, 'null']}
+        favicon: {type: [string, 'null']}
+        cover_image: {type: [string, 'null']}
+        industry: {type: [string, 'null']}
+        business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+        currency_code: {type: string, minLength: 3, maxLength: 3}
+        language_code: {type: string}
+        timezone: {type: string}
+        country_code: {type: [string, 'null'], minLength: 2, maxLength: 2}
+        is_verified: {type: boolean}
+        is_ai_enabled: {type: boolean}
+        is_pos_enabled: {type: boolean}
+        is_b2b_enabled: {type: boolean}
+        is_marketplace_enabled: {type: boolean}
+        launched_at: {type: [string, 'null'], format: date-time}
+        trial_ends_at: {type: [string, 'null'], format: date-time}
+    Language:
+      type: object
+      required: [id, name, native_name, locale, direction, is_active]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string, maxLength: 100}
+        native_name: {type: string, maxLength: 100}
+        locale: {type: string, maxLength: 10, pattern: '^[a-z]{2,3}(?:_[A-Z]{2})?$'}
+        direction: {type: string, enum: [ltr, rtl]}
+        is_active: {type: boolean}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    StoreLanguageOption:
+      type: object
+      required: [id, name, native_name, locale, direction, is_selected, is_default]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string}
+        native_name: {type: string}
+        locale: {type: string}
+        direction: {type: string, enum: [ltr, rtl]}
+        is_selected: {type: boolean}
+        is_default: {type: boolean}
+    CreateLanguageRequest:
+      type: object
+      required: [name, native_name, locale, direction]
+      properties:
+        name: {type: string, maxLength: 100}
+        native_name: {type: string, maxLength: 100}
+        locale: {type: string, maxLength: 10}
+        direction: {type: string, enum: [ltr, rtl]}
+        is_active: {type: boolean, default: true}
+    UpdateStoreLanguagesRequest:
+      type: object
+      required: [language_ids, default_language_id]
+      properties:
+        language_ids:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        default_language_id:
+          type: string
+          pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+          description: Must be included in language_ids.
+    StoreLanguagesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [store_id, default_language_id, languages]
+          properties:
+            store_id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+            default_language_id: {type: [string, 'null'], pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+            languages:
+              type: array
+              items: {$ref: '#/components/schemas/StoreLanguageOption'}
+    AccessInterfacesResponse:
+      type: object
+      description: Exactly one of platform_admin.available or store_admin.available can be true.
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [platform_admin, store_admin]
+          properties:
+            platform_admin:
+              type: object
+              required: [interface, label, available, roles, permissions]
+              properties:
+                interface: {type: string, const: platform_admin}
+                label: {type: string, example: Platform Admin (SaaS Owner)}
+                available: {type: boolean}
+                roles: {type: array, items: {type: string}}
+                permissions: {type: array, items: {type: string}}
+            store_admin:
+              type: object
+              required: [interface, label, available, stores]
+              properties:
+                interface: {type: string, const: store_admin}
+                label: {type: string, example: Store Admin (Merchant)}
+                available: {type: boolean}
+                stores:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, name, slug, status, roles, permissions]
+                    properties:
+                      id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+                      name: {type: string}
+                      slug: {type: string}
+                      status: {type: string}
+                      roles: {type: array, items: {type: string}}
+                      permissions: {type: array, items: {type: string}}
   responses:
     Unauthenticated:
       description: Authentication required

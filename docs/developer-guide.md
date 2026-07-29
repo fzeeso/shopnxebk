@@ -70,17 +70,45 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Authentication/` owns users, credentials, sessions, Sanctum tokens, password reset, email verification, resources, and authentication routes.
 
-`Modules/Stores/` owns stores, memberships, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, memberships, the global language catalog, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
 
 Each future business module owns its migrations, models, Actions, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 
 ### Identifier and identity rules
 
-All human and staff identities use the global `users` table. Do not create separate admin, owner, manager, or customer-login tables merely to represent a role.
+All human and staff identities use the `users` table, but `users.scope` exclusively classifies each account as `platform` or `store`. Platform accounts never receive Store membership/data; Store accounts never receive Platform assignments/data. Roles refine responsibility only within that account scope.
+
+```mermaid
+flowchart LR
+    User["users"]
+    User --> Scope{"scope"}
+    Scope -->|"platform"| Platform["Platform roles<br/>Super Admin, Support, Billing"]
+    Scope -->|"store"| Membership["Active Store membership"]
+    Membership --> StoreRole["Store role for same store_id<br/>Owner, Manager, Sales, Inventory"]
+    Platform -. "cannot cross" .- Membership
+```
+
+Use `ScopedRoleAssignmentService` for assignments. It checks account scope, role scope, active membership, and Store identity. PostgreSQL triggers reject bypasses through direct pivot inserts. `user.scope:platform` and `user.scope:store` middleware make route ownership explicit.
 
 Domain entities use bigint `id` for primary keys, bigint `*_id` foreign keys for internal joins, and ULID `public_id` for REST, GraphQL, URLs, public events, and file paths. Middleware and actions resolve a public ULID once, then keep the internal bigint through the database flow. API resources and GraphQL fields serialize `public_id` as `id`; they must not expose bigint keys.
 
 Pure relationship/package tables and protocol identifiers follow the documented exceptions in [application context](context.md). New business entity tables require both `id` and `public_id`.
+
+### Store profile and capability data
+
+`stores` keeps the merchant's first-class profile instead of hiding stable fields inside JSON. Identity/contact fields are `legal_name`, `description`, `email`, and `phone`; branding references are `logo`, `favicon`, and `cover_image`; classification is `industry` plus the typed `business_type`; locale is `currency_code`, `language_code`, `timezone`, and `country_code`; lifecycle is `status`, `launched_at`, and `trial_ends_at`; capability switches cover verification, AI, POS, B2B, and marketplace access.
+
+Registration sets `legal_name` from `store_name`; database defaults provide `USD`, `en`, `UTC`, and disabled flags. `Store` casts business type/status to enums, flags to booleans, and lifecycle values to immutable datetimes. `StoreResource` and the GraphQL `Store` type serialize the public-safe values. Numeric `plan_id` and `subscription_id` remain internal Billing integration keys and never cross the API boundary.
+
+Branding columns contain storage references only. A future Store-management endpoint must validate locale codes, contact values, status transitions, capability authorization, and Store-owned media before saving. No profile-write endpoint is introduced by this schema change.
+
+### Language catalog and Store language selection
+
+`languages` is the platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, a unique locale, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 21-language catalog and gives an existing Store one default selection matching `stores.language_code` (falling back to English).
+
+`store_languages` joins an internal Store ID to an internal language ID. The Store/language pair is unique, and a PostgreSQL partial unique index permits only one `is_default = true` row per Store. Deleting a Store cascades its selections; deleting a language is restricted while Stores reference it.
+
+Platform users call `GET /api/v1/platform/languages`. Creating another catalog entry through `POST /api/v1/platform/languages` requires `manage platform settings`, initially assigned only to `Super Admin`. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
 
 ## 4. Application boot sequence
 
@@ -109,6 +137,7 @@ flowchart TD
     RequestId["Assign or validate X-Request-ID"]
     Api["API middleware"]
     Auth["Sanctum authentication when required"]
+    Scope["Require users.scope when route is owned"]
     Resolve["Resolve X-Store-ID"]
     Member["Validate membership and token store"]
     Team["Set permission team to store_id"]
@@ -119,7 +148,7 @@ flowchart TD
     Cleanup["Clear store, team, guards, locale, logs"]
     Response["JSON with X-Request-ID"]
 
-    Request --> RequestId --> Api --> Auth --> Resolve --> Member --> Team --> Handler --> Action --> Data --> Resource --> Cleanup --> Response
+    Request --> RequestId --> Api --> Auth --> Scope --> Resolve --> Member --> Team --> Handler --> Action --> Data --> Resource --> Cleanup --> Response
 ```
 
 `AssignRequestId` accepts a safe incoming request ID or creates a UUIDv7, then adds it to logs and the response.
@@ -146,7 +175,7 @@ sequenceDiagram
     Request->>Request: Validate and normalize email
     Request->>Controller: Validated data
     Controller->>Register: handle(data)
-    Register->>DB: Begin transaction and create user
+    Register->>DB: Begin transaction and create Store-scoped user
     Register->>Provision: provision(user, store name, slug)
     Provision->>DB: Create store and active owner membership
     Provision->>DB: Ensure authorization catalog and assign Owner
@@ -173,7 +202,16 @@ The browser obtains `/sanctum/csrf-cookie`, posts credentials to `/api/v1/auth/l
 5. Later requests send `Authorization: Bearer …` and `X-Store-ID: …`.
 6. Middleware rejects a token when its store differs from the selected store. Issued-token metadata records whether MFA was verified.
 
-Authorization has four layers: Sanctum authentication/abilities, active Store membership, scoped Spatie permissions, and model policies. Passing one never bypasses the others. Platform roles (`Super Admin`, `Support`, `Billing`) are evaluated without a Store team; Store roles (`Owner`, `Manager`, `Sales`, `Inventory`) are assigned under an internal Store team. The catalog is extendable.
+Authorization has five layers: Sanctum authentication/abilities, exclusive user scope, active Store membership where applicable, scoped Spatie permissions, and model policies. Passing one never bypasses the others. Platform roles (`Super Admin`, `Support`, `Billing`) are evaluated without a Store team; Store roles (`Owner`, `Manager`, `Sales`, `Inventory`) are assigned under an internal Store team.
+
+### Platform Admin and Store Admin interface selection
+
+After login, call `GET /api/v1/auth/interfaces`. The response has two stable keys:
+
+- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions and never Stores.
+- `store_admin` is available only for `users.scope = store` with at least one active membership. It returns only that userâ€™s Stores and Store-isolated roles/permissions.
+
+An account can never have both interfaces. The frontend selects the shell from `user.scope` and `available`; backend scope middleware remains authoritative. Store requests still send the selected Store ULID through `X-Store-ID`.
 
 ### TOTP multi-factor authentication
 
@@ -340,6 +378,12 @@ docker compose up -d redis meilisearch mailpit minio
 ```
 
 Use `DB_HOST=127.0.0.1`, `REDIS_HOST=127.0.0.1`, and `SCOUT_DRIVER=database`.
+
+The standard `artisan db:seed` entry point is defined in
+`database/ShopNxeDatabaseSeeder.php` and loaded through Composer's
+`autoload.files` configuration. It maintains the authorization catalog, the
+21-language master catalog, existing Store language defaults, and the optional
+local Platform Administrator account.
 
 ### Infrastructure Compose services
 

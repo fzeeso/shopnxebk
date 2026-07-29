@@ -38,6 +38,7 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 - REST base: `/api/v1`
 - Health: `GET /api/health/live` and `GET /api/health/ready`
 - GraphQL: `POST /graphql`
+- Interface access profile: `GET /api/v1/auth/interfaces`
 - Store-scoped requests use `X-Store-ID: <store ULID>`.
 - Every response includes an `X-Request-ID` header. A valid incoming ID is preserved; otherwise one is generated.
 

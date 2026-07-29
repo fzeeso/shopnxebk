@@ -4,11 +4,13 @@
 
 `Modules/Authentication` owns:
 
-- the global `users` table and `User` model;
+- the shared `users` table, exclusive Platform/Store account scope, and `User` model;
 - session login, logout, password reset, and signed email verification;
 - Fortify-backed TOTP enrollment, MFA challenges, and recovery codes;
 - Sanctum personal access tokens;
 - roles, permissions, and the initial authorization catalog;
+- validated assignments through `ScopedRoleAssignmentService`;
+- Platform Admin and Store Admin interface-access resolution;
 - public User and token resources;
 - authentication REST routes and the `viewer`/`viewerStores` GraphQL fields.
 
@@ -23,7 +25,7 @@ It does not own stores or memberships. It requests first-store creation through 
 Registration:
 
 1. `RegisterRequest` normalizes and validates user and store input.
-2. `RegisterUser` creates the global user in a database transaction.
+2. `RegisterUser` creates a Store-scoped user in a database transaction.
 3. It calls the Stores-owned `StoreProvisioner` contract.
 4. Stores returns the created Store model after membership and Owner assignment.
 5. Registration/verification events dispatch after commit.
@@ -36,6 +38,14 @@ Store token login:
 3. If MFA is enabled, a short-lived cache challenge stores the Store ULID until completion.
 4. Sanctum creates the token; the custom token record stores internal `store_id`.
 5. The plaintext token is returned once. List/revoke operations expose only token and Store ULIDs.
+
+Interface selection:
+
+1. An authenticated client calls `GET /api/v1/auth/interfaces`.
+2. It checks exclusive `users.scope`.
+3. Platform users receive only Platform assignments; Store users load only active Store memberships and Store-scoped roles/permissions.
+4. The response keeps both stable keys, but only one interface can be available.
+5. The frontend chooses the matching shell, while scope middleware and policies continue to authorize every request.
 
 ## Outbound communication
 

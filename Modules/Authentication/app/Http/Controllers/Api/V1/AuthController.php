@@ -26,6 +26,7 @@ use Modules\Authentication\Http\Resources\PersonalAccessTokenResource;
 use Modules\Authentication\Http\Resources\UserResource;
 use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Authentication\Models\User;
+use Modules\Authentication\Services\UserInterfaceAccessService;
 use Modules\Authentication\Support\MfaChallengeStore;
 use Modules\Stores\Http\Resources\StoreResource;
 
@@ -154,6 +155,11 @@ final class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json(['user' => new UserResource($request->user())]);
+    }
+
+    public function interfaces(Request $request, UserInterfaceAccessService $interfaces): JsonResponse
+    {
+        return response()->json(['data' => $interfaces->for($request->user())]);
     }
 
     public function stores(Request $request): JsonResponse

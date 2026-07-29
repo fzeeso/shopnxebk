@@ -41,6 +41,10 @@ final class IssueStoreToken
     /** @param list<string> $abilities @param array<string, mixed> $metadata */
     public function issue(User $user, string $name, ?string $storePublicId, array $abilities, ?string $expiresAt, array $metadata = []): IssuedToken
     {
+        if ($user->isPlatformUser() && ($storePublicId !== null || in_array('store:access', $abilities, true))) {
+            throw new AccessDeniedHttpException('Platform accounts cannot receive Store access tokens.');
+        }
+
         $store = $storePublicId === null ? null : $this->resolveActiveStore($user, $storePublicId);
 
         $expires = $expiresAt === null ? null : now()->parse($expiresAt);
@@ -54,6 +58,10 @@ final class IssueStoreToken
 
     private function resolveActiveStore(User $user, string $storePublicId): Store
     {
+        if (! $user->isStoreUser()) {
+            throw new AccessDeniedHttpException('Store-scoped account required.');
+        }
+
         $store = Store::query()->where('public_id', $storePublicId)->first();
         if ($store === null || ! StoreMembership::query()
             ->where('store_id', $store->getKey())

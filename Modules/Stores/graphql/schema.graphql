@@ -5,6 +5,27 @@ extend type Query {
 type Store {
     id: ID! @rename(attribute: "public_id")
     name: String!
+    legalName: String @rename(attribute: "legal_name")
+    description: String
+    email: String
+    phone: String
     slug: String!
-    status: String!
+    status: String! @method(name: "statusValue")
+    primaryDomain: String @rename(attribute: "primary_domain")
+    logo: String
+    favicon: String
+    coverImage: String @rename(attribute: "cover_image")
+    industry: String
+    businessType: String @method(name: "businessTypeValue")
+    currencyCode: String! @rename(attribute: "currency_code")
+    languageCode: String! @rename(attribute: "language_code")
+    timezone: String!
+    countryCode: String @rename(attribute: "country_code")
+    isVerified: Boolean! @rename(attribute: "is_verified")
+    isAiEnabled: Boolean! @rename(attribute: "is_ai_enabled")
+    isPosEnabled: Boolean! @rename(attribute: "is_pos_enabled")
+    isB2bEnabled: Boolean! @rename(attribute: "is_b2b_enabled")
+    isMarketplaceEnabled: Boolean! @rename(attribute: "is_marketplace_enabled")
+    launchedAt: DateTime @rename(attribute: "launched_at")
+    trialEndsAt: DateTime @rename(attribute: "trial_ends_at")
 }

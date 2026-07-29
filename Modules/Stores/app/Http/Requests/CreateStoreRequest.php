@@ -1,0 +1,103 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Stores\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Modules\Stores\Enums\BusinessType;
+
+final class CreateStoreRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $values = ['slug' => Str::lower(trim((string) $this->input('slug')))];
+
+        foreach (['email', 'primary_domain'] as $field) {
+            if ($this->exists($field) && $this->input($field) !== null) {
+                $values[$field] = Str::lower(trim((string) $this->input($field)));
+            }
+        }
+
+        foreach (['currency_code', 'country_code'] as $field) {
+            if ($this->exists($field) && $this->input($field) !== null) {
+                $values[$field] = Str::upper(trim((string) $this->input($field)));
+            }
+        }
+
+        if ($this->exists('language_code') && $this->input('language_code') !== null) {
+            $values['language_code'] = trim((string) $this->input('language_code'));
+        }
+
+        $this->merge($values);
+    }
+
+    /** @return array<string, list<mixed>> */
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', 'unique:stores,slug'],
+            'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'primary_domain' => ['sometimes', 'nullable', 'string', 'max:253', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', 'unique:stores,primary_domain'],
+            'logo' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'favicon' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'cover_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'industry' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'business_type' => ['sometimes', 'nullable', Rule::enum(BusinessType::class)],
+            'currency_code' => ['sometimes', 'string', 'alpha:ascii', 'size:3'],
+            'language_code' => ['sometimes', 'string', 'max:35', 'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/'],
+            'timezone' => ['sometimes', 'string', 'timezone:all'],
+            'country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
+            ...$this->preferenceRules(),
+            ...$this->platformControlledRules(),
+        ];
+    }
+
+    /** @return array<string, list<mixed>> */
+    private function preferenceRules(): array
+    {
+        return [
+            'preferences' => ['sometimes', 'array:order_prefix,date_format,time_format,weight_unit,dimension_unit,inventory_tracking,guest_checkout,tax_inclusive_pricing,low_stock_threshold,support_email'],
+            'preferences.order_prefix' => ['sometimes', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'preferences.date_format' => ['sometimes', Rule::in(['Y-m-d', 'd/m/Y', 'm/d/Y'])],
+            'preferences.time_format' => ['sometimes', Rule::in(['12h', '24h'])],
+            'preferences.weight_unit' => ['sometimes', Rule::in(['kg', 'lb'])],
+            'preferences.dimension_unit' => ['sometimes', Rule::in(['cm', 'in'])],
+            'preferences.inventory_tracking' => ['sometimes', 'boolean'],
+            'preferences.guest_checkout' => ['sometimes', 'boolean'],
+            'preferences.tax_inclusive_pricing' => ['sometimes', 'boolean'],
+            'preferences.low_stock_threshold' => ['sometimes', 'integer', 'min:0', 'max:1000000'],
+            'preferences.support_email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
+        ];
+    }
+
+    /** @return array<string, list<mixed>> */
+    private function platformControlledRules(): array
+    {
+        return [
+            'status' => ['prohibited'],
+            'plan_id' => ['prohibited'],
+            'subscription_id' => ['prohibited'],
+            'is_verified' => ['prohibited'],
+            'is_ai_enabled' => ['prohibited'],
+            'is_pos_enabled' => ['prohibited'],
+            'is_b2b_enabled' => ['prohibited'],
+            'is_marketplace_enabled' => ['prohibited'],
+            'launched_at' => ['prohibited'],
+            'trial_ends_at' => ['prohibited'],
+            'metadata' => ['prohibited'],
+            'settings' => ['prohibited'],
+        ];
+    }
+}

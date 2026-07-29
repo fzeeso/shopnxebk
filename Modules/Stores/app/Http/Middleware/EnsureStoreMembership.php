@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Modules\Authentication\Models\PersonalAccessToken;
+use Modules\Authentication\Models\User;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Enums\MembershipStatus;
 use Modules\Stores\Models\StoreMembership;
@@ -22,8 +23,11 @@ final readonly class EnsureStoreMembership
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user() ?? Auth::guard('sanctum')->user();
-        if ($user === null) {
+        if (! $user instanceof User) {
             abort(401, 'Unauthenticated.');
+        }
+        if (! $user->isStoreUser()) {
+            throw new AccessDeniedHttpException('Store-scoped account required.');
         }
 
         $store = $this->context->require();

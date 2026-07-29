@@ -10,6 +10,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Modules\Authentication\Http\Middleware\EnsureUserScope;
 use Modules\Stores\Http\Middleware\EnsureStoreMembership;
 use Modules\Stores\Http\Middleware\ResolveOptionalStore;
 use Modules\Stores\Http\Middleware\ResolveStore;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'store' => ResolveStore::class,
             'store.member' => EnsureStoreMembership::class,
             'store.optional' => ResolveOptionalStore::class,
+            'user.scope' => EnsureUserScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -19,12 +19,13 @@ use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Authentication\Models\User;
 use Modules\Authentication\Notifications\QueuedResetPassword;
 use Modules\Authentication\Notifications\QueuedVerifyEmail;
+use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Stores\Enums\MembershipStatus;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
 
-final class AccountApiTest extends TestCase
+final class AccountApiFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -35,13 +36,19 @@ final class AccountApiTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('user.email', 'owner@example.test')
+            ->assertJsonPath('user.scope', 'store')
             ->assertJsonPath('store.slug', 'acme-shop');
         $user = User::query()->where('email', 'owner@example.test')->firstOrFail();
         $store = Store::query()->where('slug', 'acme-shop')->firstOrFail();
         self::assertIsInt($user->getKey());
         self::assertTrue(Str::isUlid($user->public_id));
+        self::assertSame(AccessScope::Store, $user->scope);
         self::assertIsInt($store->getKey());
         self::assertTrue(Str::isUlid($store->public_id));
+        self::assertSame('Acme Shop', $store->legal_name);
+        self::assertSame('USD', $store->currency_code);
+        self::assertSame('en', $store->language_code);
+        self::assertSame('UTC', $store->timezone);
         self::assertTrue(StoreMembership::query()->whereBelongsTo($store)->whereBelongsTo($user)->where('status', 'active')->exists());
         setPermissionsTeamId($store->getKey());
         self::assertTrue($user->fresh()->hasRole('Owner'));
@@ -61,7 +68,10 @@ final class AccountApiTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'login@example.test']);
         $headers = ['Origin' => 'http://localhost:3000'];
-        $this->withHeaders($headers)->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->assertOk()->assertJsonPath('user.id', $user->public_id);
+        $this->withHeaders($headers)->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->public_id)
+            ->assertJsonPath('user.scope', 'store');
         $this->postJson('/api/v1/auth/logout')->assertOk();
 
         for ($attempt = 1; $attempt <= 5; $attempt++) {
@@ -113,7 +123,8 @@ final class AccountApiTest extends TestCase
         $this->withToken($legacyId.'|'.$plainTextSecret)
             ->getJson('/api/v1/auth/me')
             ->assertOk()
-            ->assertJsonPath('user.id', $user->public_id);
+            ->assertJsonPath('user.id', $user->public_id)
+            ->assertJsonPath('user.scope', 'store');
     }
 
     public function test_password_reset_and_email_verification_flows_are_json_and_queued(): void
@@ -142,23 +153,23 @@ final class AccountApiTest extends TestCase
     public function test_platform_and_store_authorization_catalog_is_scoped_and_extendable(): void
     {
         app(EnsureAuthorizationCatalog::class)->ensure();
+        $roleAssignments = app(ScopedRoleAssignmentService::class);
 
         self::assertDatabaseHas('roles', ['name' => 'Super Admin', 'scope' => AccessScope::Platform->value, 'store_id' => null]);
         self::assertDatabaseHas('roles', ['name' => 'Owner', 'scope' => AccessScope::Store->value, 'store_id' => null]);
         self::assertDatabaseHas('permissions', ['name' => 'manage marketplace', 'scope' => AccessScope::Platform->value]);
         self::assertDatabaseHas('permissions', ['name' => 'manage products', 'scope' => AccessScope::Store->value]);
 
-        $platformUser = User::factory()->create();
-        setPermissionsTeamId(null);
-        $platformUser->assignRole('Super Admin');
+        $platformUser = User::factory()->platform()->create();
+        $roleAssignments->assignPlatformRole($platformUser, 'Super Admin');
         self::assertTrue($platformUser->isPlatformSuperAdmin());
         self::assertTrue($platformUser->can('manage marketplace'));
 
         $storeOwner = User::factory()->create();
         $store = Store::factory()->create();
         StoreMembership::factory()->create(['user_id' => $storeOwner, 'store_id' => $store]);
+        $roleAssignments->assignStoreRole($storeOwner, $store, 'Owner');
         setPermissionsTeamId($store->getKey());
-        $storeOwner->assignRole('Owner');
         self::assertFalse($storeOwner->isPlatformSuperAdmin());
         self::assertTrue($storeOwner->fresh()->can('manage products'));
     }

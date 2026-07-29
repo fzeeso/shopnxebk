@@ -31,6 +31,7 @@ final class StoresServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(__DIR__.'/../../database/migrations');
+        $this->loadRoutesFrom(__DIR__.'/../../routes/api.php');
         Gate::policy(Store::class, StorePolicy::class);
 
         Queue::before(function (JobProcessing $event): void {

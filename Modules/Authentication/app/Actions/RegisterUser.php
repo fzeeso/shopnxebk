@@ -7,6 +7,7 @@ namespace Modules\Authentication\Actions;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\DB;
 use Modules\Authentication\Data\RegistrationResult;
+use Modules\Authentication\Enums\AccessScope;
 use Modules\Authentication\Models\User;
 use Modules\Stores\Contracts\StoreProvisioner;
 
@@ -18,7 +19,7 @@ final readonly class RegisterUser
     public function handle(array $data): RegistrationResult
     {
         return DB::transaction(function () use ($data): RegistrationResult {
-            $user = User::query()->create(['name' => $data['name'], 'email' => $data['email'], 'password' => $data['password']]);
+            $user = User::query()->create(['name' => $data['name'], 'email' => $data['email'], 'password' => $data['password'], 'scope' => AccessScope::Store]);
             $store = $this->storeProvisioner->provision($user, $data['store_name'], $data['store_slug']);
             DB::afterCommit(function () use ($user): void {
                 event(new Registered($user));

@@ -1,16 +1,27 @@
 # Authorization model
 
-Authorization combines four checks:
+Authorization combines five checks:
 
 1. Sanctum authenticates the session or bearer token.
-2. A store-bound token must match the selected internal `store_id`.
-3. Store membership must be active.
-4. Spatie Permission and Laravel policies authorize the requested operation.
+2. `users.scope` must match the owning interface or route.
+3. A Store-bound token must belong to a Store user and match the selected internal `store_id`.
+4. Store membership must be active.
+5. Spatie Permission and Laravel policies authorize the requested operation.
 
-The `roles` and `permissions` tables use internal bigint keys and public ULIDs. `scope` is `platform` or `store`. Role names are unique within their guard, scope, and optional store boundary. Assignments in `model_has_roles` and `model_has_permissions` carry the internal `store_id` when they apply to one store.
+`users.scope`, `roles.scope`, and `permissions.scope` are `platform` or `store`. A user, role, and permission must have matching scopes. Platform assignments have a null Store; Store assignments require active membership and the matching internal `store_id`.
 
 `EnsureAuthorizationCatalog` maintains the initial catalog described in [application context](context.md). It is idempotent: provisioning or seeding may call it repeatedly. Adding a role or permission requires updating that catalog, the relevant policies/actions, tests, this document, and the affected module communication contracts.
 
 Platform authorization is resolved with no active permission team. `User::isPlatformSuperAdmin()` checks the global `Super Admin` role. Store authorization sets the permission team to `stores.id`; a header contains only `stores.public_id` and is never accepted as proof of membership or privilege.
+
+The Platform `manage platform settings` permission is assigned to `Super
+Admin` and protects global configuration mutations such as adding a supported
+language. Support and Billing may read the language catalog but cannot mutate
+it. Store language selection is separate and requires the Store-scoped `manage
+store` permission after Store resolution and active-membership checks.
+
+`ScopedRoleAssignmentService` is the application write path for role assignments. PostgreSQL triggers independently reject cross-scope memberships, assignments, scope changes with existing access, and Platform Store-bound tokens.
+
+`UserInterfaceAccessService` groups authorization data for frontend selection. `platform_admin` represents the SaaS Owner and platform staff; `store_admin` represents merchant administrators and Store staff. These interfaces are mutually exclusive.
 
 Role/permission examples are a starting catalog, not a closed enum. New business modules should introduce permissions using verb-object language such as `manage products`, then add them to intended roles explicitly.

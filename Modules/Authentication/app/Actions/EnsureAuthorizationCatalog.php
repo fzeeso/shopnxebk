@@ -19,6 +19,7 @@ final class EnsureAuthorizationCatalog
             'manage subscriptions',
             'impersonate store',
             'manage marketplace',
+            'manage platform settings',
         ],
         'Support' => [
             'manage stores',
@@ -69,6 +70,7 @@ final class EnsureAuthorizationCatalog
         'manage subscriptions',
         'impersonate store',
         'manage marketplace',
+        'manage platform settings',
     ];
 
     public function ensure(): void
