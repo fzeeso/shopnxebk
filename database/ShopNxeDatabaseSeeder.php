@@ -8,6 +8,7 @@ use Modules\Authentication\Actions\EnsureAuthorizationCatalog;
 use Modules\Authentication\Enums\AccessScope;
 use Modules\Authentication\Models\User;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
+use Modules\Stores\Actions\EnsureCurrencyCatalog;
 use Modules\Stores\Actions\EnsureLanguageCatalog;
 
 class DatabaseSeeder extends Seeder
@@ -18,6 +19,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         app(EnsureAuthorizationCatalog::class)->ensure();
+        app(EnsureCurrencyCatalog::class)->ensure();
         app(EnsureLanguageCatalog::class)->ensure();
 
         $email = env('PLATFORM_ADMIN_EMAIL');

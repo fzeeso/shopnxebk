@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
+use Modules\Stores\Http\Controllers\Api\V1\PlatformCurrencyController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformLanguageController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreLanguageController;
@@ -27,6 +28,9 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:platform'])
     ->prefix('api/v1/platform')
     ->name('api.v1.platform.')
     ->group(function (): void {
+        Route::get('currencies', [PlatformCurrencyController::class, 'index'])->name('currencies.index');
+        Route::post('currencies', [PlatformCurrencyController::class, 'store'])->name('currencies.store');
+        Route::patch('currencies/{currency}', [PlatformCurrencyController::class, 'update'])->name('currencies.update');
         Route::get('languages', [PlatformLanguageController::class, 'index'])->name('languages.index');
         Route::post('languages', [PlatformLanguageController::class, 'store'])->name('languages.store');
     });
