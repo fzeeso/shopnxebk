@@ -9,4 +9,7 @@ return [
         'challenge_attempts' => (int) env('AUTH_MFA_CHALLENGE_ATTEMPTS', 5),
         'totp_window' => (int) env('AUTH_MFA_TOTP_WINDOW', 1),
     ],
+    'tokens' => [
+        'default_ttl_minutes' => (int) env('AUTH_TOKEN_TTL_MINUTES', 43200),
+    ],
 ];

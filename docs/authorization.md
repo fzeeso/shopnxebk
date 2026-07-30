@@ -22,6 +22,6 @@ mutate them. Store language selection is separate and requires the Store-scoped
 
 `ScopedRoleAssignmentService` is the application write path for role assignments. PostgreSQL triggers independently reject cross-scope memberships, assignments, scope changes with existing access, and Platform Store-bound tokens.
 
-`UserInterfaceAccessService` groups authorization data for frontend selection. `platform_admin` represents the SaaS Owner and platform staff; `store_admin` represents merchant administrators and Store staff. These interfaces are mutually exclusive. Platform navigation is permission-filtered: `Plans & Pricing` requires `manage plans`, and `Settings` requires `manage platform settings`; the corresponding APIs independently enforce Platform scope and their permissions.
+`AccountInterfaceAccessService` groups authorization data for frontend selection. `platform_admin` represents the SaaS Owner and platform staff; `store_admin` represents merchant administrators and Store staff. These interfaces are mutually exclusive. Platform navigation is permission-filtered: `Plans & Pricing` requires `manage plans`, and `Settings` requires `manage platform settings`; the corresponding APIs independently enforce Platform scope and their permissions.
 
 Role/permission examples are a starting catalog, not a closed enum. New business modules should introduce permissions using verb-object language such as `manage products`, then add them to intended roles explicitly.

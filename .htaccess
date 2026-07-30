@@ -1,0 +1,14 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # XAMPP may use its shared htdocs directory as the web root. Keep every
+    # project file private even in that development layout; only Laravel's
+    # public directory is allowed to receive HTTP requests.
+    RewriteRule ^(?!public(?:/|$)).* - [F,L,NC]
+</IfModule>
+
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

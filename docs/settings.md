@@ -60,7 +60,7 @@ Store language selections may already refer to them.
 
 The backend catalog source is
 `Modules/Settings/app/Actions/EnsureLanguageCatalog.php`, with PostgreSQL
-coverage in `Modules/Settings/tests/Feature/PlatformSettingsApiFeatureTest.php`.
+coverage in `Modules/Settings/tests/Feature/PlatformCatalogApiFeatureTest.php`.
 Admin UI dictionaries live in the separate frontend and must be updated when a
 Settings label or supported admin locale changes. This API repository currently
 has no runtime translation dictionary directory.

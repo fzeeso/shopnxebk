@@ -12,33 +12,9 @@ use Modules\Authentication\Models\User;
 use Modules\Stores\Enums\MembershipStatus;
 use Modules\Stores\Models\Store;
 
-final class UserInterfaceAccessService
+final class AccountInterfaceAccessService
 {
-    /**
-     * @return array{
-     *     platform_admin: array{
-     *         interface: string,
-     *         label: string,
-     *         available: bool,
-     *         roles: list<string>,
-     *         permissions: list<string>,
-     *         navigation: list<array{key: string, label: string, path: string, permission: string}>
-     *     },
-     *     store_admin: array{
-     *         interface: string,
-     *         label: string,
-     *         available: bool,
-     *         stores: list<array{
-     *             id: string,
-     *             name: string,
-     *             slug: string,
-     *             status: string,
-     *             roles: list<string>,
-     *             permissions: list<string>
-     *         }>
-     *     }
-     * }
-     */
+    /** @return array<string, mixed> */
     public function for(User $user): array
     {
         $platformRoles = $user->isPlatformUser() ? $this->roles($user, AccessScope::Platform) : [];

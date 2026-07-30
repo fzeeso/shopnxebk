@@ -14,9 +14,14 @@ Store management REST contracts:
 | `GET` | `/api/v1/store` | View the active member's selected `X-Store-ID`. |
 | `PATCH` | `/api/v1/store/profile` | Update merchant-owned profile fields; requires `manage store`. |
 | `GET` | `/api/v1/store/settings` | View selected Store locale, preferences, and read-only capabilities. |
-| `PATCH` | `/api/v1/store/settings` | Merge validated locale/preferences; requires `manage store`. |
+| `PATCH` | `/api/v1/store/settings` | Merge validated locale/preferences; currency and language must be active Platform catalog entries; requires `manage store`. |
 
 Platform lifecycle, Billing links, verification, capabilities, trial dates, and raw JSON are prohibited in Store profile/settings requests. See [Store management](store-management.md).
+
+Bearer-authenticated Store routes require a Store-bound token with the
+`store:access` ability. Account-only and unbound tokens are rejected even when
+their user has an active membership. New tokens expire after 30 days by
+default, and password reset revokes all bearer tokens for the account.
 
 Plans & Pricing REST contracts:
 

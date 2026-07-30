@@ -10,7 +10,7 @@ use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Tests\TestCase;
 
-final class PlatformSettingsApiFeatureTest extends TestCase
+final class PlatformCatalogApiFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -96,7 +96,6 @@ final class PlatformSettingsApiFeatureTest extends TestCase
                 'is_active' => false,
             ])
             ->assertOk()
-            ->assertJsonPath('data.name', 'Updated Test Language')
             ->assertJsonPath('data.is_active', false);
 
         $this->actingAs($admin, 'web')

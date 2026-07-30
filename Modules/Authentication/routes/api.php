@@ -8,7 +8,7 @@ use Modules\Authentication\Http\Controllers\Api\V1\MfaChallengeController;
 use Modules\Authentication\Http\Controllers\Api\V1\MfaController;
 
 Route::middleware('api')->prefix('api/v1/auth')->name('api.v1.auth.')->group(function (): void {
-    Route::post('register', [AuthController::class, 'register'])->name('register');
+    Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth.register')->name('register');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth.login')->name('login');
     Route::post('token', [AuthController::class, 'token'])->middleware('throttle:auth.token')->name('token');
     Route::post('mfa/challenge', [MfaChallengeController::class, 'store'])->middleware('throttle:auth.mfa')->name('mfa.challenge');
@@ -30,7 +30,7 @@ Route::middleware('api')->prefix('api/v1/auth')->name('api.v1.auth.')->group(fun
             Route::delete('mfa', [MfaController::class, 'disable'])->name('mfa.disable');
         });
         Route::get('tokens', [AuthController::class, 'tokens'])->name('tokens.index');
-        Route::post('tokens', [AuthController::class, 'createToken'])->name('tokens.store');
-        Route::delete('tokens/{token}', [AuthController::class, 'revokeToken'])->name('tokens.destroy');
+        Route::post('tokens', [AuthController::class, 'createToken'])->middleware('throttle:auth.token-management')->name('tokens.store');
+        Route::delete('tokens/{token}', [AuthController::class, 'revokeToken'])->middleware('throttle:auth.token-management')->name('tokens.destroy');
     });
 });

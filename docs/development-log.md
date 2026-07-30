@@ -16,6 +16,14 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-30 — Low-disruption security hardening
+
+- Changed: Blocked XAMPP HTTP access outside `public/`, bound development Compose ports to localhost, added a token prefix and 30-day default expiry, scheduled expired-token pruning, enforced Store token ability/binding, revoked bearer tokens on password reset, added registration/token-management rate limits, made internal-dashboard IP checks fail closed, restricted new Store currency/language choices to active Platform catalog entries, and repaired protected missing paths through conventional internal service/seeder/test renames.
+- Reason: Close the confirmed local source/secret exposure and strengthen account and Store boundaries without rotating credentials, changing encryption keys, or introducing disruptive schema changes.
+- Data/configuration impact: Adds `AUTH_TOKEN_TTL_MINUTES` and `SANCTUM_TOKEN_PREFIX`; no migration or existing catalog row changes. Existing expired/unbound tokens may be rejected as intended, while stateful browser sessions continue to use the same APIs.
+- Compatibility or rollout notes: Recreate Compose services when convenient to apply localhost port bindings. Configure the web server with `public/` as its document root. Credential rotation, mandatory Platform MFA, database least privilege/TLS, persistent infrastructure volumes, and backup automation remain separate controlled work.
+- Verification: Confirmed sensitive XAMPP paths return `403` while the public health endpoint returns `200`; validated Compose and Composer configuration; passed Pint, PHPStan, documentation checks, and the full PostgreSQL suite with 23 tests and 219 assertions.
+
 ## 2026-07-30 — Platform Settings module boundary
 
 - Changed: Added `Modules/Settings` as the owner of the global language and currency catalogs, moved Platform controllers/services/models/routes out of Stores, added canonical `/api/v1/platform/settings/*` routes, a permission-filtered `/admin/settings` navigation hint, language editing, admin-shell/Platform Settings/localization component contracts, and retained the former Platform routes as aliases.

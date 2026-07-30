@@ -17,6 +17,6 @@ final class InternalDashboardAccess
 
         $allowList = config('observability.internal_dashboard_ips', []);
 
-        return $allowList === [] || in_array($request->ip(), $allowList, true);
+        return $allowList !== [] && in_array($request->ip(), $allowList, true);
     }
 }

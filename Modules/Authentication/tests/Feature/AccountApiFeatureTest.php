@@ -93,6 +93,11 @@ final class AccountApiFeatureTest extends TestCase
         $storedToken = PersonalAccessToken::query()->firstOrFail();
         self::assertNotSame($plain, $storedToken->token);
         self::assertSame($first->getKey(), $storedToken->store_id);
+        self::assertNotNull($storedToken->expires_at);
+        self::assertTrue($storedToken->expires_at->between(
+            now()->addMinutes(43199),
+            now()->addMinutes(43201),
+        ));
 
         $this->withToken($plain)->withHeader('X-Store-ID', $second->public_id)->postJson('/graphql', ['query' => '{ activeStore { id } }'])->assertForbidden();
         $publicId = $storedToken->public_id;
@@ -108,6 +113,28 @@ final class AccountApiFeatureTest extends TestCase
 
         $this->postJson('/api/v1/auth/token', ['email' => $user->email, 'password' => 'password', 'device_name' => 'cli', 'store_id' => $store->public_id])->assertForbidden();
         $this->postJson('/api/v1/auth/token', ['email' => 'absent@example.test', 'password' => 'wrong', 'device_name' => 'cli', 'store_id' => $store->public_id])->assertUnauthorized()->assertJsonMissing(['email' => 'absent@example.test']);
+    }
+
+    public function test_store_routes_reject_unbound_or_underprivileged_bearer_tokens(): void
+    {
+        $user = User::factory()->create();
+        $store = Store::factory()->create();
+        StoreMembership::factory()->create(['user_id' => $user, 'store_id' => $store]);
+
+        $accountToken = $user->createToken('account-only', ['account:read'])->plainTextToken;
+        $this->withToken($accountToken)
+            ->withHeader('X-Store-ID', $store->public_id)
+            ->postJson('/graphql', ['query' => '{ activeStore { id } }'])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Token does not have Store access.');
+
+        $this->actingAs($user, 'web')
+            ->postJson('/api/v1/auth/tokens', [
+                'device_name' => 'invalid-unbound-store-token',
+                'abilities' => ['store:access'],
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Store access tokens must be bound to a Store.');
     }
 
     public function test_a_legacy_uuid_prefixed_bearer_token_remains_usable_during_transition(): void
@@ -132,6 +159,8 @@ final class AccountApiFeatureTest extends TestCase
         Notification::fake();
         Event::fake([Verified::class]);
         $user = User::factory()->unverified()->create(['email' => 'reset@example.test']);
+        $user->createToken('revoke-on-reset', ['account:read']);
+        self::assertDatabaseCount('personal_access_tokens', 1);
 
         $this->postJson('/api/v1/auth/forgot-password', ['email' => $user->email])->assertAccepted();
         Notification::assertSentTo($user, QueuedResetPassword::class);
@@ -139,6 +168,7 @@ final class AccountApiFeatureTest extends TestCase
         $token = Password::createToken($user);
         $this->postJson('/api/v1/auth/reset-password', ['email' => $user->email, 'token' => $token, 'password' => 'NewPassword!123', 'password_confirmation' => 'NewPassword!123'])->assertOk();
         self::assertTrue(Hash::check('NewPassword!123', $user->fresh()->password));
+        self::assertDatabaseCount('personal_access_tokens', 0);
 
         $url = URL::temporarySignedRoute('api.v1.auth.verification.verify', now()->addMinutes(30), ['id' => $user->public_id, 'hash' => sha1($user->email)]);
         $this->getJson($url)->assertOk();

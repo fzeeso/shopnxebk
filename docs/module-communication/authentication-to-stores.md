@@ -16,4 +16,4 @@ This read dependency is security-sensitive. Changes require tests for malformed 
 
 ## Interface access profile
 
-`UserInterfaceAccessService` reads `users.scope` first and never queries Store memberships for Platform users. For Store users, each Store is resolved independently using its internal bigint ID and serialized with its public ULID. Exactly one interface can be available.
+`AccountInterfaceAccessService` reads `users.scope` first and never queries Store memberships for Platform users. For Store users, each Store is resolved independently using its internal bigint ID and serialized with its public ULID. Exactly one interface can be available.

@@ -254,7 +254,8 @@ The browser obtains `/sanctum/csrf-cookie`, posts credentials to `/api/v1/auth/l
 3. When MFA is disabled, Sanctum generates a token immediately. When MFA is enabled, the response is `202` with `mfa_required`, a short-lived `challenge_token`, and no bearer token.
 4. The client posts the challenge token plus either a six-digit TOTP code or a recovery code to `/api/v1/auth/mfa/challenge`; only then is the store token issued and returned once.
 5. Later requests send `Authorization: Bearer …` and `X-Store-ID: …`.
-6. Middleware rejects a token when its store differs from the selected store. Issued-token metadata records whether MFA was verified.
+6. Middleware requires the `store:access` ability and rejects a token unless its non-null Store binding exactly matches the selected Store.
+7. New tokens expire after 30 days by default, configurable through `AUTH_TOKEN_TTL_MINUTES`; expired rows are pruned daily. Password reset revokes all of the user's bearer tokens.
 
 Authorization has five layers: Sanctum authentication/abilities, exclusive user scope, active Store membership where applicable, scoped Spatie permissions, and model policies. Passing one never bypasses the others. Platform roles (`Super Admin`, `Support`, `Billing`) are evaluated without a Store team; Store roles (`Owner`, `Manager`, `Sales`, `Inventory`) are assigned under an internal Store team.
 
@@ -434,14 +435,14 @@ docker compose up -d redis meilisearch mailpit minio
 Use `DB_HOST=127.0.0.1`, `REDIS_HOST=127.0.0.1`, and `SCOUT_DRIVER=database`.
 
 The standard `artisan db:seed` entry point is defined in
-`database/ShopNxeDatabaseSeeder.php` and loaded through Composer's
+`database/ApplicationSeeder.php` and loaded through Composer's
 `autoload.files` configuration. It maintains the authorization catalog, the
 24-language master catalog, existing Store language defaults, and the optional
 local Platform Administrator account.
 
 ### Infrastructure Compose services
 
-The root `compose.yaml` runs Redis, Meilisearch, Mailpit, and MinIO only. Laravel and PostgreSQL run on the host, so use `DB_HOST=127.0.0.1`, `REDIS_HOST=127.0.0.1`, `MEILISEARCH_HOST=http://127.0.0.1:7700`, and `AWS_ENDPOINT=http://127.0.0.1:9000`.
+The root `compose.yaml` runs Redis, Meilisearch, Mailpit, and MinIO only. Laravel and PostgreSQL run on the host, so use `DB_HOST=127.0.0.1`, `REDIS_HOST=127.0.0.1`, `MEILISEARCH_HOST=http://127.0.0.1:7700`, and `AWS_ENDPOINT=http://127.0.0.1:9000`. Every published development port is bound to `127.0.0.1`; the services are not exposed to the LAN.
 
 ```powershell
 docker compose up -d
@@ -451,6 +452,11 @@ docker compose ps
 ```
 
 Mailpit is available on port `8025`, Meilisearch on `7700`, and MinIO on `9000` with its console on `9001`. The application Dockerfile remains available for a later production-style image build, but it is not started by the development Compose file.
+
+When using XAMPP, configure a dedicated VirtualHost whose document root is
+`C:/xampp/htdocs/shopnxebk/public`. The repository-root `.htaccess` blocks
+direct HTTP reads outside `public/` as defense in depth, but production must
+not serve the repository root.
 
 ### Daily commands
 

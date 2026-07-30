@@ -64,7 +64,8 @@ accepts all fields. The edit form must render locale as read-only because the
 API prohibits changing it after creation.
 
 Use an explicit active/inactive control. Deactivation changes platform
-availability without rewriting historical Store selections.
+availability without rewriting historical Store selections. Inactive entries
+cannot be selected by new Store create/settings requests.
 
 ## Currency section
 
@@ -73,7 +74,8 @@ base status, active state, and the rate-update timestamp.
 
 Currency code is read-only after creation. The USD row is visibly marked as the
 base; its rate and active status cannot be changed. A null non-USD rate means
-unconfigured, not zero.
+unconfigured, not zero. Inactive currencies cannot be selected by new Store
+create/settings requests.
 
 ## Interaction states
 

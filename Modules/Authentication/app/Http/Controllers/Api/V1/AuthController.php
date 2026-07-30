@@ -26,7 +26,7 @@ use Modules\Authentication\Http\Resources\PersonalAccessTokenResource;
 use Modules\Authentication\Http\Resources\UserResource;
 use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Authentication\Models\User;
-use Modules\Authentication\Services\UserInterfaceAccessService;
+use Modules\Authentication\Services\AccountInterfaceAccessService;
 use Modules\Authentication\Support\MfaChallengeStore;
 use Modules\Stores\Http\Resources\StoreResource;
 
@@ -106,6 +106,7 @@ final class AuthController extends Controller
     {
         $status = Password::reset($request->validated(), function (User $user, string $password): void {
             $user->forceFill(['password' => Hash::make($password), 'remember_token' => Str::random(60)])->save();
+            $user->tokens()->delete();
             event(new PasswordReset($user));
         });
 
@@ -157,7 +158,7 @@ final class AuthController extends Controller
         return response()->json(['user' => new UserResource($request->user())]);
     }
 
-    public function interfaces(Request $request, UserInterfaceAccessService $interfaces): JsonResponse
+    public function interfaces(Request $request, AccountInterfaceAccessService $interfaces): JsonResponse
     {
         return response()->json(['data' => $interfaces->for($request->user())]);
     }

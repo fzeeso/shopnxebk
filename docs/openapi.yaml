@@ -68,9 +68,10 @@ paths:
                 device_name: {type: string, maxLength: 255}
                 store_id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$', description: Public Store ULID}
       responses:
-        '200': {description: Plain token returned once}
+        '200': {description: Plain Store-bound token returned once; expires after 30 days by default}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '429': {description: Rate limited}
   /api/v1/auth/me:
     get:
       security: [{sanctum: []}]
@@ -370,6 +371,7 @@ paths:
     patch:
       security: [{sanctum: []}]
       summary: Merge validated Store locale and preferences
+      description: Currency and language must exist as active Platform catalog entries.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
@@ -575,8 +577,8 @@ components:
         email: {type: [string, 'null'], format: email}
         phone: {type: [string, 'null'], maxLength: 32}
         business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
-        currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
-        language_code: {type: string}
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$', description: Must be an active Platform currency code}
+        language_code: {type: string, description: Must be an active Platform language locale; hyphens normalize to underscores}
         timezone: {type: string}
         country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
         preferences: {$ref: '#/components/schemas/StorePreferences'}
@@ -598,8 +600,8 @@ components:
     UpdateStoreSettingsRequest:
       type: object
       properties:
-        currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
-        language_code: {type: string}
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$', description: Must be an active Platform currency code}
+        language_code: {type: string, description: Must be an active Platform language locale; hyphens normalize to underscores}
         timezone: {type: string}
         country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
         preferences: {$ref: '#/components/schemas/StorePreferences'}

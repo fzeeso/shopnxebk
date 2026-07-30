@@ -84,7 +84,7 @@ flowchart LR
     Request --> Resolve --> Store --> Membership --> Token --> Team --> Domain --> Public
 ```
 
-Store-scoped operations receive `X-Store-ID: <store-ulid>`. `ResolveStore` validates the ULID and loads `stores.public_id`. `EnsureStoreMembership` verifies an active membership, prevents a store-bound bearer token from crossing stores, and sets Spatie Permission’s team to the internal `stores.id`. `ClearRequestContext` always removes store, permission-team, guard, locale, and log context after a request.
+Store-scoped operations receive `X-Store-ID: <store-ulid>`. `ResolveStore` validates the ULID and loads `stores.public_id`. `EnsureStoreMembership` verifies an active membership and, for bearer authentication, requires `store:access` plus an exact non-null token `store_id` match before setting Spatie Permission’s team to the internal `stores.id`. Account-only and unbound bearer tokens cannot enter Store context. `ClearRequestContext` always removes store, permission-team, guard, locale, and log context after a request.
 
 ## Roles and permissions
 

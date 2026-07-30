@@ -65,13 +65,13 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/auth/mfa/confirm` | `api.v1.auth.mfa.confirm` | api, auth:sanctum, throttle:auth.mfa-management |
 | `POST` | `/api/v1/auth/mfa/recovery-codes` | `api.v1.auth.mfa.recovery-codes` | api, auth:sanctum, throttle:auth.mfa-management |
 | `POST` | `/api/v1/auth/mfa/setup` | `api.v1.auth.mfa.setup` | api, auth:sanctum, throttle:auth.mfa-management |
-| `POST` | `/api/v1/auth/register` | `api.v1.auth.register` | api |
+| `POST` | `/api/v1/auth/register` | `api.v1.auth.register` | api, throttle:auth.register |
 | `POST` | `/api/v1/auth/reset-password` | `api.v1.auth.reset-password` | api, throttle:6,1 |
 | `GET\|HEAD` | `/api/v1/auth/stores` | `api.v1.auth.stores` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
 | `POST` | `/api/v1/auth/token` | `api.v1.auth.token` | api, throttle:auth.token |
 | `GET\|HEAD` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.index` | api, auth:sanctum |
-| `POST` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.store` | api, auth:sanctum |
-| `DELETE` | `/api/v1/auth/tokens/{token}` | `api.v1.auth.tokens.destroy` | api, auth:sanctum |
+| `POST` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.store` | api, auth:sanctum, throttle:auth.token-management |
+| `DELETE` | `/api/v1/auth/tokens/{token}` | `api.v1.auth.tokens.destroy` | api, auth:sanctum, throttle:auth.token-management |
 | `GET\|HEAD` | `/api/v1/auth/verify-email/{id}/{hash}` | `api.v1.auth.verification.verify` | api, signed, throttle:6,1 |
 | `GET\|HEAD` | `/api/v1/platform/currencies` | `api.v1.platform.currencies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/currencies` | `api.v1.platform.currencies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -164,7 +164,7 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 
 | Area | Variables |
 | --- | --- |
-| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW` |
+| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW` |
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |

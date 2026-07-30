@@ -42,8 +42,13 @@ final readonly class EnsureStoreMembership
         }
 
         $token = $user->currentAccessToken();
-        if ($token instanceof PersonalAccessToken && $token->store_id !== null && $token->store_id !== $store->getKey()) {
-            throw new AccessDeniedHttpException('Token is not valid for the selected store.');
+        if ($token instanceof PersonalAccessToken) {
+            if (! $token->can('store:access')) {
+                throw new AccessDeniedHttpException('Token does not have Store access.');
+            }
+            if ($token->store_id !== $store->getKey()) {
+                throw new AccessDeniedHttpException('Token is not valid for the selected store.');
+            }
         }
 
         setPermissionsTeamId($store->getKey());

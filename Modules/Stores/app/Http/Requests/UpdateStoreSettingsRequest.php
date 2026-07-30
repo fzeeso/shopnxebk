@@ -23,7 +23,12 @@ final class UpdateStoreSettingsRequest extends FormRequest
             $values['currency_code'] = Str::upper(trim((string) $this->input('currency_code')));
         }
         if ($this->exists('language_code') && $this->input('language_code') !== null) {
-            $values['language_code'] = trim((string) $this->input('language_code'));
+            $locale = str_replace('-', '_', trim((string) $this->input('language_code')));
+            $parts = explode('_', $locale, 2);
+            $values['language_code'] = Str::lower($parts[0]);
+            if (isset($parts[1]) && $parts[1] !== '') {
+                $values['language_code'] .= '_'.Str::upper($parts[1]);
+            }
         }
         if ($this->exists('country_code') && $this->input('country_code') !== null) {
             $values['country_code'] = Str::upper(trim((string) $this->input('country_code')));
@@ -36,8 +41,8 @@ final class UpdateStoreSettingsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'currency_code' => ['sometimes', 'string', 'alpha:ascii', 'size:3'],
-            'language_code' => ['sometimes', 'string', 'max:35', 'regex:/^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$/'],
+            'currency_code' => ['sometimes', 'string', 'alpha:ascii', 'size:3', Rule::exists('currencies', 'code')->where('is_active', true)],
+            'language_code' => ['sometimes', 'string', 'max:10', 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/', Rule::exists('languages', 'locale')->where('is_active', true)],
             'timezone' => ['sometimes', 'string', 'timezone:all'],
             'country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
             'preferences' => ['sometimes', 'array:order_prefix,date_format,time_format,weight_unit,dimension_unit,inventory_tracking,guest_checkout,tax_inclusive_pricing,low_stock_threshold,support_email'],

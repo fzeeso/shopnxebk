@@ -7,6 +7,8 @@ namespace Modules\Stores\Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Authentication\Models\User;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
+use Modules\Settings\Actions\EnsureCurrencyCatalog;
+use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
@@ -17,15 +19,20 @@ final class StoreProfileServiceFeatureTest extends TestCase
 
     public function test_store_owner_creates_views_and_updates_own_store_profile_and_settings(): void
     {
+        app(EnsureCurrencyCatalog::class)->ensure();
+        app(EnsureLanguageCatalog::class)->ensure();
+
         $owner = User::factory()->create();
         $storeId = (string) $this->actingAs($owner, 'web')
             ->postJson('/api/v1/stores', [
                 'name' => 'Merchant Store',
                 'slug' => 'merchant-store',
                 'currency_code' => 'gbp',
+                'language_code' => 'pt-br',
                 'preferences' => ['order_prefix' => 'MS'],
             ])->assertCreated()
             ->assertJsonPath('data.currency_code', 'GBP')
+            ->assertJsonPath('data.language_code', 'pt_BR')
             ->json('data.id');
 
         $this->actingAs($owner, 'web')
@@ -45,11 +52,23 @@ final class StoreProfileServiceFeatureTest extends TestCase
         $this->actingAs($owner, 'web')
             ->withHeader('X-Store-ID', $storeId)
             ->patchJson('/api/v1/store/settings', [
+                'currency_code' => 'usd',
+                'language_code' => 'pt-br',
                 'timezone' => 'Europe/London',
                 'preferences' => ['guest_checkout' => true],
             ])->assertOk()
+            ->assertJsonPath('data.currency_code', 'USD')
+            ->assertJsonPath('data.language_code', 'pt_BR')
             ->assertJsonPath('data.preferences.order_prefix', 'MS')
             ->assertJsonPath('data.preferences.guest_checkout', true);
+
+        $this->actingAs($owner, 'web')
+            ->withHeader('X-Store-ID', $storeId)
+            ->patchJson('/api/v1/store/settings', [
+                'currency_code' => 'ZZZ',
+                'language_code' => 'zz',
+            ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['currency_code', 'language_code']);
     }
 
     public function test_store_staff_can_view_but_cannot_manage_or_cross_store_boundary(): void

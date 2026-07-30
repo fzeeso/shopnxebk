@@ -47,7 +47,7 @@
             "Modules\\Stores\\": "Modules/Stores/app/"
         },
         "files": [
-            "database/ShopNxeDatabaseSeeder.php"
+            "database/ApplicationSeeder.php"
         ]
     },
     "autoload-dev": {

@@ -44,10 +44,15 @@ final class IssueStoreToken
         if ($user->isPlatformUser() && ($storePublicId !== null || in_array('store:access', $abilities, true))) {
             throw new AccessDeniedHttpException('Platform accounts cannot receive Store access tokens.');
         }
+        if ($storePublicId === null && in_array('store:access', $abilities, true)) {
+            throw new AccessDeniedHttpException('Store access tokens must be bound to a Store.');
+        }
 
         $store = $storePublicId === null ? null : $this->resolveActiveStore($user, $storePublicId);
 
-        $expires = $expiresAt === null ? null : now()->parse($expiresAt);
+        $expires = $expiresAt === null
+            ? now()->addMinutes(max(1, (int) config('authentication.tokens.default_ttl_minutes', 43200)))
+            : now()->parse($expiresAt);
         $newToken = $user->createToken($name, $abilities, $expires);
         /** @var PersonalAccessToken $token */
         $token = $newToken->accessToken;

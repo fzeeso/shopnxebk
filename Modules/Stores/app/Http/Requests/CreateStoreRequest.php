@@ -33,7 +33,12 @@ final class CreateStoreRequest extends FormRequest
         }
 
         if ($this->exists('language_code') && $this->input('language_code') !== null) {
-            $values['language_code'] = trim((string) $this->input('language_code'));
+            $locale = str_replace('-', '_', trim((string) $this->input('language_code')));
+            $parts = explode('_', $locale, 2);
+            $values['language_code'] = Str::lower($parts[0]);
+            if (isset($parts[1]) && $parts[1] !== '') {
+                $values['language_code'] .= '_'.Str::upper($parts[1]);
+            }
         }
 
         $this->merge($values);
@@ -55,8 +60,8 @@ final class CreateStoreRequest extends FormRequest
             'cover_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'industry' => ['sometimes', 'nullable', 'string', 'max:120'],
             'business_type' => ['sometimes', 'nullable', Rule::enum(BusinessType::class)],
-            'currency_code' => ['sometimes', 'string', 'alpha:ascii', 'size:3'],
-            'language_code' => ['sometimes', 'string', 'max:35', 'regex:/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/'],
+            'currency_code' => ['sometimes', 'string', 'alpha:ascii', 'size:3', Rule::exists('currencies', 'code')->where('is_active', true)],
+            'language_code' => ['sometimes', 'string', 'max:10', 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/', Rule::exists('languages', 'locale')->where('is_active', true)],
             'timezone' => ['sometimes', 'string', 'timezone:all'],
             'country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
             ...$this->preferenceRules(),
