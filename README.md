@@ -87,7 +87,7 @@ Internal dashboards, when explicitly enabled, are protected by the global `Super
 
 ## Modules
 
-`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Stores` owns Store profile/settings services, memberships, context, languages, and currencies. `Billing` owns Platform plan prices, reusable features, and add-on assignments. Start with the [canonical application context](docs/context.md), [Store management](docs/store-management.md), and [Plans & Pricing](docs/plans-and-pricing.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
+`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Settings` owns extensible Platform-wide configuration, currently the language and currency catalogs. `Stores` owns merchant profile/settings services, memberships, context, and Store language selections. `Billing` owns Platform plan prices, reusable features, and add-on assignments. Start with the [canonical application context](docs/context.md), [admin component guides](docs/components.md), [Platform settings](docs/settings.md), [Store management](docs/store-management.md), and [Plans & Pricing](docs/plans-and-pricing.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
 
 ## Package baseline
 

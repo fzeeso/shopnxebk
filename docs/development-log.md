@@ -16,6 +16,22 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-30 — Platform Settings module boundary
+
+- Changed: Added `Modules/Settings` as the owner of the global language and currency catalogs, moved Platform controllers/services/models/routes out of Stores, added canonical `/api/v1/platform/settings/*` routes, a permission-filtered `/admin/settings` navigation hint, language editing, admin-shell/Platform Settings/localization component contracts, and retained the former Platform routes as aliases.
+- Reason: Platform administrators manage global SaaS configuration through one extensible Settings boundary; Store Management should own only merchant data and Store-specific selections.
+- Data/configuration impact: Existing `languages` and `currencies` tables and migration names are preserved. The Store-owned `store_languages` migration is idempotent for upgraded databases. Seeding now separates master-catalog maintenance from Store-default backfilling.
+- Compatibility or rollout notes: Existing `/api/v1/platform/languages*` and `/api/v1/platform/currencies*` clients continue to work. New admin clients should use `/api/v1/platform/settings/*`. Language locale and currency code remain immutable after creation.
+- Verification: Registered canonical and legacy routes, passed PHP syntax and Settings PHPStan checks, and passed the full PostgreSQL suite with 22 tests and 205 assertions.
+
+## 2026-07-30 — Hindi, Urdu, and Persian language support
+
+- Changed: Expanded the idempotent master language catalog from 21 to 24 entries with Hindi (`hi`), Urdu (`ur`), and Persian (`fa`), including native names and script directions.
+- Reason: Let merchants select these languages while allowing the Next.js admin to resolve matching interface dictionaries.
+- Data/configuration impact: Seeding adds or refreshes the three active catalog rows. Hindi is LTR; Urdu and Persian are RTL.
+- Compatibility or rollout notes: Existing Store language selections are unchanged. Run the catalog action or application seeder to add the rows to an existing database.
+- Verification: Added PostgreSQL-backed coverage for all three rows, direction metadata, the 24-row total, and idempotent updates.
+
 ## 2026-07-29 — Platform Plans & Pricing administration
 
 - Changed: Added the Billing module with `plans`, reusable `features`, `plan_features`, fixed/custom minor-unit prices, optional add-ons, Platform CRUD services/routes/resources, safe deletion rules, a permission-filtered `Plans & Pricing` menu item, and an idempotent seven-plan sample catalog.

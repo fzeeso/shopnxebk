@@ -5,6 +5,9 @@ info:
   description: Authentication, Store management, Platform settings, and Plans & Pricing endpoints. GraphQL is documented by the Lighthouse schema.
 servers:
   - url: http://localhost:8000
+tags:
+  - name: Platform Settings
+    description: Global SaaS language and currency configuration for the /admin/settings component.
 paths:
   /api/health/live:
     get:
@@ -141,8 +144,9 @@ paths:
       responses:
         '200': {description: Email verified}
         '403': {$ref: '#/components/responses/Forbidden'}
-  /api/v1/platform/currencies:
+  /api/v1/platform/settings/currencies:
     get:
+      tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: List the platform currency catalog
       responses:
@@ -160,6 +164,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
+      tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: Add a platform currency
       description: Requires a Platform-scoped user with manage platform settings. USD is reserved as the base currency.
@@ -181,8 +186,9 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
-  /api/v1/platform/currencies/{currency}:
+  /api/v1/platform/settings/currencies/{currency}:
     patch:
+      tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: Update a platform currency and its USD-relative rate
       description: Requires manage platform settings. Rates mean 1 USD equals X target currency units.
@@ -210,8 +216,9 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Currency not found}
         '422': {$ref: '#/components/responses/ValidationError'}
-  /api/v1/platform/languages:
+  /api/v1/platform/settings/languages:
     get:
+      tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: List the platform language catalog
       responses:
@@ -229,6 +236,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
+      tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: Add a supported platform language
       description: Requires a Platform-scoped user with manage platform settings.
@@ -249,6 +257,36 @@ paths:
                   data: {$ref: '#/components/schemas/Language'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/settings/languages/{language}:
+    patch:
+      tags: [Platform Settings]
+      security: [{sanctum: []}]
+      summary: Update a supported platform language
+      description: Requires manage platform settings. Locale is immutable after creation.
+      parameters:
+        - name: language
+          in: path
+          required: true
+          schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateLanguageRequest'}
+      responses:
+        '200':
+          description: Language updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/Language'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Language not found}
         '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/store/languages:
     get:
@@ -741,6 +779,14 @@ components:
         locale: {type: string, maxLength: 10}
         direction: {type: string, enum: [ltr, rtl]}
         is_active: {type: boolean, default: true}
+    UpdateLanguageRequest:
+      type: object
+      minProperties: 1
+      properties:
+        name: {type: string, maxLength: 100}
+        native_name: {type: string, maxLength: 100}
+        direction: {type: string, enum: [ltr, rtl]}
+        is_active: {type: boolean}
     UpdateStoreLanguagesRequest:
       type: object
       required: [language_ids, default_language_id]
@@ -791,10 +837,10 @@ components:
                     type: object
                     required: [key, label, path, permission]
                     properties:
-                      key: {type: string, example: plans_pricing}
-                      label: {type: string, example: Plans & Pricing}
-                      path: {type: string, example: /admin/plans}
-                      permission: {type: string, example: manage plans}
+                      key: {type: string, example: platform_settings}
+                      label: {type: string, example: Settings}
+                      path: {type: string, example: /admin/settings}
+                      permission: {type: string, example: manage platform settings}
             store_admin:
               type: object
               required: [interface, label, available, stores]

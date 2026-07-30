@@ -17,7 +17,26 @@ The two account classes and interfaces are mutually exclusive:
 | `platform_admin` | `Super Admin` is the SaaS Owner | `Support` and `Billing` are platform staff | Platform scope; no Store header |
 | `store_admin` | `Owner` and `Manager` administer the merchant | `Sales`, `Inventory`, and future Store roles are Store staff | One selected Store ULID |
 
-After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. The `Plans & Pricing` menu is returned only with `manage plans`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. `Plans & Pricing` is returned only with `manage plans`; `Settings` is returned only with `manage platform settings`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+
+## Administration component contract
+
+The backend is API-only, but its navigation metadata defines stable component
+entry points for the separate admin frontend. `/admin/settings` is the single
+extensible Platform Settings shell. Languages and Currencies are sections of
+that shell; they are not Store Management components. The shell uses only
+`/api/v1/platform/settings/*`, never sends `X-Store-ID`, and requires
+`manage platform settings`.
+
+Store Settings is a separate future Store-admin component. It will operate on
+one selected Store through Store-scoped routes and must not create or edit
+Platform master catalog rows. See the [admin component guides](components.md).
+
+Supported Store languages and translated admin-interface locales are separate
+capabilities. Catalog changes update `EnsureLanguageCatalog`, direction data,
+and PostgreSQL coverage; visible admin-label changes update every relevant
+frontend dictionary. See the
+[admin localization contract](components/localization.md).
 
 ## Identifier contract
 
@@ -77,7 +96,7 @@ Platform roles:
 
 | Role | Initial permissions |
 | --- | --- |
-| Super Admin | manage stores, manage plans, manage subscriptions, impersonate store, manage marketplace |
+| Super Admin | manage stores, manage plans, manage subscriptions, impersonate store, manage marketplace, manage platform settings |
 | Support | manage stores, impersonate store |
 | Billing | manage plans, manage subscriptions |
 
@@ -95,13 +114,14 @@ Platform roles are evaluated without an active store team. Store-role assignment
 ## Module boundaries
 
 - Authentication owns global identities, credentials, sessions, MFA, tokens, email verification, password reset, and the role/permission catalog.
-- Stores owns stores, memberships, profile/settings management, language/currency catalogs, store resolution, context lifecycle, provisioning, and store isolation helpers.
+- Settings owns Platform-wide language/currency catalogs, their seed actions, and global Settings administration.
+- Stores owns stores, memberships, merchant profile/settings management, Store language selections, store resolution, context lifecycle, provisioning, and store isolation helpers.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See [Authentication module](modules/authentication.md), [Stores module](modules/stores.md), [Billing module](modules/billing.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Billing module](modules/billing.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 
-Every meaningful change must update the affected module document and directional communication document. Architecture or execution-flow changes also update the [developer guide](developer-guide.md), and every meaningful change receives a [development log](development-log.md) entry. Finish with `composer docs:update`, `composer docs:check`, Pint, and PostgreSQL-backed tests.
+Every meaningful change must update the affected module document and directional communication document. Architecture or execution-flow changes also update the [developer guide](developer-guide.md); admin navigation/page behavior updates the affected [component guide](components.md); label or locale changes update relevant language dictionaries and the [localization contract](components/localization.md); and every meaningful change receives a [development log](development-log.md) entry. Finish with `composer docs:update`, `composer docs:check`, Pint, and PostgreSQL-backed tests.

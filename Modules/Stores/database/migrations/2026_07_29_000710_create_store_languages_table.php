@@ -11,16 +11,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('languages', function (Blueprint $table): void {
-            $table->id();
-            $table->ulid('public_id')->unique();
-            $table->string('name', 100);
-            $table->string('native_name', 100);
-            $table->string('locale', 10)->unique();
-            $table->enum('direction', ['ltr', 'rtl'])->default('ltr');
-            $table->boolean('is_active')->default(true)->index();
-            $table->timestampsTz();
-        });
+        if (Schema::hasTable('store_languages')) {
+            return;
+        }
 
         Schema::create('store_languages', function (Blueprint $table): void {
             $table->id();
@@ -41,7 +34,8 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('store_languages');
-        Schema::dropIfExists('languages');
+        // No-op for upgrade safety. The original language migration owns the
+        // destructive rollback because existing installations already had
+        // this table before this migration was recorded.
     }
 };

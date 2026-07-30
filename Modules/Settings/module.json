@@ -1,0 +1,9 @@
+{
+    "name": "Settings",
+    "alias": "settings",
+    "description": "Platform-admin settings and global language and currency catalogs.",
+    "keywords": ["settings", "platform", "admin"],
+    "priority": 15,
+    "providers": ["Modules\\Settings\\Providers\\SettingsServiceProvider"],
+    "files": []
+}

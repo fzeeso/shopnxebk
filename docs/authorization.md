@@ -15,13 +15,13 @@ Authorization combines five checks:
 Platform authorization is resolved with no active permission team. `User::isPlatformSuperAdmin()` checks the global `Super Admin` role. Store authorization sets the permission team to `stores.id`; a header contains only `stores.public_id` and is never accepted as proof of membership or privilege.
 
 The Platform `manage platform settings` permission is assigned to `Super
-Admin` and protects global configuration mutations such as adding a supported
-language. Support and Billing may read the language catalog but cannot mutate
-it. Store language selection is separate and requires the Store-scoped `manage
-store` permission after Store resolution and active-membership checks.
+Admin` and protects global Settings mutations such as creating/editing
+languages and currencies. Support and Billing may read the catalogs but cannot
+mutate them. Store language selection is separate and requires the Store-scoped
+`manage store` permission after Store resolution and active-membership checks.
 
 `ScopedRoleAssignmentService` is the application write path for role assignments. PostgreSQL triggers independently reject cross-scope memberships, assignments, scope changes with existing access, and Platform Store-bound tokens.
 
-`UserInterfaceAccessService` groups authorization data for frontend selection. `platform_admin` represents the SaaS Owner and platform staff; `store_admin` represents merchant administrators and Store staff. These interfaces are mutually exclusive. Platform navigation is permission-filtered: `Plans & Pricing` is returned only when the account has `manage plans`, while the corresponding API independently enforces Platform scope and that permission.
+`UserInterfaceAccessService` groups authorization data for frontend selection. `platform_admin` represents the SaaS Owner and platform staff; `store_admin` represents merchant administrators and Store staff. These interfaces are mutually exclusive. Platform navigation is permission-filtered: `Plans & Pricing` requires `manage plans`, and `Settings` requires `manage platform settings`; the corresponding APIs independently enforce Platform scope and their permissions.
 
 Role/permission examples are a starting catalog, not a closed enum. New business modules should introduce permissions using verb-object language such as `manage products`, then add them to intended roles explicitly.

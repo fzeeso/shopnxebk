@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Authentication\Models\User;
+use Modules\Settings\Models\Language;
 use Modules\Stores\Database\Factories\StoreFactory;
 use Modules\Stores\Enums\BusinessType;
 use Modules\Stores\Enums\StoreStatus;

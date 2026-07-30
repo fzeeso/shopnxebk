@@ -13,6 +13,7 @@ flowchart LR
     Client["Admin SPA, mobile client, CLI, or integration"]
     HTTP["Laravel HTTP API"]
     Auth["Authentication module"]
+    Settings["Settings module"]
     Store["Stores module"]
     Billing["Billing module"]
     GraphQL["Lighthouse GraphQL"]
@@ -26,10 +27,12 @@ flowchart LR
 
     Client -->|"REST / GraphQL"| HTTP
     HTTP --> Auth
+    HTTP --> Settings
     HTTP --> Store
     HTTP --> Billing
     HTTP --> GraphQL
     Auth --> DB
+    Settings --> DB
     Store --> DB
     Billing --> DB
     GraphQL --> DB
@@ -73,11 +76,39 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Authentication/` owns users, credentials, sessions, Sanctum tokens, password reset, email verification, resources, and authentication routes.
 
-`Modules/Stores/` owns stores, memberships, the global language and currency catalogs, Store language selections, USD-relative exchange rates, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Settings/` owns extensible Platform-wide settings, currently the global language and currency catalogs, their administration routes, and USD-relative exchange rates.
+
+`Modules/Stores/` owns stores, memberships, Store profiles/preferences, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
 
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
+
+### Administration component contracts
+
+The visual admin application is separate, but backend work must maintain the
+component contracts under [Admin component guides](components.md).
+`GET /api/v1/auth/interfaces` drives the Platform shell:
+
+- `Plans & Pricing` mounts at `/admin/plans` with `manage plans`.
+- `Settings` mounts at `/admin/settings` with
+  `manage platform settings`.
+- Languages and Currencies are sections of the one Platform Settings shell.
+- Platform components never enter Store context; future Store Settings remains
+  a separate Store-admin component.
+
+When adding a global setting, extend `Modules/Settings`, add a Settings API
+section, and update the
+[Platform Settings admin component guide](components/platform-settings-admin.md).
+Do not add it to Store Management merely because a Store may later consume the
+setting.
+
+When the setting changes visible labels or language support, also follow the
+[admin localization contract](components/localization.md). Keep
+`EnsureLanguageCatalog`, direction metadata, catalog tests, frontend locale
+registration, and every relevant frontend dictionary synchronized. The
+backend currently has no runtime translation dictionaries; do not confuse
+Store language availability with admin UI translation coverage.
 
 ### Identifier and identity rules
 
@@ -109,25 +140,25 @@ Branding columns contain storage references only. `CreateStoreService`, `ViewSto
 
 ### Language catalog and Store language selection
 
-`languages` is the platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, a unique locale, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 21-language catalog and gives an existing Store one default selection matching `stores.language_code` (falling back to English).
+`languages` is the Settings-owned platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, an immutable unique locale, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 24-language catalog, including Hindi (`hi`, LTR), Urdu (`ur`, RTL), and Persian (`fa`, RTL). The separate Stores action `EnsureStoreLanguageDefaults` gives an existing Store one default selection matching `stores.language_code`, falling back to English.
 
 `store_languages` joins an internal Store ID to an internal language ID. The Store/language pair is unique, and a PostgreSQL partial unique index permits only one `is_default = true` row per Store. Deleting a Store cascades its selections; deleting a language is restricted while Stores reference it.
 
-Platform users call `GET /api/v1/platform/languages`. Creating another catalog entry through `POST /api/v1/platform/languages` requires `manage platform settings`, initially assigned only to `Super Admin`. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
+Platform users call `GET /api/v1/platform/settings/languages`. Creating another catalog entry through `POST /api/v1/platform/settings/languages` or editing its names, direction, or active state through `PATCH /api/v1/platform/settings/languages/{language}` requires `manage platform settings`, initially assigned only to `Super Admin`. Locale is immutable after creation. The former `/api/v1/platform/languages` routes remain compatibility aliases. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
 
 ### Currency catalog and USD exchange rates
 
-`currencies` is the platform-owned money-formatting and exchange-rate catalog. Each record has a public ULID, ISO-style three-letter code, display name and symbol, symbol placement, zero-to-four decimal places, active state, and a nullable decimal exchange rate. The rate convention is always `1 USD = X target currency units`; USD is the only base row, remains active, and is database-constrained to rate `1.00000000`.
+`currencies` is the Settings-owned money-formatting and exchange-rate catalog. Each record has a public ULID, ISO-style three-letter code, display name and symbol, symbol placement, zero-to-four decimal places, active state, and a nullable decimal exchange rate. The rate convention is always `1 USD = X target currency units`; USD is the only base row, remains active, and is database-constrained to rate `1.00000000`.
 
 `EnsureCurrencyCatalog` idempotently maintains 25 commonly used currencies without overwriting administrator-configured rates. Non-USD seed rates intentionally remain null because financial rates become stale; a Platform administrator enters or clears rates explicitly and `exchange_rate_updated_at` records when a configured rate changed.
 
-Any Platform-scoped user may read `GET /api/v1/platform/currencies`. Creating a currency through `POST /api/v1/platform/currencies` or changing format, active state, or rate through `PATCH /api/v1/platform/currencies/{currency}` requires `manage platform settings`, initially assigned only to `Super Admin`. Store accounts cannot use this API. The existing `stores.currency_code` remains the Store compatibility setting; Store-level catalog selection is outside this change.
+Any Platform-scoped user may read `GET /api/v1/platform/settings/currencies`. Creating a currency through `POST /api/v1/platform/settings/currencies` or changing format, active state, or rate through `PATCH /api/v1/platform/settings/currencies/{currency}` requires `manage platform settings`, initially assigned only to `Super Admin`. The former `/api/v1/platform/currencies` routes remain compatibility aliases. Store accounts cannot use this API. The existing `stores.currency_code` remains the Store compatibility setting; Store-level catalog selection is outside this change.
 
 ### Plans, features, and add-ons
 
 `plans` stores an editable name/slug, audience, fixed or custom price, currency, monthly/yearly interval, lifecycle status, featured flag, and display order. Money uses integer minor units. `features` is the reusable definition catalog; `plan_features` assigns typed values to plans and can mark an assignment as an optional add-on with its own price.
 
-Platform plan routes require Platform scope plus `manage plans`, initially held by `Super Admin` and `Billing`. `PlanAdminService`, `FeatureAdminService`, and `PlanFeatureAdminService` own transactions, validation, typed assignments, and safe deletion. Plans referenced by a Store are archived instead of deleted. `GET /api/v1/auth/interfaces` supplies the `Plans & Pricing` `/admin/plans` navigation item only when the permission is present.
+Platform plan routes require Platform scope plus `manage plans`, initially held by `Super Admin` and `Billing`. `PlanAdminService`, `FeatureAdminService`, and `PlanFeatureAdminService` own transactions, validation, typed assignments, and safe deletion. Plans referenced by a Store are archived instead of deleted. `GET /api/v1/auth/interfaces` supplies `Plans & Pricing` at `/admin/plans` only with `manage plans` and `Settings` at `/admin/settings` only with `manage platform settings`.
 
 The idempotent sample seeder inserts Launch 1 ($3), Launch 5 ($5), Starter ($9), Growth ($29), Professional ($79), Business ($199), and custom Enterprise. Existing admin edits are not overwritten. See [Plans & Pricing](plans-and-pricing.md).
 
@@ -138,10 +169,11 @@ The idempotent sample seeder inserts Launch 1 ($3), Launch 5 ($5), Starter ($9),
 3. `bootstrap/providers.php` registers global providers.
 4. Nwidart reads `modules_statuses.json` and registers providers declared by enabled `module.json` files.
 5. `AuthenticationServiceProvider` loads authentication routes and migrations.
-6. `StoresServiceProvider` binds request-scoped store context, store provisioning, policies, migrations, and queue context hooks.
-7. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
-8. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
-9. Laravel accepts the request and runs the middleware pipeline.
+6. `SettingsServiceProvider` loads global Settings routes and catalog migrations.
+7. `StoresServiceProvider` binds request-scoped store context, store provisioning, policies, migrations, and queue context hooks.
+8. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
+9. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
+10. Laravel accepts the request and runs the middleware pipeline.
 
 Diagnose discovery with:
 
@@ -230,7 +262,7 @@ Authorization has five layers: Sanctum authentication/abilities, exclusive user 
 
 After login, call `GET /api/v1/auth/interfaces`. The response has two stable keys:
 
-- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Stores. `Plans & Pricing` appears only with `manage plans`.
+- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Stores. `Plans & Pricing` appears only with `manage plans`; `Settings` appears only with `manage platform settings`.
 - `store_admin` is available only for `users.scope = store` with at least one active membership. It returns only that userâ€™s Stores and Store-isolated roles/permissions.
 
 An account can never have both interfaces. The frontend selects the shell from `user.scope` and `available`; backend scope middleware remains authoritative. Store requests still send the selected Store ULID through `X-Store-ID`.
@@ -404,7 +436,7 @@ Use `DB_HOST=127.0.0.1`, `REDIS_HOST=127.0.0.1`, and `SCOUT_DRIVER=database`.
 The standard `artisan db:seed` entry point is defined in
 `database/ShopNxeDatabaseSeeder.php` and loaded through Composer's
 `autoload.files` configuration. It maintains the authorization catalog, the
-21-language master catalog, existing Store language defaults, and the optional
+24-language master catalog, existing Store language defaults, and the optional
 local Platform Administrator account.
 
 ### Infrastructure Compose services
@@ -509,12 +541,17 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Architecture](architecture.md)
 - [Canonical application context](context.md)
 - [Authorization](authorization.md)
+- [Admin component guides](components.md)
+- [Platform Settings admin component](components/platform-settings-admin.md)
+- [Admin localization contract](components/localization.md)
 - [Module boundaries](modules.md)
 - [Authentication module](modules/authentication.md)
+- [Settings module](modules/settings.md)
 - [Stores module](modules/stores.md)
 - [Billing module](modules/billing.md)
 - [Module communication contracts](module-communication/)
 - [Authentication](authentication.md)
+- [Platform settings](settings.md)
 - [Stores](stores.md)
 - [Store management](store-management.md)
 - [Plans & Pricing](plans-and-pricing.md)

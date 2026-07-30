@@ -8,19 +8,19 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Authentication\Models\User;
+use Modules\Settings\Models\Language;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Http\Requests\UpdateStoreLanguagesRequest;
 use Modules\Stores\Http\Resources\StoreLanguageOptionResource;
-use Modules\Stores\Models\Language;
 use Modules\Stores\Models\Store;
-use Modules\Stores\Services\LanguageCatalogService;
+use Modules\Stores\Services\StoreLanguageService;
 
 final class StoreLanguageController extends Controller
 {
     public function index(
         Request $request,
         StoreContext $context,
-        LanguageCatalogService $service,
+        StoreLanguageService $service,
     ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
@@ -33,7 +33,7 @@ final class StoreLanguageController extends Controller
     public function update(
         UpdateStoreLanguagesRequest $request,
         StoreContext $context,
-        LanguageCatalogService $service,
+        StoreLanguageService $service,
     ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
@@ -52,7 +52,7 @@ final class StoreLanguageController extends Controller
     private function payload(Store $store, mixed $languages): array
     {
         $defaultLanguage = $languages->first(
-            fn (Language $language): bool => (bool) $language->storeLanguages->first()?->is_default,
+            fn (Language $language): bool => (bool) $language->getAttribute('store_is_default'),
         );
 
         return [

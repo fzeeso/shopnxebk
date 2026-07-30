@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Actions;
+namespace Modules\Settings\Actions;
 
-use Modules\Stores\Models\Currency;
+use Modules\Settings\Models\Currency;
 
 final class EnsureCurrencyCatalog
 {

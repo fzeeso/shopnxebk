@@ -4,9 +4,9 @@
 
 `Modules/Stores` owns:
 
-- `stores`, `store_memberships`, `languages`, `store_languages`, and `currencies`;
+- `stores`, `store_memberships`, and `store_languages`;
 - Store identity, contact, branding, classification, locale, lifecycle, billing-link, and capability fields;
-- Platform language and currency catalogs, USD-relative exchange rates, and Store language selection/default workflows;
+- Store language selection/default workflows over the Settings-owned language catalog;
 - Store and membership status enums;
 - `StoreProvisioner`;
 - Store ULID resolution from `X-Store-ID`;
@@ -61,32 +61,19 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 
 ## Language flow
 
-1. `EnsureLanguageCatalog` idempotently seeds the supported catalog and
-   backfills an existing Store default from `stores.language_code`.
-2. Platform-scoped users may list the catalog. `manage platform settings` is
-   required to add a language.
+1. Settings idempotently seeds the supported master catalog.
+2. `EnsureStoreLanguageDefaults` backfills an existing Store default from
+   `stores.language_code` after the catalog exists.
 3. An active Store member may list active catalog entries through a request
    carrying `X-Store-ID`.
 4. A Store user with `manage store` submits public language ULIDs and one
    default ULID.
-5. `LanguageCatalogService` resolves public IDs, updates the Store-local join
+5. `StoreLanguageService` resolves Settings-owned public IDs, updates the Store-local join
    rows in one transaction, preserves the one-default database constraint, and
    synchronizes `stores.language_code`.
 
-## Currency flow
-
-1. `EnsureCurrencyCatalog` idempotently creates 25 common currencies. It fixes
-   USD as the active base at rate `1` and preserves configured non-USD rates.
-2. Any Platform-scoped user may list the catalog.
-3. A Platform user with `manage platform settings` may add a non-USD currency
-   or update a currency's display settings, active state, and rate.
-4. Rates use the single convention `1 USD = X target currency units`.
-   An omitted rate is stored as null rather than inventing or retaining stale
-   market data.
-5. Currency public ULIDs cross the REST boundary; internal bigints do not.
-
 ## Outbound communication
 
-Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md) and [Stores to Files](../module-communication/stores-to-files.md). See the dedicated [Store management contract](../store-management.md).
+Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md), [Stores to Settings](../module-communication/stores-to-settings.md), and [Stores to Files](../module-communication/stores-to-files.md). See the dedicated [Store management contract](../store-management.md).
 
 See [Stores → Authentication](../module-communication/stores-to-authentication.md). Business modules should depend on `StoreContext`, Store ULIDs in public contracts, and bigint `store_id` in their own persistence.

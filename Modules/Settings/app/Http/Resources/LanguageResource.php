@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Http\Resources;
+namespace Modules\Settings\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Modules\Stores\Enums\LanguageDirection;
-use Modules\Stores\Models\Language;
+use Modules\Settings\Enums\LanguageDirection;
+use Modules\Settings\Models\Language;
 
 /** @extends JsonResource<Language> */
 final class LanguageResource extends JsonResource

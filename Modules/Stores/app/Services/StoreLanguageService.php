@@ -7,37 +7,13 @@ namespace Modules\Stores\Services;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Modules\Authentication\Models\User;
-use Modules\Stores\Models\Language;
+use Modules\Settings\Models\Language;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreLanguage;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
-final readonly class LanguageCatalogService
+final readonly class StoreLanguageService
 {
     public function __construct(private StoreAccessService $storeAccess) {}
-
-    /** @return Collection<int, Language> */
-    public function listPlatform(User $user): Collection
-    {
-        if (! $user->isPlatformUser()) {
-            throw new AccessDeniedHttpException('Platform-scoped account required.');
-        }
-
-        return Language::query()->orderBy('name')->get();
-    }
-
-    /** @param array<string, mixed> $data */
-    public function createPlatform(User $user, array $data): Language
-    {
-        if (! $user->isPlatformUser()) {
-            throw new AccessDeniedHttpException('Platform-scoped account required.');
-        }
-
-        return Language::query()->create([
-            ...$data,
-            'is_active' => $data['is_active'] ?? true,
-        ]);
-    }
 
     /** @return Collection<int, Language> */
     public function listForStore(User $user, Store $store): Collection
@@ -102,12 +78,25 @@ final readonly class LanguageCatalogService
     /** @return Collection<int, Language> */
     private function catalogForStore(Store $store): Collection
     {
+        $selections = StoreLanguage::query()
+            ->where('store_id', $store->getKey())
+            ->get()
+            ->keyBy('language_id');
+
         return Language::query()
             ->where('is_active', true)
-            ->with([
-                'storeLanguages' => fn ($query) => $query->where('store_id', $store->getKey()),
-            ])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->each(function (Language $language) use ($selections): void {
+                $selection = $selections->get($language->getKey());
+                $language->setAttribute(
+                    'store_is_selected',
+                    $selection instanceof StoreLanguage && $selection->is_active,
+                );
+                $language->setAttribute(
+                    'store_is_default',
+                    $selection instanceof StoreLanguage && $selection->is_default,
+                );
+            });
     }
 }

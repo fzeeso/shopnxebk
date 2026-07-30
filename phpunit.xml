@@ -12,6 +12,7 @@
             <directory>tests/Feature</directory>
             <directory>Modules/Authentication/tests/Feature</directory>
             <directory>Modules/Billing/tests/Feature</directory>
+            <directory>Modules/Settings/tests/Feature</directory>
             <directory>Modules/Stores/tests/Feature</directory>
         </testsuite>
     </testsuites>

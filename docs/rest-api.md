@@ -30,13 +30,28 @@ Plans & Pricing REST contracts:
 
 All plan routes require Platform scope and `manage plans`. Fixed and add-on prices are integer minor units. Assigned plans must be archived instead of deleted. See [Plans & Pricing](plans-and-pricing.md).
 
-Currency REST contracts:
+Platform Settings REST contracts:
 
 | Method | Route | Scope and purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/platform/currencies` | List the complete currency catalog for a Platform-scoped user. |
-| `POST` | `/api/v1/platform/currencies` | Add a non-USD currency; requires `manage platform settings`. |
-| `PATCH` | `/api/v1/platform/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
+| `GET` | `/api/v1/platform/settings/currencies` | List the complete currency catalog for a Platform-scoped user. |
+| `POST` | `/api/v1/platform/settings/currencies` | Add a non-USD currency; requires `manage platform settings`. |
+| `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
+| `GET` | `/api/v1/platform/settings/languages` | List the complete language catalog for a Platform-scoped user. |
+| `POST` | `/api/v1/platform/settings/languages` | Add a supported language; requires `manage platform settings`. |
+| `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, direction, or active state by public ULID; requires `manage platform settings`. |
+
+Admin component request flow:
+
+1. Load `GET /api/v1/auth/interfaces`.
+2. Mount `/admin/settings` only when the returned Platform navigation contains
+   `platform_settings`.
+3. Load Languages and Currencies independently so one section may retry without
+   blocking the other.
+4. Submit create/edit requests to the canonical Settings routes.
+5. Render `422` errors beside fields; treat `401` as session expiry and `403`
+   as permission loss.
+6. Never attach `X-Store-ID` to Platform Settings requests.
 
 Currency rates are returned as fixed-scale decimal strings and mean
 `1 USD = X target currency units`. A null rate is deliberately unconfigured.
@@ -44,12 +59,17 @@ USD is the active base and cannot be deactivated or changed from rate `1`.
 Codes are normalized to uppercase; symbols may contain Unicode; decimal places
 must be between zero and four.
 
-Language REST contracts:
+The shorter `/api/v1/platform/currencies*` and
+`/api/v1/platform/languages*` routes remain backward-compatible aliases.
+Locale and currency codes are immutable after creation.
+
+See the [Platform Settings admin component guide](components/platform-settings-admin.md)
+for field behavior, states, and acceptance criteria.
+
+Store language REST contracts:
 
 | Method | Route | Scope and purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/platform/languages` | List the complete master catalog for a Platform-scoped user. |
-| `POST` | `/api/v1/platform/languages` | Add a supported language; requires `manage platform settings`. |
 | `GET` | `/api/v1/store/languages` | List active languages plus the selected/default state for the authorized `X-Store-ID`. |
 | `PUT` | `/api/v1/store/languages` | Replace the Store language set and default; requires `manage store`. |
 

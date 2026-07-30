@@ -2,20 +2,21 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Services;
+namespace Modules\Settings\Services;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
-use Modules\Stores\Models\Currency;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Modules\Settings\Models\Currency;
 
-final class CurrencyCatalogService
+final readonly class CurrencyCatalogService
 {
+    public function __construct(private PlatformSettingsAccessService $access) {}
+
     /** @return Collection<int, Currency> */
     public function listPlatform(User $user): Collection
     {
-        $this->ensurePlatformUser($user);
+        $this->access->ensureCanView($user);
 
         return Currency::query()
             ->orderByDesc('is_base')
@@ -26,7 +27,7 @@ final class CurrencyCatalogService
     /** @param array<string, mixed> $data */
     public function createPlatform(User $user, array $data): Currency
     {
-        $this->ensurePlatformUser($user);
+        $this->access->ensureCanManage($user);
         $hasRate = array_key_exists('usd_exchange_rate', $data)
             && $data['usd_exchange_rate'] !== null;
 
@@ -41,7 +42,7 @@ final class CurrencyCatalogService
     /** @param array<string, mixed> $data */
     public function updatePlatform(User $user, Currency $currency, array $data): Currency
     {
-        $this->ensurePlatformUser($user);
+        $this->access->ensureCanManage($user);
         $rateWasProvided = array_key_exists('usd_exchange_rate', $data);
 
         if ($currency->is_base) {
@@ -68,12 +69,5 @@ final class CurrencyCatalogService
         $currency->fill($data)->save();
 
         return $currency->refresh();
-    }
-
-    private function ensurePlatformUser(User $user): void
-    {
-        if (! $user->isPlatformUser()) {
-            throw new AccessDeniedHttpException('Platform-scoped account required.');
-        }
     }
 }

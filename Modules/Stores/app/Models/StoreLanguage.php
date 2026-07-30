@@ -7,6 +7,7 @@ namespace Modules\Stores\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Modules\Settings\Models\Language;
 
 #[Fillable(['store_id', 'language_id', 'is_default', 'is_active'])]
 final class StoreLanguage extends Model

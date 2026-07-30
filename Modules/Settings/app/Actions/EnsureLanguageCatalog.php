@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Actions;
+namespace Modules\Settings\Actions;
 
-use Modules\Stores\Models\Language;
-use Modules\Stores\Models\Store;
-use Modules\Stores\Models\StoreLanguage;
+use Modules\Settings\Models\Language;
 
 final class EnsureLanguageCatalog
 {
@@ -22,10 +20,12 @@ final class EnsureLanguageCatalog
         ['name' => 'Finnish', 'native_name' => 'Suomi', 'locale' => 'fi', 'direction' => 'ltr'],
         ['name' => 'French', 'native_name' => 'Français', 'locale' => 'fr', 'direction' => 'ltr'],
         ['name' => 'German', 'native_name' => 'Deutsch', 'locale' => 'de', 'direction' => 'ltr'],
+        ['name' => 'Hindi', 'native_name' => 'हिन्दी', 'locale' => 'hi', 'direction' => 'ltr'],
         ['name' => 'Italian', 'native_name' => 'Italiano', 'locale' => 'it', 'direction' => 'ltr'],
         ['name' => 'Japanese', 'native_name' => '日本語', 'locale' => 'ja', 'direction' => 'ltr'],
         ['name' => 'Korean', 'native_name' => '한국어', 'locale' => 'ko', 'direction' => 'ltr'],
         ['name' => 'Norwegian Bokmål', 'native_name' => 'Norsk Bokmål', 'locale' => 'nb', 'direction' => 'ltr'],
+        ['name' => 'Persian', 'native_name' => 'فارسی', 'locale' => 'fa', 'direction' => 'rtl'],
         ['name' => 'Polish', 'native_name' => 'Polski', 'locale' => 'pl', 'direction' => 'ltr'],
         ['name' => 'Portuguese (Brazil)', 'native_name' => 'Português (Brasil)', 'locale' => 'pt_BR', 'direction' => 'ltr'],
         ['name' => 'Portuguese (Portugal)', 'native_name' => 'Português (Portugal)', 'locale' => 'pt_PT', 'direction' => 'ltr'],
@@ -33,6 +33,7 @@ final class EnsureLanguageCatalog
         ['name' => 'Swedish', 'native_name' => 'Svenska', 'locale' => 'sv', 'direction' => 'ltr'],
         ['name' => 'Thai', 'native_name' => 'ไทย', 'locale' => 'th', 'direction' => 'ltr'],
         ['name' => 'Turkish', 'native_name' => 'Türkçe', 'locale' => 'tr', 'direction' => 'ltr'],
+        ['name' => 'Urdu', 'native_name' => 'اردو', 'locale' => 'ur', 'direction' => 'rtl'],
     ];
 
     public function ensure(): void
@@ -43,25 +44,5 @@ final class EnsureLanguageCatalog
                 [...$language, 'is_active' => true],
             );
         }
-
-        $fallback = Language::query()->where('locale', 'en')->firstOrFail();
-
-        Store::query()
-            ->select(['id', 'language_code'])
-            ->eachById(function (Store $store) use ($fallback): void {
-                if (StoreLanguage::query()->where('store_id', $store->getKey())->exists()) {
-                    return;
-                }
-
-                $locale = str_replace('-', '_', (string) $store->language_code);
-                $language = Language::query()->where('locale', $locale)->first() ?? $fallback;
-
-                StoreLanguage::query()->create([
-                    'store_id' => $store->getKey(),
-                    'language_id' => $language->getKey(),
-                    'is_default' => true,
-                    'is_active' => true,
-                ]);
-            });
     }
 }

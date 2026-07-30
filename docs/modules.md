@@ -5,7 +5,8 @@ Implemented modules:
 | Module | Responsibility |
 | --- | --- |
 | Authentication | Identity, credentials, MFA, exclusive account scopes, tokens, roles, and permissions |
-| Stores | Store profiles/settings, memberships/context, language/currency catalogs, and isolation |
+| Settings | Platform-wide language/currency catalogs and extensible global administration |
+| Stores | Store profiles/settings, memberships/context, Store language selections, and isolation |
 | Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
 
 The following modules are planned but are not created:

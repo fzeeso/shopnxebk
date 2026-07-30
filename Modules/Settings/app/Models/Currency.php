@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Models;
+namespace Modules\Settings\Models;
 
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Attributes\Fillable;

@@ -1,0 +1,9 @@
+{
+    "name": "shopnxe/settings",
+    "type": "laravel-module",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Settings\\": "app/"
+        }
+    }
+}

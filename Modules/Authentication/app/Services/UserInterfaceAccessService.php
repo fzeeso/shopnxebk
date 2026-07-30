@@ -140,15 +140,26 @@ final class UserInterfaceAccessService
      */
     private function platformNavigation(array $permissions): array
     {
-        if (! in_array('manage plans', $permissions, true)) {
-            return [];
+        $navigation = [];
+
+        if (in_array('manage plans', $permissions, true)) {
+            $navigation[] = [
+                'key' => 'plans_pricing',
+                'label' => 'Plans & Pricing',
+                'path' => '/admin/plans',
+                'permission' => 'manage plans',
+            ];
         }
 
-        return [[
-            'key' => 'plans_pricing',
-            'label' => 'Plans & Pricing',
-            'path' => '/admin/plans',
-            'permission' => 'manage plans',
-        ]];
+        if (in_array('manage platform settings', $permissions, true)) {
+            $navigation[] = [
+                'key' => 'platform_settings',
+                'label' => 'Settings',
+                'path' => '/admin/settings',
+                'permission' => 'manage platform settings',
+            ];
+        }
+
+        return $navigation;
     }
 }

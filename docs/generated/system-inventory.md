@@ -43,6 +43,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | --- | --- | ---: | --- | --- |
 | Authentication | yes | 20 | REST authentication and account security. | `Modules\Authentication\Providers\AuthenticationServiceProvider` |
 | Billing | yes | 5 | Platform plan, pricing, reusable feature, and plan-feature administration. | `Modules\Billing\Providers\BillingServiceProvider` |
+| Settings | yes | 15 | Platform-admin settings and global language and currency catalogs. | `Modules\Settings\Providers\SettingsServiceProvider` |
 | Stores | yes | 10 | Shared-schema store context, memberships, and store lifecycle. | `Modules\Stores\Providers\StoresServiceProvider` |
 
 ## HTTP routes
@@ -81,6 +82,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `PATCH` | `/api/v1/platform/features/{feature}` | `api.v1.platform.features.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/languages` | `api.v1.platform.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/languages` | `api.v1.platform.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/languages/{language}` | `api.v1.platform.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/plans` | `api.v1.platform.plans.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/plans` | `api.v1.platform.plans.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `DELETE` | `/api/v1/platform/plans/{plan}` | `api.v1.platform.plans.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -88,6 +90,12 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `PATCH` | `/api/v1/platform/plans/{plan}` | `api.v1.platform.plans.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | `api.v1.platform.plans.features.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PUT` | `/api/v1/platform/plans/{plan}/features/{feature}` | `api.v1.platform.plans.features.upsert` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | `api.v1.platform.settings.currencies.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/settings/languages/{language}` | `api.v1.platform.settings.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/store` | `api.v1.store.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -117,11 +125,12 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Authentication | `Modules/Authentication/database/migrations/2026_07_28_000500_add_legacy_token_lookup.php` |
 | Authentication | `Modules/Authentication/database/migrations/2026_07_29_000600_enforce_exclusive_user_scopes.php` |
 | Billing | `Modules/Billing/database/migrations/2026_07_29_000900_create_plan_catalog_tables.php` |
+| Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
+| Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_29_000500_add_profile_and_capabilities_to_stores.php` |
-| Stores | `Modules/Stores/database/migrations/2026_07_29_000700_create_language_tables.php` |
-| Stores | `Modules/Stores/database/migrations/2026_07_29_000800_create_currencies_table.php` |
+| Stores | `Modules/Stores/database/migrations/2026_07_29_000710_create_store_languages_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |

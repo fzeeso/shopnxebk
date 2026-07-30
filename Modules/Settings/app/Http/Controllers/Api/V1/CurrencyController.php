@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Modules\Stores\Http\Controllers\Api\V1;
+namespace Modules\Settings\Http\Controllers\Api\V1;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Authentication\Models\User;
-use Modules\Stores\Http\Requests\CreateCurrencyRequest;
-use Modules\Stores\Http\Requests\UpdateCurrencyRequest;
-use Modules\Stores\Http\Resources\CurrencyResource;
-use Modules\Stores\Models\Currency;
-use Modules\Stores\Services\CurrencyCatalogService;
+use Modules\Settings\Http\Requests\CreateCurrencyRequest;
+use Modules\Settings\Http\Requests\UpdateCurrencyRequest;
+use Modules\Settings\Http\Resources\CurrencyResource;
+use Modules\Settings\Models\Currency;
+use Modules\Settings\Services\CurrencyCatalogService;
 
-final class PlatformCurrencyController extends Controller
+final class CurrencyController extends Controller
 {
     public function index(Request $request, CurrencyCatalogService $service): JsonResponse
     {
