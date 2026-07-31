@@ -214,6 +214,23 @@ final class AuthenticationApiFeatureTest extends TestCase
     public function test_unauthenticated_account_route_returns_json_401(): void
     {
         $this->getJson('/api/v1/auth/me')->assertUnauthorized()->assertJson(['message' => 'Unauthenticated.']);
+        $this->getJson('/api/v1/auth/session')->assertUnauthorized()->assertJson(['message' => 'Unauthenticated.']);
+    }
+
+    public function test_authenticated_session_returns_user_and_interface_access_together(): void
+    {
+        app(EnsureAuthorizationCatalog::class)->ensure();
+        $admin = User::factory()->platform()->create();
+        app(ScopedRoleAssignmentService::class)->assignPlatformRole($admin, 'Super Admin');
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/auth/session')
+            ->assertOk()
+            ->assertJsonPath('user.id', $admin->public_id)
+            ->assertJsonPath('user.scope', AccessScope::Platform->value)
+            ->assertJsonPath('data.platform_admin.available', true)
+            ->assertJsonPath('data.platform_admin.roles.0', 'Super Admin')
+            ->assertJsonPath('data.store_admin.available', false);
     }
 
     public function test_platform_and_store_authorization_catalog_is_scoped_and_extendable(): void

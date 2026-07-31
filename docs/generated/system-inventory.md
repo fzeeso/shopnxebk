@@ -67,6 +67,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/auth/mfa/setup` | `api.v1.auth.mfa.setup` | api, auth:sanctum, throttle:auth.mfa-management |
 | `POST` | `/api/v1/auth/register` | `api.v1.auth.register` | api, throttle:auth.register |
 | `POST` | `/api/v1/auth/reset-password` | `api.v1.auth.reset-password` | api, throttle:6,1 |
+| `GET\|HEAD` | `/api/v1/auth/session` | `api.v1.auth.session` | api, auth:sanctum |
 | `GET\|HEAD` | `/api/v1/auth/stores` | `api.v1.auth.stores` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
 | `POST` | `/api/v1/auth/token` | `api.v1.auth.token` | api, throttle:auth.token |
 | `GET\|HEAD` | `/api/v1/auth/tokens` | `api.v1.auth.tokens.index` | api, auth:sanctum |

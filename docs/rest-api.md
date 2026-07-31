@@ -87,7 +87,7 @@ Platform Settings REST contracts:
 
 Admin component request flow:
 
-1. Load `GET /api/v1/auth/interfaces`.
+1. Load `GET /api/v1/auth/session` for the User and interface profile in one request. Use `GET /api/v1/auth/interfaces` only when the User is already known.
 2. Mount `/admin/settings` only when the returned Platform navigation contains
    `platform_settings`.
 3. Load Languages and Currencies independently so one section may retry without

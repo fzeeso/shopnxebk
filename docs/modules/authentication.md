@@ -42,11 +42,11 @@ Store token login:
 
 Interface selection:
 
-1. An authenticated client calls `GET /api/v1/auth/interfaces`.
+1. An authenticated dashboard calls `GET /api/v1/auth/session` to receive the User and interface profile atomically. Clients that already have the User may call `GET /api/v1/auth/interfaces` directly.
 2. It checks exclusive `users.scope`.
 3. Platform users receive only Platform assignments and permission-filtered navigation; Store users load only active Store memberships and Store-scoped roles/permissions.
 4. Platform navigation is permission-filtered: Plans requires `manage plans`, Settings requires `manage platform settings`, Admin Users requires `manage platform users`, and Merchants requires `manage stores`.
-5. The response keeps both stable keys, but only one interface can be available.
+5. The interface `data` keeps both stable keys, but only one interface can be available.
 6. The frontend chooses the matching shell, while scope middleware and policies continue to authorize every request.
 
 Frontend consumption is documented in the

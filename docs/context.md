@@ -17,7 +17,7 @@ The two account classes and interfaces are mutually exclusive:
 | `platform_admin` | `Super Admin` is the SaaS Owner | `Support` and `Billing` are platform staff | Platform scope; no Store header |
 | `store_admin` | `Owner` and `Manager` administer the merchant | `Sales`, `Inventory`, and future Store roles are Store staff | One selected Store ULID |
 
-After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. `Plans & Pricing` is returned only with `manage plans`; `Settings` only with `manage platform settings`; `Admin Users` only with `manage platform users`; and `Merchants` only with `manage stores`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+After authentication, `GET /api/v1/auth/session` returns the current User plus both stable interface keys, with exactly one side available. `GET /api/v1/auth/interfaces` remains the profile-only variant. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. `Plans & Pricing` is returned only with `manage plans`; `Settings` only with `manage platform settings`; `Admin Users` only with `manage platform users`; and `Merchants` only with `manage stores`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
 
 Platform staff creation and merchant provisioning are separate APIs. `/api/v1/platform/users` creates only Platform identities. `/api/v1/platform/merchants` atomically creates a Store identity, Store, active membership, and Store roles. `/api/v1/store/users` lets an authorized merchant create staff only inside the selected Store. “All roles” is always restricted to the identity's own scope. See [User and merchant management](user-merchant-management.md).
 
@@ -62,6 +62,9 @@ a second hostname or port for Sanctum cookies. Local Laravel sessions use an
 empty `SESSION_DOMAIN` so cookies are host-only, while CORS and Sanctum keep
 both `localhost:3000` and `127.0.0.1:3000` as explicit development origins.
 Production still requires exact HTTPS origins and secure cookies.
+Dashboard bootstrap uses one `/auth/session` call rather than parallel
+`/auth/me` and `/auth/interfaces` calls, preventing timeout-driven partial
+scope resolution on slower local PHP runtimes.
 
 ## Identifier contract
 

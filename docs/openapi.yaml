@@ -93,6 +93,18 @@ paths:
                 properties:
                   user: {$ref: '#/components/schemas/User'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/session:
+    get:
+      security: [{sanctum: []}]
+      summary: Bootstrap the authenticated dashboard session
+      description: Returns the current User and exclusive Platform Admin/Store Admin interface profile atomically.
+      responses:
+        '200':
+          description: Current User and scoped interface access profile
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DashboardSessionResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
   /api/v1/auth/interfaces:
     get:
       security: [{sanctum: []}]
@@ -1410,6 +1422,13 @@ components:
                       status: {type: string}
                       roles: {type: array, items: {type: string}}
                       permissions: {type: array, items: {type: string}}
+    DashboardSessionResponse:
+      allOf:
+        - {$ref: '#/components/schemas/AccessInterfacesResponse'}
+        - type: object
+          required: [user]
+          properties:
+            user: {$ref: '#/components/schemas/User'}
   responses:
     Unauthenticated:
       description: Authentication required

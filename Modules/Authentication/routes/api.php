@@ -20,6 +20,7 @@ Route::middleware('api')->prefix('api/v1/auth')->name('api.v1.auth.')->group(fun
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('logout', [AuthController::class, 'logout'])->name('logout');
         Route::get('me', [AuthController::class, 'me'])->name('me');
+        Route::get('session', [AuthController::class, 'session'])->name('session');
         Route::get('interfaces', [AuthController::class, 'interfaces'])->name('interfaces');
         Route::get('stores', [AuthController::class, 'stores'])->middleware('user.scope:store')->name('stores');
         Route::post('email/verification-notification', [AuthController::class, 'sendVerification'])->middleware('throttle:6,1')->name('verification.send');

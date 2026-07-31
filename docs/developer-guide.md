@@ -284,7 +284,10 @@ Authorization has five layers: Sanctum authentication/abilities, exclusive user 
 
 ### Platform Admin and Store Admin interface selection
 
-After login, call `GET /api/v1/auth/interfaces`. The response has two stable keys:
+After login, dashboards call `GET /api/v1/auth/session`. It returns the public
+`user` resource and the same interface profile exposed separately by
+`GET /api/v1/auth/interfaces`, avoiding two authenticated requests during the
+initial render. The interface `data` has two stable keys:
 
 - `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Store memberships. `Plans & Pricing` appears only with `manage plans`; `Settings` appears only with `manage platform settings`; `Merchants` appears only with `manage stores`.
 - `store_admin` is available only for `users.scope = store` with at least one active membership. It returns only that userâ€™s Stores and Store-isolated roles/permissions.
@@ -330,6 +333,10 @@ Laravel upstream (`http://localhost/shopnxebk/public` under XAMPP). Keep local
 `SESSION_DOMAIN` empty so the rewritten response creates a host-only cookie on
 whichever admin hostname the browser uses. Both `localhost:3000` and
 `127.0.0.1:3000` remain explicit allowed development origins/stateful domains.
+The admin verifies sign-in and protected renders through one
+`GET /api/v1/auth/session` request and uses a server timeout above the measured
+local PHP bootstrap time; do not restore parallel `/auth/me` and
+`/auth/interfaces` requests in the login transition.
 
 Keep `APP_KEY` stable and backed up. Changing it makes existing TOTP secrets and recovery-code lists undecryptable. Redis should be the normal local and production cache because MFA challenges and replay markers are short-lived security state.
 

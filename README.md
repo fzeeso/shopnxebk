@@ -38,6 +38,7 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 - REST base: `/api/v1`
 - Health: `GET /api/health/live` and `GET /api/health/ready`
 - GraphQL: `POST /graphql`
+- Dashboard session and interface profile: `GET /api/v1/auth/session`
 - Interface access profile: `GET /api/v1/auth/interfaces`
 - Store-scoped requests use `X-Store-ID: <store ULID>`.
 - Store management: `/api/v1/stores` and `/api/v1/store/*`

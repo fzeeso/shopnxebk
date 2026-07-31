@@ -159,6 +159,14 @@ final class AuthController extends Controller
         return response()->json(['user' => new UserResource($request->user())]);
     }
 
+    public function session(Request $request, AccountInterfaceAccessService $interfaces): JsonResponse
+    {
+        return response()->json([
+            'user' => new UserResource($request->user()),
+            'data' => $interfaces->for($request->user()),
+        ]);
+    }
+
     public function interfaces(Request $request, AccountInterfaceAccessService $interfaces): JsonResponse
     {
         return response()->json(['data' => $interfaces->for($request->user())]);

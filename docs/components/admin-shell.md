@@ -1,8 +1,10 @@
 # Platform admin shell component
 
-The Platform admin shell is the frontend consumer of
-`GET /api/v1/auth/interfaces`. This repository supplies the response contract;
-the visual shell is implemented in the separate frontend application.
+The Platform admin shell consumes `GET /api/v1/auth/session`, which returns the
+current User plus the interface profile in one response. The narrower
+`GET /api/v1/auth/interfaces` route exposes the same profile when the client
+already knows the User. This repository supplies the response contracts; the
+visual shell is implemented in the separate frontend application.
 
 ## Scope selection
 

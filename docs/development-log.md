@@ -6,11 +6,11 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 
 ## 2026-07-31 — Hostname-safe admin authentication proxy
 
-- Changed: Standardized the local XAMPP API URL, made development session cookies host-only, allowed both local admin origins, and documented the Next.js admin's same-origin `/laravel` proxy.
-- Reason: The admin was opened on `127.0.0.1:3000` while its browser bundle called an unavailable `localhost:8000` API and Laravel scoped cookies to `localhost`, producing connection and session failures.
+- Changed: Standardized the local XAMPP API URL, made development session cookies host-only, allowed both local admin origins, documented the Next.js admin's same-origin `/laravel` proxy, and added atomic `GET /api/v1/auth/session` dashboard bootstrap.
+- Reason: The admin was opened on `127.0.0.1:3000` while its browser bundle called an unavailable `localhost:8000` API and Laravel scoped cookies to `localhost`, producing connection and session failures. Parallel post-login User/interface requests also competed with a five-second server timeout on the slower local PHP runtime.
 - Data/configuration impact: No migration or stored-data change. Local `APP_URL`, CORS, and session-domain values change; production must continue using exact HTTPS origins and secure cookies.
-- Compatibility or rollout notes: Browser code now uses the admin origin and Next.js forwards to the server-only Laravel upstream. Direct API clients continue using Laravel routes normally.
-- Verification: Pending documentation generation, formatting, PostgreSQL tests, admin build, and browser sign-in verification.
+- Compatibility or rollout notes: Browser code now uses the admin origin and Next.js forwards to the server-only Laravel upstream. Dashboard clients should use `/auth/session`; direct API clients may continue using `/auth/me` and `/auth/interfaces` normally.
+- Verification: Passed backend documentation generation/checks, Pint, PHPStan, and the full PostgreSQL suite with 23 tests and 305 assertions. Passed admin documentation checks, TypeScript, ESLint, and the Next.js production build. Browser sign-in reached the Platform Admin dashboard through `127.0.0.1:3000`, retained the correct scope across repeated desktop and 390-pixel mobile reloads, exposed Plans & Pricing, and produced no console warnings or errors.
 
 ## Entry template
 
