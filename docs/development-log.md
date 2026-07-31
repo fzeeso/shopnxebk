@@ -4,6 +4,14 @@ Record meaningful changes to behavior, architecture, dependencies, schemas, oper
 
 Generated facts live in the [system inventory](generated/system-inventory.md). Run `composer docs:update` before completing an entry.
 
+## 2026-07-31 — Hostname-safe admin authentication proxy
+
+- Changed: Standardized the local XAMPP API URL, made development session cookies host-only, allowed both local admin origins, and documented the Next.js admin's same-origin `/laravel` proxy.
+- Reason: The admin was opened on `127.0.0.1:3000` while its browser bundle called an unavailable `localhost:8000` API and Laravel scoped cookies to `localhost`, producing connection and session failures.
+- Data/configuration impact: No migration or stored-data change. Local `APP_URL`, CORS, and session-domain values change; production must continue using exact HTTPS origins and secure cookies.
+- Compatibility or rollout notes: Browser code now uses the admin origin and Next.js forwards to the server-only Laravel upstream. Direct API clients continue using Laravel routes normally.
+- Verification: Pending documentation generation, formatting, PostgreSQL tests, admin build, and browser sign-in verification.
+
 ## Entry template
 
 ```markdown

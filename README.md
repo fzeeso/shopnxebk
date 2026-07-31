@@ -49,28 +49,28 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 Authentication examples (use placeholders only):
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/register -H 'Accept: application/json' -H 'Content-Type: application/json' \
+curl -X POST http://localhost/shopnxebk/public/api/v1/auth/register -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -d '{"name":"Ada","email":"ada@example.test","password":"StrongPassword!123","password_confirmation":"StrongPassword!123","store_name":"Acme","store_slug":"acme"}'
 
-curl -c cookies.txt -X POST http://localhost:8000/api/v1/auth/login -H 'Accept: application/json' -H 'Content-Type: application/json' \
+curl -c cookies.txt -X POST http://localhost/shopnxebk/public/api/v1/auth/login -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -d '{"email":"ada@example.test","password":"StrongPassword!123"}'
 
-curl -X POST http://localhost:8000/api/v1/auth/token -H 'Accept: application/json' -H 'Content-Type: application/json' \
+curl -X POST http://localhost/shopnxebk/public/api/v1/auth/token -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -d '{"email":"ada@example.test","password":"StrongPassword!123","device_name":"cli","store_id":"<store-ulid>"}'
 
-curl http://localhost:8000/api/v1/auth/me -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+curl http://localhost/shopnxebk/public/api/v1/auth/me -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 
-curl http://localhost:8000/graphql -H 'Accept: application/json' -H 'Content-Type: application/json' \
+curl http://localhost/shopnxebk/public/graphql -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <token>' -H 'X-Store-ID: <store-ulid>' -d '{"query":"{ viewer { id email } activeStore { id slug } }"}'
 
-curl -X POST http://localhost:8000/api/v1/auth/logout -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+curl -X POST http://localhost/shopnxebk/public/api/v1/auth/logout -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
 The OpenAPI description of implemented REST endpoints is in `docs/openapi.yaml`; the Lighthouse schema is the source of truth for GraphQL.
 
 ## Configuration
 
-Copy `.env.example` and set `APP_KEY`, PostgreSQL, Redis, mail, and (for production) S3 and Reverb values. `CORS_ALLOWED_ORIGINS` and `SANCTUM_STATEFUL_DOMAINS` are explicit comma-separated lists; wildcard origins are not supported with credentialed cookies. `INTERNAL_DASHBOARDS_ENABLED=false` keeps Horizon and Pulse routes disabled. Telescope is local-only and additionally requires `TELESCOPE_ENABLED=true`. Set `SCOUT_DRIVER=meilisearch` when Meilisearch is available; `database` is the reduced-infrastructure default.
+Copy `.env.example` and set `APP_KEY`, PostgreSQL, Redis, mail, and (for production) S3 and Reverb values. `CORS_ALLOWED_ORIGINS` and `SANCTUM_STATEFUL_DOMAINS` are explicit comma-separated lists; wildcard origins are not supported with credentialed cookies. Keep local `SESSION_DOMAIN` empty so Sanctum emits host-only cookies. The separate admin uses a same-origin `/laravel` proxy and sends its server-side traffic to this Apache application URL. `INTERNAL_DASHBOARDS_ENABLED=false` keeps Horizon and Pulse routes disabled. Telescope is local-only and additionally requires `TELESCOPE_ENABLED=true`. Set `SCOUT_DRIVER=meilisearch` when Meilisearch is available; `database` is the reduced-infrastructure default.
 
 ## Tests and quality
 

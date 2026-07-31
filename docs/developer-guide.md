@@ -324,6 +324,13 @@ Both stateful login and store-token login use the public `POST /api/v1/auth/mfa/
 
 Session clients must remain Sanctum-stateful for both login requests: first fetch `/sanctum/csrf-cookie`, then send the session cookie, CSRF header, and an allowed `Origin` while posting credentials and the MFA challenge. API and CLI clients use the bearer-token flow.
 
+The local Next.js admin exposes Laravel to browser code through its same-origin
+`/laravel/*` rewrite. Next.js forwards those requests to the server-only
+Laravel upstream (`http://localhost/shopnxebk/public` under XAMPP). Keep local
+`SESSION_DOMAIN` empty so the rewritten response creates a host-only cookie on
+whichever admin hostname the browser uses. Both `localhost:3000` and
+`127.0.0.1:3000` remain explicit allowed development origins/stateful domains.
+
 Keep `APP_KEY` stable and backed up. Changing it makes existing TOTP secrets and recovery-code lists undecryptable. Redis should be the normal local and production cache because MFA challenges and replay markers are short-lived security state.
 
 ### Test TOTP MFA locally
@@ -333,13 +340,13 @@ Apply the migration, ensure Redis is running, and start Laravel:
 ```powershell
 docker compose up -d redis
 & "C:\xampp\php\php.exe" artisan migrate
-& "C:\xampp\php\php.exe" artisan serve --host=127.0.0.1 --port=8000
+curl.exe http://localhost/shopnxebk/public/api/health/ready
 ```
 
 The following PowerShell flow registers a disposable store owner, obtains the initial password-only token, enables MFA, saves the returned QR SVG, confirms the first code, and proves that the next token login requires MFA:
 
 ```powershell
-$baseUrl = 'http://127.0.0.1:8000'
+$baseUrl = 'http://localhost/shopnxebk/public'
 $stamp = Get-Date -Format 'yyyyMMddHHmmss'
 $email = "mfa-local-$stamp@example.test"
 $password = 'StrongPassword!123'
@@ -486,7 +493,7 @@ The root `compose.yaml` runs Redis, Meilisearch, Mailpit, and MinIO only. Larave
 docker compose up -d
 docker compose ps
 & "C:\xampp\php\php.exe" artisan migrate --seed
-& "C:\xampp\php\php.exe" artisan serve --host=127.0.0.1 --port=8000
+curl.exe http://localhost/shopnxebk/public/api/health/ready
 ```
 
 Mailpit is available on port `8025`, Meilisearch on `7700`, and MinIO on `9000` with its console on `9001`. The application Dockerfile remains available for a later production-style image build, but it is not started by the development Compose file.
@@ -495,6 +502,11 @@ When using XAMPP, configure a dedicated VirtualHost whose document root is
 `C:/xampp/htdocs/shopnxebk/public`. The repository-root `.htaccess` blocks
 direct HTTP reads outside `public/` as defense in depth, but production must
 not serve the repository root.
+
+The current local fallback URL is
+`http://localhost/shopnxebk/public`. The separate Next.js admin keeps this
+upstream server-only and proxies browser requests through `/laravel`, avoiding
+cross-origin hostname and cookie-domain failures.
 
 ### Daily commands
 

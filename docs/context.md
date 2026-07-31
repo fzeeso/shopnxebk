@@ -53,6 +53,16 @@ and PostgreSQL coverage; visible admin-label changes update every relevant
 frontend dictionary. See the
 [admin localization contract](components/localization.md).
 
+## Local admin integration contract
+
+The separate Next.js admin owns a same-origin `/laravel/*` browser proxy. It
+forwards requests to a server-only Laravel upstream; under XAMPP the upstream
+is `http://localhost/shopnxebk/public`. Browser code therefore never depends on
+a second hostname or port for Sanctum cookies. Local Laravel sessions use an
+empty `SESSION_DOMAIN` so cookies are host-only, while CORS and Sanctum keep
+both `localhost:3000` and `127.0.0.1:3000` as explicit development origins.
+Production still requires exact HTTPS origins and secure cookies.
+
 ## Identifier contract
 
 Domain entities have two identifiers:
