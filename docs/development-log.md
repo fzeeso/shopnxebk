@@ -16,6 +16,30 @@ Generated facts live in the [system inventory](generated/system-inventory.md). R
 - Verification:
 ```
 
+## 2026-07-31 — Consistent management-list pagination
+
+- Changed: Added shared `page`/`per_page` validation and Laravel `data`/`links`/`meta` responses to token, Platform user, Store, merchant, plan, feature, currency, language, and selected-Store-user lists.
+- Reason: Every table-style administration view needs bounded paging and stable navigation/count metadata.
+- Data/configuration impact: No migration or environment change. Page size defaults to 25 and is capped at 100; selector/option lists remain unpaginated.
+- Compatibility or rollout notes: Record arrays remain under `data`; clients should now read `links` and `meta` and request additional pages instead of assuming one complete management collection.
+- Verification: Passed Pint, PHPStan, documentation checks, and the full PostgreSQL suite with 29 tests and 395 assertions, including page boundaries, Store isolation, metadata shape, and maximum page size.
+
+## 2026-07-31 — Direct Platform Store administration
+
+- Changed: Completed the scope-safe `/api/v1/platform/stores*` list, create, detail, and edit contracts with shared request authorization/validation, normalized filters, pagination, public resources, and focused PostgreSQL coverage.
+- Reason: Let the separate Platform Admin frontend manage Store profiles directly while keeping merchant-owner provisioning and future Billing/subscription workflows independent.
+- Data/configuration impact: No migration was required. Direct Store creation produces an unassigned `pending` Store and accepts only validated public profile, locale, lifecycle, verification, branding-reference, and capability fields.
+- Compatibility or rollout notes: Use `/api/v1/platform/merchants*` when an owner, membership, and Store role must be created together. Plans, subscriptions, raw settings/metadata, owners, and roles remain prohibited in direct Store writes.
+- Verification: Passed targeted Pint, full Pint checks, PHPStan, strict Composer validation, documentation inventory/checks, the focused Stores feature suite (7 tests, 92 assertions), and the settled full PostgreSQL suite (29 tests, 395 assertions), including direct create, search/filter/page, detail, edit, permission, unsafe-input, and missing-Store scenarios.
+
+## 2026-07-31 — Scope-safe user and merchant provisioning
+
+- Changed: Added Platform user/role create, view, list, and edit APIs; Platform merchant/merchant-role create, view, list, and edit APIs; selected-Store user/role APIs; transactional services; `manage platform users`; permission-filtered Admin Users/Merchants navigation metadata; and opt-in local test-account seed actions.
+- Reason: Let SaaS administrators create Platform staff and complete merchant accounts while letting Store owners create their own staff, without mixing Platform and Store identities or roles.
+- Data/configuration impact: No migration was required. The authorization catalog gains `manage platform users`; `.env.example` gains empty local fixture variables. The ignored local `.env` can seed one verified all-Platform-role test admin and one verified all-Store-role test merchant.
+- Compatibility or rollout notes: “All roles” is scope-specific. Platform accounts never receive memberships; Store accounts never receive Platform roles. The backend remains API-only, so `/admin/users` and `/admin/merchants` are navigation hints for a separate frontend.
+- Verification: Registered the routes, passed Pint, PHPStan, strict Composer validation, documentation inventory checks, credential/hash checks for both local fixtures, and the full PostgreSQL suite with 28 tests and 265 assertions.
+
 ## 2026-07-30 — Low-disruption security hardening
 
 - Changed: Blocked XAMPP HTTP access outside `public/`, bound development Compose ports to localhost, added a token prefix and 30-day default expiry, scheduled expired-token pruning, enforced Store token ability/binding, revoked bearer tokens on password reset, added registration/token-management rate limits, made internal-dashboard IP checks fail closed, restricted new Store currency/language choices to active Platform catalog entries, and repaired protected missing paths through conventional internal service/seeder/test renames.

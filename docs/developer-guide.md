@@ -78,7 +78,7 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Settings/` owns extensible Platform-wide settings, currently the global language and currency catalogs, their administration routes, and USD-relative exchange rates.
 
-`Modules/Stores/` owns stores, memberships, Store profiles/preferences, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, the Platform Store catalog APIs, memberships, Store profiles/preferences, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
 
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
 
@@ -93,6 +93,8 @@ component contracts under [Admin component guides](components.md).
 - `Plans & Pricing` mounts at `/admin/plans` with `manage plans`.
 - `Settings` mounts at `/admin/settings` with
   `manage platform settings`.
+- `Merchants` mounts at `/admin/merchants` with `manage stores`; it may
+  compose the Platform Store catalog and owner-aware merchant provisioning.
 - Languages and Currencies are sections of the one Platform Settings shell.
 - Platform components never enter Store context; future Store Settings remains
   a separate Store-admin component.
@@ -137,6 +139,16 @@ Pure relationship/package tables and protocol identifiers follow the documented 
 Registration sets `legal_name` from `store_name`; database defaults provide `USD`, `en`, `UTC`, and disabled flags. `Store` casts business type/status to enums, flags to booleans, and lifecycle values to immutable datetimes. `StoreResource` and the GraphQL `Store` type serialize the public-safe values. Numeric `plan_id` and `subscription_id` remain internal Billing integration keys and never cross the API boundary.
 
 Branding columns contain storage references only. `CreateStoreService`, `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` now own Store creation/read/profile/settings writes. Existing-Store operations require `X-Store-ID` and active membership; writes additionally require `manage store`. Merchant validation prohibits lifecycle, Billing, verification, capability, trial, and raw JSON fields. See [Store management](store-management.md).
+
+Platform Store catalog routes are `/api/v1/platform/stores*`. They require a
+Platform account with `manage stores` and never use Store context.
+`PlatformStoreAdminService` provides case-insensitive search over stable Store
+identity fields, exact profile/capability filters, creation-date filters,
+whitelisted sorting, and deterministic pagination capped at 100 rows. Direct
+creation makes an unassigned Store, defaults it to `pending`, and keeps Billing
+links/raw JSON outside the request contract. The separate
+`/api/v1/platform/merchants*` service remains the atomic owner-and-membership
+provisioning path.
 
 ### Language catalog and Store language selection
 
@@ -213,6 +225,17 @@ flowchart TD
 
 `ClearRequestContext` executes in a `finally` block. Store state, permission-team state, guards, locale, and log context are cleared even after an exception. Octane repeats cleanup after worker termination.
 
+### REST list pagination
+
+Table-backed management views use length-aware REST pagination. Clients send
+`page` (minimum 1) and `per_page` (1-100); omitted `per_page` defaults to 25.
+The response contains the current records in `data`, navigation URLs in
+`links`, and counts/page state in `meta`. The convention applies to personal
+access tokens, Platform users, Stores, merchants, plans, features, currencies,
+languages, and selected-Store users. Role catalogs, Store selectors, and Store
+language options remain unpaginated so dropdowns receive the complete option
+set.
+
 ## 6. Registration execution
 
 ```mermaid
@@ -263,10 +286,25 @@ Authorization has five layers: Sanctum authentication/abilities, exclusive user 
 
 After login, call `GET /api/v1/auth/interfaces`. The response has two stable keys:
 
-- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Stores. `Plans & Pricing` appears only with `manage plans`; `Settings` appears only with `manage platform settings`.
+- `platform_admin` is available only for `users.scope = platform`. It returns Platform roles/permissions/navigation and never Store memberships. `Plans & Pricing` appears only with `manage plans`; `Settings` appears only with `manage platform settings`; `Merchants` appears only with `manage stores`.
 - `store_admin` is available only for `users.scope = store` with at least one active membership. It returns only that userâ€™s Stores and Store-isolated roles/permissions.
 
 An account can never have both interfaces. The frontend selects the shell from `user.scope` and `available`; backend scope middleware remains authoritative. Store requests still send the selected Store ULID through `X-Store-ID`.
+
+### Platform user, merchant, and Store user creation
+
+Platform staff management is served by `/api/v1/platform/users*`. `PlatformUserAdminService` requires Platform scope plus `manage platform users`, validates roles against Platform catalog rows, creates/edits the identity transactionally, and returns the User ULID with role names, verification timestamps, MFA state, and created/updated timestamps. Changing the managed email clears verification and queues verification for the new address after commit; omitting an edit password preserves the current hash. The platform role catalog is `/api/v1/platform/roles`.
+
+Merchant provisioning is served by `/api/v1/platform/merchants*` and requires `manage stores`. `PlatformMerchantService` creates a Store-scoped owner identity, Store, active membership, and Store-role assignments in one transaction; `Owner` is mandatory. It also edits owner identity/password and Platform-controlled Store profile/status without changing existing Store roles. Merchant resources identify the primary owner and return the Store users with membership metadata. Changing the owner email clears verification and queues verification for the new address after commit. The merchant role catalog is `/api/v1/platform/merchant-roles`.
+
+Direct Store catalog management is served by `/api/v1/platform/stores*` under
+the same permission. `GET` supports search, exact filters, date range,
+whitelisted sorting, and `page`/`per_page`; the collection response includes
+`data`, `meta`, and `links`. `POST` creates a Store without an owner or
+membership, while `GET/PATCH /{store}` resolve a public Store ULID and expose
+only public-safe fields. Use the merchant route when an owner must exist.
+
+Within one selected Store, `/api/v1/store/users` lists members or creates a new unique-email Store user. Listing requires `manage store members`; creation also requires `manage store roles`. `/api/v1/store/roles` lists roles for the selected Store. Public requests and responses use ULIDs, while membership and role-team writes use bigint keys. Platform/Store roles can never be combined. See [User and merchant management](user-merchant-management.md).
 
 ### TOTP multi-factor authentication
 

@@ -14,6 +14,11 @@
 - active-membership and token/store enforcement;
 - Store-scoped model, cache, queue, media, and search helpers;
 - the `activeStore` GraphQL field.
+- Platform Store catalog/merchant provisioning and selected-Store user management APIs.
+
+Platform Store, merchant, and selected-Store user table lists are paginated.
+They accept `page`/`per_page`, default to 25, cap at 100, and return `data`,
+`links`, and `meta`; Store role and language-option catalogs stay complete.
 
 ## Identifier behavior
 
@@ -44,6 +49,9 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 4. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; `PATCH /api/v1/store/settings` calls `StoreSettingsService`.
 5. Both write paths require `manage store`, use a transaction, and return public-safe resources.
 6. Merchant validation prohibits Platform-owned lifecycle, Billing, verification, capability, and raw JSON fields.
+7. `/api/v1/platform/stores*` separately gives Platform staff with `manage
+   stores` a searchable, filtered, paginated Store catalog plus direct
+   create/view/edit operations without Store context.
 
 ## Store selection flow
 
@@ -58,6 +66,15 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 ## Provisioning flow
 
 `ProvisionStore` requires a Store-scoped user, creates the Store and active owner membership, delegates validated `Owner` assignment to `ScopedRoleAssignmentService`, and dispatches `StoreCreated` after commit. The provisioning caller owns the surrounding transaction.
+
+`PlatformMerchantService` is the Platform-admin composition root for a merchant: it requires `manage stores`, creates the Authentication-owned Store identity, calls `StoreProvisioner`, applies merchant profile fields, synchronizes Store roles, and queues registration/verification behavior after the transaction commits. `StoreUserAdminService` separately creates Store staff under an already selected Store and requires both member and role management permissions. Neither flow can assign Platform roles.
+
+`PlatformStoreAdminService` is the direct Store-row administration boundary.
+It uses the same Platform permission but creates no identity or membership. Its
+query contract searches stable identity fields, applies validated exact/date/
+boolean filters, restricts sorting to known columns, caps pages at 100, and
+uses the Store public ULID for detail/update. It rejects Billing relationship
+IDs and raw JSON.
 
 ## Language flow
 

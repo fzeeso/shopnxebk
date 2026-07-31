@@ -136,6 +136,24 @@ final class AccountInterfaceAccessService
             ];
         }
 
+        if (in_array('manage platform users', $permissions, true)) {
+            $navigation[] = [
+                'key' => 'platform_users',
+                'label' => 'Admin Users',
+                'path' => '/admin/users',
+                'permission' => 'manage platform users',
+            ];
+        }
+
+        if (in_array('manage stores', $permissions, true)) {
+            $navigation[] = [
+                'key' => 'merchants',
+                'label' => 'Merchants',
+                'path' => '/admin/merchants',
+                'permission' => 'manage stores',
+            ];
+        }
+
         return $navigation;
     }
 }

@@ -1,6 +1,6 @@
 # Security model
 
-Security is layered: Sanctum token abilities, exclusive `users.scope`, authenticated-user membership, Spatie permissions, and model policies. Platform and Store accounts cannot share memberships, roles, direct permissions, or Store-bound tokens. A global Platform super-admin is never inferred from a Store header.
+Security is layered: Sanctum token abilities, exclusive `users.scope`, authenticated-user membership, Spatie permissions, and model policies. Platform and Store accounts cannot share memberships, roles, direct permissions, or Store-bound tokens. A global Platform super-admin is never inferred from a Store header. Platform staff, merchant, and Store-user creation validate role scope in Form Requests/services and are independently protected by PostgreSQL scope triggers.
 
 Bearer tokens receive a 30-day default expiry unless the caller supplies an
 explicit expiry. Store routes require the `store:access` ability and an exact

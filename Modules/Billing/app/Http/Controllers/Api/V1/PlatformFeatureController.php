@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Billing\Http\Controllers\Api\V1;
 
+use App\Http\Requests\PaginatedIndexRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -16,11 +17,11 @@ use Modules\Billing\Services\FeatureAdminService;
 
 final class PlatformFeatureController extends Controller
 {
-    public function index(Request $request, FeatureAdminService $service): JsonResponse
+    public function index(PaginatedIndexRequest $request, FeatureAdminService $service): JsonResponse
     {
-        return response()->json([
-            'data' => FeatureResource::collection($service->list($this->user($request))),
-        ]);
+        return FeatureResource::collection(
+            $service->list($this->user($request), $request->perPage()),
+        )->response();
     }
 
     public function store(CreateFeatureRequest $request, FeatureAdminService $service): JsonResponse

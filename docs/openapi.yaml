@@ -6,6 +6,12 @@ info:
 servers:
   - url: http://localhost:8000
 tags:
+  - name: Platform Accounts
+    description: Platform staff and merchant provisioning for the separate admin frontend.
+  - name: Platform Stores
+    description: Searchable and paginated Store catalog administration for Platform staff.
+  - name: Store Users
+    description: Member and role management inside one selected Store.
   - name: Platform Settings
     description: Global SaaS language and currency configuration for the /admin/settings component.
 paths:
@@ -124,6 +130,26 @@ paths:
                     items: {$ref: '#/components/schemas/Store'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {description: Platform account cannot list Stores}
+  /api/v1/auth/tokens:
+    get:
+      security: [{sanctum: []}]
+      summary: List the current account's personal access tokens
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Paginated personal access tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data: {type: array, items: {$ref: '#/components/schemas/PersonalAccessToken'}}
+                  links: {$ref: '#/components/schemas/PaginationLinks'}
+                  meta: {$ref: '#/components/schemas/PaginationMeta'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
   /api/v1/auth/forgot-password:
     post:
       summary: Queue a password reset notification
@@ -145,23 +171,336 @@ paths:
       responses:
         '200': {description: Email verified}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/roles:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: List assignable Platform roles
+      description: Requires Platform scope and manage platform users.
+      responses:
+        '200':
+          description: Platform role names
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RoleListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/users:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: List Platform users
+      description: Paginated; requires Platform scope and manage platform users.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Platform users and Platform roles
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedUserListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: Create a Platform user
+      description: Creates only a Platform-scoped identity and accepts only Platform roles.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateManagedUserRequest'}
+      responses:
+        '201':
+          description: Platform user created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedUserResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/users/{user}:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: View a Platform user
+      parameters:
+        - {name: user, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+      responses:
+        '200':
+          description: Platform user
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedUserResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Platform user not found}
+    patch:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: Update a Platform user and Platform roles
+      parameters:
+        - {name: user, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateManagedUserRequest'}
+      responses:
+        '200': {description: Platform user updated}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Platform user not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/merchant-roles:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: List Store roles assignable during merchant provisioning
+      description: Requires Platform scope and manage stores.
+      responses:
+        '200':
+          description: Store role names
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RoleListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/merchants:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: List merchants
+      description: Paginated Stores and their Store-scoped users/roles; requires manage stores.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Merchant list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, links, meta]
+                properties:
+                  data: {type: array, items: {$ref: '#/components/schemas/Merchant'}}
+                  links: {$ref: '#/components/schemas/PaginationLinks'}
+                  meta: {$ref: '#/components/schemas/PaginationMeta'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: Create a merchant
+      description: Atomically creates a Store user, Store, active membership, and Store roles; Owner is always included.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateMerchantRequest'}
+      responses:
+        '201':
+          description: Merchant created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: {$ref: '#/components/schemas/Merchant'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/merchants/{merchant}:
+    get:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: View a merchant by Store ULID
+      parameters:
+        - {name: merchant, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+      responses:
+        '200': {description: Merchant resource}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Merchant not found}
+    patch:
+      tags: [Platform Accounts]
+      security: [{sanctum: []}]
+      summary: Update a merchant owner and Store
+      description: Existing Store roles are preserved. A changed owner email becomes unverified.
+      parameters:
+        - {name: merchant, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateMerchantRequest'}
+      responses:
+        '200': {description: Merchant updated}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Merchant not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/stores:
+    get:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Search, filter, sort, and paginate Stores
+      description: Requires Platform scope and manage stores. Never send X-Store-ID.
+      parameters:
+        - {name: search, in: query, schema: {type: string, maxLength: 120}, description: Case-insensitive name, legal name, slug, email, or primary-domain search.}
+        - {name: status, in: query, schema: {type: string, enum: [pending, active, suspended, cancelled]}}
+        - {name: business_type, in: query, schema: {type: string, enum: [ecommerce, b2b, services, digital, restaurant, marketplace]}}
+        - {name: currency_code, in: query, schema: {type: string, pattern: '^[A-Za-z]{3}$'}}
+        - {name: language_code, in: query, schema: {type: string}}
+        - {name: country_code, in: query, schema: {type: string, pattern: '^[A-Za-z]{2}$'}}
+        - {name: is_verified, in: query, schema: {type: boolean}}
+        - {name: is_ai_enabled, in: query, schema: {type: boolean}}
+        - {name: is_pos_enabled, in: query, schema: {type: boolean}}
+        - {name: is_b2b_enabled, in: query, schema: {type: boolean}}
+        - {name: is_marketplace_enabled, in: query, schema: {type: boolean}}
+        - {name: created_from, in: query, schema: {type: string, format: date}}
+        - {name: created_to, in: query, schema: {type: string, format: date}}
+        - {name: sort, in: query, schema: {type: string, enum: [name, slug, status, created_at, updated_at], default: created_at}}
+        - {name: direction, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, default: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+      responses:
+        '200':
+          description: Paginated Store catalog
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PaginatedStoreResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    post:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Create an unassigned Store
+      description: Requires manage stores. Creates no owner, membership, role, plan, or subscription; status defaults to pending.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreatePlatformStoreRequest'}
+      responses:
+        '201':
+          description: Store created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/stores/{store}:
+    parameters:
+      - {name: store, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store ULID}
+    get:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: View a Store
+      description: Requires Platform scope and manage stores.
+      responses:
+        '200':
+          description: Store resource
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+    patch:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Edit a Store
+      description: Internal Billing links, raw JSON, preferences, owner data, and roles are prohibited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdatePlatformStoreRequest'}
+      responses:
+        '200':
+          description: Store updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/roles:
+    get:
+      tags: [Store Users]
+      security: [{sanctum: []}]
+      summary: List roles for the selected Store
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200':
+          description: Store role names
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RoleListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/users:
+    get:
+      tags: [Store Users]
+      security: [{sanctum: []}]
+      summary: List users in the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Paginated Store members, memberships, and Store roles
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ManagedUserListResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Store Users]
+      security: [{sanctum: []}]
+      summary: Create a user in the selected Store
+      description: Requires manage store members and manage store roles. Only Store roles are accepted.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateManagedUserRequest'}
+      responses:
+        '201': {description: Store user and active membership created}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/platform/settings/currencies:
     get:
       tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: List the platform currency catalog
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
       responses:
         '200':
-          description: Complete platform currency catalog
+          description: Paginated platform currency catalog
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, links, meta]
                 properties:
                   data:
                     type: array
                     items: {$ref: '#/components/schemas/Currency'}
+                  links: {$ref: '#/components/schemas/PaginationLinks'}
+                  meta: {$ref: '#/components/schemas/PaginationMeta'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
@@ -222,18 +561,23 @@ paths:
       tags: [Platform Settings]
       security: [{sanctum: []}]
       summary: List the platform language catalog
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
       responses:
         '200':
-          description: Complete platform language catalog
+          description: Paginated platform language catalog
           content:
             application/json:
               schema:
                 type: object
-                required: [data]
+                required: [data, links, meta]
                 properties:
                   data:
                     type: array
                     items: {$ref: '#/components/schemas/Language'}
+                  links: {$ref: '#/components/schemas/PaginationLinks'}
+                  meta: {$ref: '#/components/schemas/PaginationMeta'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
@@ -386,8 +730,11 @@ paths:
     get:
       security: [{sanctum: []}]
       summary: List plans with feature/add-on assignments
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
       responses:
-        '200': {description: Plan catalog}
+        '200': {description: Paginated plan catalog with data, links, and meta}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
       security: [{sanctum: []}]
@@ -435,8 +782,11 @@ paths:
     get:
       security: [{sanctum: []}]
       summary: List reusable features
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
       responses:
-        '200': {description: Feature catalog}
+        '200': {description: Paginated feature catalog with data, links, and meta}
         '403': {$ref: '#/components/responses/Forbidden'}
     post:
       security: [{sanctum: []}]
@@ -504,6 +854,14 @@ components:
   securitySchemes:
     sanctum: {type: http, scheme: bearer}
   parameters:
+    Page:
+      name: page
+      in: query
+      schema: {type: integer, minimum: 1, default: 1}
+    PerPage:
+      name: per_page
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 25}
     StoreId:
       name: X-Store-ID
       in: header
@@ -511,6 +869,25 @@ components:
       description: Public Store ULID
       schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
   schemas:
+    PaginationLinks:
+      type: object
+      required: [first, last, prev, next]
+      properties:
+        first: {type: string}
+        last: {type: string}
+        prev: {type: [string, 'null']}
+        next: {type: [string, 'null']}
+    PaginationMeta:
+      type: object
+      required: [current_page, from, last_page, path, per_page, to, total]
+      properties:
+        current_page: {type: integer, minimum: 1}
+        from: {type: [integer, 'null'], minimum: 1}
+        last_page: {type: integer, minimum: 1}
+        path: {type: string}
+        per_page: {type: integer, minimum: 1, maximum: 100}
+        to: {type: [integer, 'null'], minimum: 1}
+        total: {type: integer, minimum: 0}
     Health:
       type: object
       required: [status]
@@ -536,6 +913,125 @@ components:
         email: {type: string, format: email}
         scope: {type: string, enum: [platform, store], description: Exclusive account class}
         email_verified_at: {type: [string, 'null'], format: date-time}
+    PersonalAccessToken:
+      type: object
+      required: [id, name, store_id, abilities, last_used_at, expires_at, created_at]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        name: {type: string}
+        store_id: {type: [string, 'null'], pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        abilities: {type: array, items: {type: string}}
+        last_used_at: {type: [string, 'null'], format: date-time}
+        expires_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+    ManagedUser:
+      allOf:
+        - {$ref: '#/components/schemas/User'}
+        - type: object
+          required: [roles]
+          properties:
+            roles: {type: array, items: {type: string}}
+    CreateManagedUserRequest:
+      type: object
+      required: [name, email, password, password_confirmation, roles]
+      properties:
+        name: {type: string, maxLength: 120}
+        email: {type: string, format: email}
+        password: {type: string, format: password, minLength: 12, writeOnly: true}
+        password_confirmation: {type: string, format: password, writeOnly: true}
+        roles: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+    UpdateManagedUserRequest:
+      type: object
+      required: [name, email, roles]
+      properties:
+        name: {type: string, maxLength: 120}
+        email: {type: string, format: email}
+        password: {type: [string, 'null'], format: password, minLength: 12, writeOnly: true}
+        password_confirmation: {type: [string, 'null'], format: password, writeOnly: true}
+        roles: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+    ManagedUserResponse:
+      type: object
+      properties:
+        data: {$ref: '#/components/schemas/ManagedUser'}
+    ManagedUserListResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ManagedUser'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
+    RoleListResponse:
+      type: object
+      properties:
+        data: {type: array, items: {type: string}}
+    CreateMerchantRequest:
+      type: object
+      required: [owner, store]
+      properties:
+        owner:
+          type: object
+          required: [name, email, password, password_confirmation]
+          properties:
+            name: {type: string, maxLength: 120}
+            email: {type: string, format: email}
+            password: {type: string, format: password, minLength: 12, writeOnly: true}
+            password_confirmation: {type: string, format: password, writeOnly: true}
+        store:
+          type: object
+          required: [name, slug]
+          properties:
+            name: {type: string, maxLength: 120}
+            slug: {type: string, pattern: '^[a-z0-9_-]+$'}
+            legal_name: {type: [string, 'null']}
+            description: {type: [string, 'null']}
+            email: {type: [string, 'null'], format: email}
+            phone: {type: [string, 'null']}
+            industry: {type: [string, 'null']}
+            business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+            currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
+            language_code: {type: string}
+            timezone: {type: string}
+            country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+        roles: {type: array, minItems: 1, uniqueItems: true, items: {type: string}}
+    Merchant:
+      type: object
+      required: [store, owner, users]
+      properties:
+        store: {$ref: '#/components/schemas/Store'}
+        owner:
+          oneOf:
+            - {$ref: '#/components/schemas/ManagedUser'}
+            - {type: 'null'}
+        users: {type: array, items: {$ref: '#/components/schemas/ManagedUser'}}
+    UpdateMerchantRequest:
+      type: object
+      required: [owner, store]
+      properties:
+        owner:
+          type: object
+          required: [name, email]
+          properties:
+            name: {type: string, maxLength: 120}
+            email: {type: string, format: email}
+            password: {type: [string, 'null'], format: password, minLength: 12, writeOnly: true}
+            password_confirmation: {type: [string, 'null'], format: password, writeOnly: true}
+        store:
+          type: object
+          required: [name, slug, status]
+          properties:
+            name: {type: string, maxLength: 120}
+            slug: {type: string, pattern: '^[a-z0-9_-]+$'}
+            legal_name: {type: [string, 'null']}
+            description: {type: [string, 'null']}
+            email: {type: [string, 'null'], format: email}
+            phone: {type: [string, 'null']}
+            industry: {type: [string, 'null']}
+            business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+            currency_code: {type: string, pattern: '^[A-Za-z]{3}$'}
+            language_code: {type: string}
+            timezone: {type: string}
+            country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+            status: {type: string, enum: [pending, active, suspended, cancelled]}
     Store:
       type: object
       description: Public Store data. Internal bigint id, plan_id, and subscription_id are never serialized.
@@ -566,6 +1062,58 @@ components:
         is_marketplace_enabled: {type: boolean}
         launched_at: {type: [string, 'null'], format: date-time}
         trial_ends_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    PlatformStoreWriteFields:
+      type: object
+      description: Public Store fields only. Billing links, raw settings/metadata, preferences, owner data, and roles are prohibited.
+      properties:
+        name: {type: string, maxLength: 120}
+        slug: {type: string, minLength: 3, maxLength: 80, pattern: '^[a-z0-9_-]+$'}
+        legal_name: {type: [string, 'null'], maxLength: 255}
+        description: {type: [string, 'null'], maxLength: 5000}
+        email: {type: [string, 'null'], format: email}
+        phone: {type: [string, 'null'], maxLength: 32}
+        primary_domain: {type: [string, 'null'], maxLength: 253}
+        logo: {type: [string, 'null'], maxLength: 2048}
+        favicon: {type: [string, 'null'], maxLength: 2048}
+        cover_image: {type: [string, 'null'], maxLength: 2048}
+        industry: {type: [string, 'null'], maxLength: 120}
+        business_type: {type: [string, 'null'], enum: [ecommerce, b2b, services, digital, restaurant, marketplace, null]}
+        status: {type: string, enum: [pending, active, suspended, cancelled], default: pending}
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$', description: Must be an active Platform currency code.}
+        language_code: {type: string, maxLength: 10, description: Must be an active Platform language locale; hyphens normalize to underscores.}
+        timezone: {type: string}
+        country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+        is_verified: {type: boolean}
+        is_ai_enabled: {type: boolean}
+        is_pos_enabled: {type: boolean}
+        is_b2b_enabled: {type: boolean}
+        is_marketplace_enabled: {type: boolean}
+        launched_at: {type: [string, 'null'], format: date-time}
+        trial_ends_at: {type: [string, 'null'], format: date-time}
+    CreatePlatformStoreRequest:
+      allOf:
+        - {$ref: '#/components/schemas/PlatformStoreWriteFields'}
+        - type: object
+          required: [name, slug]
+    UpdatePlatformStoreRequest:
+      allOf:
+        - {$ref: '#/components/schemas/PlatformStoreWriteFields'}
+    StoreResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Store'}
+    PaginatedStoreResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Store'}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
     CreateStoreRequest:
       type: object
       required: [name, slug]

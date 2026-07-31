@@ -9,6 +9,7 @@ a specific frontend framework.
 | --- | --- | --- | --- |
 | Platform admin shell | `/admin/*` | Backend navigation contract implemented | [Admin shell](components/admin-shell.md) |
 | Plans & Pricing | `/admin/plans` | Backend catalog/API implemented; visual frontend is separate | [Plans & Pricing](plans-and-pricing.md) |
+| Platform Stores | `/admin/merchants` | Backend searchable/paged Store API implemented; visual frontend is separate | [Platform Stores admin](components/platform-stores-admin.md) |
 | Platform Settings | `/admin/settings` | Backend catalog/API implemented; visual frontend is separate | [Platform Settings admin](components/platform-settings-admin.md) |
 | Store Settings | Future Store-admin route | Deliberately deferred | [Store management boundary](store-management.md) |
 | Admin localization | All admin routes | Frontend dictionaries are external; synchronization contract documented | [Localization](components/localization.md) |

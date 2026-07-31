@@ -6,6 +6,45 @@ Reserved route families are intentionally not implemented yet: uploads and presi
 
 Every response receives `X-Request-ID`. 401, 403, 404, and 422 responses are structured JSON and never redirect to a login page.
 
+Table-style list endpoints accept `page` and `per_page`. The default page size
+is 25 and the maximum is 100. Responses keep records in `data` and add Laravel
+`links` and `meta` pagination objects. This applies to personal access tokens,
+Platform users, Stores, merchants, plans, features, currencies, languages, and
+selected-Store users. Selector/option endpoints such as roles, active Store
+memberships, and Store language choices remain complete unpaginated lists.
+
+User and merchant administration contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/users` | Page Platform staff or create one; requires `manage platform users`. |
+| `GET/PATCH` | `/api/v1/platform/users/{user}` | View or edit a Platform user by public ULID. |
+| `GET` | `/api/v1/platform/roles` | List assignable Platform roles. |
+| `GET/POST` | `/api/v1/platform/stores` | Search/filter/page or directly create Store rows; requires `manage stores`. |
+| `GET/PATCH` | `/api/v1/platform/stores/{store}` | View or edit a Store by public ULID; requires `manage stores`. |
+| `GET/POST` | `/api/v1/platform/merchants` | Page merchants or atomically create a Store, Store owner, membership, and Store roles; requires `manage stores`. |
+| `GET/PATCH` | `/api/v1/platform/merchants/{merchant}` | View or edit a merchant owner/Store by Store ULID. |
+| `GET` | `/api/v1/platform/merchant-roles` | List assignable Store roles for merchant creation. |
+| `GET/POST` | `/api/v1/store/users` | Page members or create a new Store user under `X-Store-ID`; creation requires member and role management permissions. |
+| `GET` | `/api/v1/store/roles` | List roles for the selected Store; requires `manage store roles`. |
+
+Role input is scope-filtered and passwords are write-only. See [User and merchant management](user-merchant-management.md).
+
+The Platform Store list accepts case-insensitive `search` over name, legal
+name, slug, email, and primary domain. It composes exact status, business type,
+locale/country, verification, and capability filters with creation-date range,
+whitelisted sorting, and `page`/`per_page` pagination. Page size defaults to 25
+and is capped at 100. The response uses Laravel `data`, `meta`, and `links`
+pagination fields.
+
+Direct Platform Store creation creates an unassigned `pending` Store unless a
+status is supplied. It never creates an owner, membership, Store role,
+subscription, or plan assignment. Use `/api/v1/platform/merchants` for the
+complete owner-aware workflow. Platform Store writes accept validated public
+profile, locale, lifecycle, and capability fields; internal Billing links and
+raw JSON are prohibited. See the
+[Platform Stores admin component guide](components/platform-stores-admin.md).
+
 Store management REST contracts:
 
 | Method | Route | Scope and purpose |
@@ -27,9 +66,9 @@ Plans & Pricing REST contracts:
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| `GET/POST` | `/api/v1/platform/plans` | List or add plans. |
+| `GET/POST` | `/api/v1/platform/plans` | Page or add plans. |
 | `GET/PATCH/DELETE` | `/api/v1/platform/plans/{plan}` | View, edit, or safely remove a plan by public ULID. |
-| `GET/POST` | `/api/v1/platform/features` | List or add reusable feature definitions. |
+| `GET/POST` | `/api/v1/platform/features` | Page or add reusable feature definitions. |
 | `PATCH/DELETE` | `/api/v1/platform/features/{feature}` | Edit or remove an unassigned feature. |
 | `PUT/DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | Add/update or detach a plan feature/add-on. |
 
@@ -39,10 +78,10 @@ Platform Settings REST contracts:
 
 | Method | Route | Scope and purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/platform/settings/currencies` | List the complete currency catalog for a Platform-scoped user. |
+| `GET` | `/api/v1/platform/settings/currencies` | Page the currency catalog for a Platform-scoped user. |
 | `POST` | `/api/v1/platform/settings/currencies` | Add a non-USD currency; requires `manage platform settings`. |
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
-| `GET` | `/api/v1/platform/settings/languages` | List the complete language catalog for a Platform-scoped user. |
+| `GET` | `/api/v1/platform/settings/languages` | Page the language catalog for a Platform-scoped user. |
 | `POST` | `/api/v1/platform/settings/languages` | Add a supported language; requires `manage platform settings`. |
 | `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, direction, or active state by public ULID; requires `manage platform settings`. |
 

@@ -17,7 +17,16 @@ The two account classes and interfaces are mutually exclusive:
 | `platform_admin` | `Super Admin` is the SaaS Owner | `Support` and `Billing` are platform staff | Platform scope; no Store header |
 | `store_admin` | `Owner` and `Manager` administer the merchant | `Sales`, `Inventory`, and future Store roles are Store staff | One selected Store ULID |
 
-After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. `Plans & Pricing` is returned only with `manage plans`; `Settings` is returned only with `manage platform settings`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+After authentication, `GET /api/v1/auth/interfaces` returns both stable response keys but exactly one side can be available. A Platform user receives only `platform_admin` roles/permissions/navigation and can never have Store membership, Store roles, or Store-bound tokens. `Plans & Pricing` is returned only with `manage plans`; `Settings` only with `manage platform settings`; `Admin Users` only with `manage platform users`; and `Merchants` only with `manage stores`. A Store user receives only `store_admin` Stores/roles/permissions and can never receive a Platform role or permission. Backend scope middleware, Store membership/context, permissions, and policies remain authoritative.
+
+Platform staff creation and merchant provisioning are separate APIs. `/api/v1/platform/users` creates only Platform identities. `/api/v1/platform/merchants` atomically creates a Store identity, Store, active membership, and Store roles. `/api/v1/store/users` lets an authorized merchant create staff only inside the selected Store. “All roles” is always restricted to the identity's own scope. See [User and merchant management](user-merchant-management.md).
+
+Platform Store catalog administration is exposed separately at
+`/api/v1/platform/stores*`. It requires `manage stores`, never enters Store
+context, and supports public-ULID detail/edit plus case-insensitive search,
+exact filters, whitelisted sorting, and bounded pagination. Direct creation
+produces an unassigned Store; administrators use `/platform/merchants` when an
+owner identity, membership, and roles must be provisioned atomically.
 
 ## Administration component contract
 
@@ -27,6 +36,12 @@ extensible Platform Settings shell. Languages and Currencies are sections of
 that shell; they are not Store Management components. The shell uses only
 `/api/v1/platform/settings/*`, never sends `X-Store-ID`, and requires
 `manage platform settings`.
+
+The `merchants` navigation entry may compose the searchable Platform Store
+catalog and the owner-aware merchant workflow. Its Store catalog uses only
+`/api/v1/platform/stores*`, never sends `X-Store-ID`, and requires
+`manage stores`. See the
+[Platform Stores component guide](components/platform-stores-admin.md).
 
 Store Settings is a separate future Store-admin component. It will operate on
 one selected Store through Store-scoped routes and must not create or edit
@@ -61,6 +76,12 @@ The `stores` table is the source of truth for merchant identity, contact details
 Currency uses a three-character ISO 4217 code, country uses a two-character ISO 3166-1 alpha-2 code, language accepts a BCP 47-style code, and timezone stores an IANA timezone name. The database defaults new Stores to `USD`, `en`, `UTC`, and all capability/verification flags to `false`. Provisioning copies the display name into `legal_name`; imported historical Stores may keep optional profile values null until onboarding completes.
 
 Store management is service-based. `CreateStoreService` creates an additional Store and Owner membership for a Store-scoped identity. `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` require the selected Store ULID and active membership; profile/settings writes additionally require `manage store`. Merchant requests cannot change lifecycle, Billing links, verification, entitlements, launch/trial timestamps, or raw metadata/settings.
+
+`PlatformStoreAdminService` is the Platform-only Store catalog boundary. It
+requires `manage stores`, returns public-safe Store resources, creates or edits
+validated profile/locale/lifecycle/capability fields, and deliberately rejects
+internal plan/subscription IDs and raw JSON. Page size is capped at 100 and
+sorting is limited to known Store columns.
 
 ## Plans and pricing contract
 
@@ -115,7 +136,7 @@ Platform roles are evaluated without an active store team. Store-role assignment
 
 - Authentication owns global identities, credentials, sessions, MFA, tokens, email verification, password reset, and the role/permission catalog.
 - Settings owns Platform-wide language/currency catalogs, their seed actions, and global Settings administration.
-- Stores owns stores, memberships, merchant profile/settings management, Store language selections, store resolution, context lifecycle, provisioning, and store isolation helpers.
+- Stores owns stores, Platform Store catalog administration, memberships, merchant profile/settings management, Store language selections, store resolution, context lifecycle, provisioning, and store isolation helpers.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.

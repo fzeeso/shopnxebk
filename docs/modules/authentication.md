@@ -12,6 +12,7 @@
 - validated assignments through `ScopedRoleAssignmentService`;
 - Platform Admin and Store Admin interface-access resolution;
 - public User and token resources;
+- paginated Platform user and personal-token listing, Platform-user creation, role-catalog lookup, and local Platform fixture provisioning;
 - authentication REST routes and the `viewer`/`viewerStores` GraphQL fields.
 
 It does not own stores or memberships. It requests first-store creation through `StoreProvisioner` and reads a user’s stores through the relationship defined against Stores-owned tables.
@@ -44,13 +45,21 @@ Interface selection:
 1. An authenticated client calls `GET /api/v1/auth/interfaces`.
 2. It checks exclusive `users.scope`.
 3. Platform users receive only Platform assignments and permission-filtered navigation; Store users load only active Store memberships and Store-scoped roles/permissions.
-4. `Plans & Pricing` is returned only when the Platform user has `manage plans`;
-   `Settings` is returned only with `manage platform settings`.
+4. Platform navigation is permission-filtered: Plans requires `manage plans`, Settings requires `manage platform settings`, Admin Users requires `manage platform users`, and Merchants requires `manage stores`.
 5. The response keeps both stable keys, but only one interface can be available.
 6. The frontend chooses the matching shell, while scope middleware and policies continue to authorize every request.
 
 Frontend consumption is documented in the
 [Platform admin shell component guide](../components/admin-shell.md).
+
+Platform user provisioning:
+
+1. Scope middleware and `PlatformUserAccessService` require a Platform actor with `manage platform users`.
+2. `CreatePlatformUserRequest` normalizes the email, validates a strong confirmed password, and accepts only Platform role rows.
+3. `PlatformUserAdminService` creates the Platform identity and synchronizes roles inside one transaction.
+4. Registration/verification work runs after commit; resources return only the User ULID and public identity/role fields.
+
+Merchant and Store-user flows are documented in [User and merchant management](../user-merchant-management.md) and the directional Stores contracts.
 
 ## Outbound communication
 

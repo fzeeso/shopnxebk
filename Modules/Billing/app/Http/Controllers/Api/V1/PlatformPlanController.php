@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Billing\Http\Controllers\Api\V1;
 
+use App\Http\Requests\PaginatedIndexRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -16,11 +17,11 @@ use Modules\Billing\Services\PlanAdminService;
 
 final class PlatformPlanController extends Controller
 {
-    public function index(Request $request, PlanAdminService $service): JsonResponse
+    public function index(PaginatedIndexRequest $request, PlanAdminService $service): JsonResponse
     {
-        return response()->json([
-            'data' => PlanResource::collection($service->list($this->user($request))),
-        ]);
+        return PlanResource::collection(
+            $service->list($this->user($request), $request->perPage()),
+        )->response();
     }
 
     public function store(CreatePlanRequest $request, PlanAdminService $service): JsonResponse

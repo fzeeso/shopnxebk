@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Modules\Settings\Http\Controllers\Api\V1;
 
+use App\Http\Requests\PaginatedIndexRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Modules\Authentication\Models\User;
 use Modules\Settings\Http\Requests\CreateCurrencyRequest;
@@ -16,14 +16,14 @@ use Modules\Settings\Services\CurrencyCatalogService;
 
 final class CurrencyController extends Controller
 {
-    public function index(Request $request, CurrencyCatalogService $service): JsonResponse
+    public function index(PaginatedIndexRequest $request, CurrencyCatalogService $service): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
-        return response()->json([
-            'data' => CurrencyResource::collection($service->listPlatform($user)),
-        ]);
+        return CurrencyResource::collection(
+            $service->listPlatform($user, $request->perPage()),
+        )->response();
     }
 
     public function store(CreateCurrencyRequest $request, CurrencyCatalogService $service): JsonResponse

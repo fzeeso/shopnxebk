@@ -37,6 +37,37 @@ Field labels should follow the API names documented in the
 name/native name/locale/direction/active state and currency
 name/code/symbol/symbol position/decimal places/USD rate/base/active state.
 
+## Platform Stores keys
+
+Every frontend locale that exposes Store administration should define
+equivalents of these stable keys:
+
+```text
+admin.navigation.merchants
+admin.stores.title
+admin.stores.add
+admin.stores.edit
+admin.stores.search
+admin.stores.filters.status
+admin.stores.filters.business_type
+admin.stores.filters.currency
+admin.stores.filters.language
+admin.stores.filters.country
+admin.stores.filters.verified
+admin.stores.pagination.rows_per_page
+admin.stores.empty
+admin.stores.no_results
+admin.stores.errors.load
+admin.stores.errors.forbidden
+admin.stores.creation.unassigned_notice
+admin.merchants.creation.with_owner
+```
+
+The separate frontend owns these dictionaries; this API repository still has
+no runtime language files to update. Treat backend English labels as fallback
+text and keep every frontend dictionary synchronized with the
+[Platform Stores component guide](platform-stores-admin.md).
+
 ## Direction
 
 The catalog direction is authoritative for Store-language presentation.

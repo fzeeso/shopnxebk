@@ -17,6 +17,9 @@ Viewing requires membership. Profile, settings, and language changes additionall
 | `UpdateStoreProfileService` | Updates merchant-owned identity, contact, branding, and classification fields after `manage store`. |
 | `StoreSettingsService` | Views locale/preferences for any active member and merges settings updates for Store managers. |
 | `StoreAccessService` | Centralizes Store scope, active membership, and `manage store` enforcement for services. |
+| `PlatformMerchantService` | Lets Platform staff with `manage stores` list/view merchants or atomically provision a Store-scoped owner, Store, membership, and roles. |
+| `PlatformStoreAdminService` | Lets Platform staff with `manage stores` search/filter/page, create, view, and edit Store rows without entering Store context. |
+| `StoreUserAdminService` | Lists selected-Store members and creates new Store users after member/role-management checks. |
 
 Controllers contain no business writes. Form Requests normalize and validate input, services enforce authorization and transactions, and API Resources expose public ULIDs while hiding internal bigint keys.
 
@@ -29,6 +32,20 @@ Controllers contain no business writes. Form Requests normalize and validate inp
 | `PATCH` | `/api/v1/store/profile` | `X-Store-ID` | `manage store` |
 | `GET` | `/api/v1/store/settings` | `X-Store-ID` | Active member |
 | `PATCH` | `/api/v1/store/settings` | `X-Store-ID` | `manage store` |
+| `GET` | `/api/v1/store/users` | `X-Store-ID` | `manage store members` |
+| `POST` | `/api/v1/store/users` | `X-Store-ID` | `manage store members` and `manage store roles` |
+| `GET` | `/api/v1/store/roles` | `X-Store-ID` | `manage store roles` |
+| `GET/POST` | `/api/v1/platform/stores` | none | Platform `manage stores`; page/search/filter or direct Store creation |
+| `GET/PATCH` | `/api/v1/platform/stores/{store}` | none | Platform `manage stores`; public-ULID view/edit |
+
+Platform merchant listing/provisioning uses `/api/v1/platform/merchants*` without a Store header. See [User and merchant management](user-merchant-management.md) for request shapes and the Platform/Store identity boundary.
+
+The direct Platform Store API is intentionally different from merchant
+provisioning: it creates no owner, membership, Store role, plan, or
+subscription. Its list combines case-insensitive search with exact status,
+classification, locale/country, verification/capability, and creation-date
+filters. Sort columns are whitelisted and `per_page` is capped at 100. See the
+[Platform Stores admin guide](components/platform-stores-admin.md).
 
 ## Field ownership
 
@@ -41,6 +58,12 @@ Store owners/managers may edit:
 - validated preferences: order prefix, date/time formats, weight/dimension units, inventory tracking, guest checkout, tax-inclusive pricing, low-stock threshold, and support email.
 
 Platform/Billing-controlled fields are prohibited in merchant write requests: `status`, `plan_id`, `subscription_id`, verification, AI/POS/B2B/marketplace entitlements, launch/trial timestamps, raw `settings`, and raw `metadata`. Capabilities are visible in the settings response but read-only.
+
+Platform Store administrators may edit lifecycle, verification, and capability
+fields through `/api/v1/platform/stores*`, plus the same public profile/locale
+fields. Internal `plan_id`/`subscription_id`, raw JSON, preferences, owner
+payloads, and role payloads are prohibited there as well; each belongs to a
+separate validated workflow.
 
 Settings updates merge validated preference keys into the existing JSON object, so changing one preference does not erase the others. Stable business fields remain first-class columns rather than being moved into JSON.
 

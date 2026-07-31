@@ -8,6 +8,8 @@ use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Modules\Authentication\Actions\EnsureAuthorizationCatalog;
 use Modules\Authentication\Enums\AccessScope;
@@ -19,7 +21,7 @@ use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
 
-final class AccountScopeApiTest extends TestCase
+final class AccountScopeBoundaryFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -99,6 +101,54 @@ final class AccountScopeApiTest extends TestCase
         ])
             ->assertForbidden()
             ->assertJsonPath('message', 'Store-scoped account required.');
+    }
+
+    public function test_super_admin_creates_and_updates_platform_users_with_platform_roles_only(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->platform()->create();
+        $roles = app(ScopedRoleAssignmentService::class);
+        $roles->assignPlatformRole($admin, 'Super Admin');
+
+        $created = $this->actingAs($admin, 'web')
+            ->postJson('/api/v1/platform/users', [
+                'name' => 'Platform Test Staff',
+                'email' => 'PLATFORM.TEST.STAFF@EXAMPLE.TEST',
+                'password' => 'Strong!Password123',
+                'password_confirmation' => 'Strong!Password123',
+                'roles' => ['Support', 'Billing'],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.scope', AccessScope::Platform->value)
+            ->assertJsonPath('data.roles.0', 'Billing')
+            ->assertJsonPath('data.roles.1', 'Support');
+
+        $publicId = (string) $created->json('data.id');
+        $this->actingAs($admin, 'web')
+            ->patchJson("/api/v1/platform/users/{$publicId}", [
+                'name' => 'Updated Platform Staff',
+                'email' => 'updated.platform.staff@example.test',
+                'password' => 'Replacement!Password123',
+                'password_confirmation' => 'Replacement!Password123',
+                'roles' => ['Support'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.roles.0', 'Support');
+
+        $updated = User::query()->where('public_id', $publicId)->firstOrFail();
+        self::assertTrue(Hash::check('Replacement!Password123', $updated->password));
+        self::assertSame(AccessScope::Platform, $updated->scope);
+
+        $this->actingAs($admin, 'web')
+            ->postJson('/api/v1/platform/users', [
+                'name' => 'Invalid Role',
+                'email' => 'invalid-role@example.test',
+                'password' => 'Strong!Password123',
+                'password_confirmation' => 'Strong!Password123',
+                'roles' => ['Owner'],
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['roles.0']);
     }
 
     public function test_database_rejects_cross_scope_memberships_roles_and_scope_changes(): void

@@ -3,14 +3,12 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Modules\Authentication\Actions\EnsureAuthorizationCatalog;
-use Modules\Authentication\Enums\AccessScope;
-use Modules\Authentication\Models\User;
-use Modules\Authentication\Services\ScopedRoleAssignmentService;
+use Modules\Authentication\Actions\EnsureLocalPlatformAdmin;
 use Modules\Billing\Actions\EnsurePlanCatalog;
 use Modules\Settings\Actions\EnsureCurrencyCatalog;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
+use Modules\Stores\Actions\EnsureLocalMerchant;
 use Modules\Stores\Actions\EnsureStoreLanguageDefaults;
 
 class DatabaseSeeder extends Seeder
@@ -26,20 +24,35 @@ class DatabaseSeeder extends Seeder
         app(EnsureStoreLanguageDefaults::class)->ensure();
         app(EnsurePlanCatalog::class)->ensure();
 
-        $email = env('PLATFORM_ADMIN_EMAIL');
-        $password = env('PLATFORM_ADMIN_PASSWORD');
+        if (! app()->environment('local')) {
+            return;
+        }
 
-        if (app()->environment('local') && is_string($email) && $email !== '' && is_string($password) && $password !== '') {
-            $user = User::query()->firstOrNew(['email' => $email]);
-            $user->fill([
-                'name' => 'Platform Administrator',
-                'password' => Hash::make($password),
-                'scope' => AccessScope::Platform,
-            ]);
-            $user->forceFill(['email_verified_at' => now()]);
-            $user->save();
+        $adminEmail = env('PLATFORM_ADMIN_EMAIL');
+        $adminPassword = env('PLATFORM_ADMIN_PASSWORD');
+        if (is_string($adminEmail) && $adminEmail !== '' && is_string($adminPassword) && $adminPassword !== '') {
+            app(EnsureLocalPlatformAdmin::class)->ensure(
+                (string) env('PLATFORM_ADMIN_NAME', 'Platform Test Administrator'),
+                $adminEmail,
+                $adminPassword,
+            );
+        }
 
-            app(ScopedRoleAssignmentService::class)->assignPlatformRole($user, 'Super Admin');
+        $merchantEmail = env('LOCAL_MERCHANT_EMAIL');
+        $merchantPassword = env('LOCAL_MERCHANT_PASSWORD');
+        $storeName = env('LOCAL_MERCHANT_STORE_NAME');
+        $storeSlug = env('LOCAL_MERCHANT_STORE_SLUG');
+        if (is_string($merchantEmail) && $merchantEmail !== ''
+            && is_string($merchantPassword) && $merchantPassword !== ''
+            && is_string($storeName) && $storeName !== ''
+            && is_string($storeSlug) && $storeSlug !== '') {
+            app(EnsureLocalMerchant::class)->ensure(
+                (string) env('LOCAL_MERCHANT_NAME', 'Merchant Test User'),
+                $merchantEmail,
+                $merchantPassword,
+                $storeName,
+                $storeSlug,
+            );
         }
     }
 }

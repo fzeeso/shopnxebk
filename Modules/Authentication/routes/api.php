@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Authentication\Http\Controllers\Api\V1\AuthController;
 use Modules\Authentication\Http\Controllers\Api\V1\MfaChallengeController;
 use Modules\Authentication\Http\Controllers\Api\V1\MfaController;
+use Modules\Authentication\Http\Controllers\Api\V1\PlatformUserController;
 
 Route::middleware('api')->prefix('api/v1/auth')->name('api.v1.auth.')->group(function (): void {
     Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth.register')->name('register');
@@ -34,3 +35,14 @@ Route::middleware('api')->prefix('api/v1/auth')->name('api.v1.auth.')->group(fun
         Route::delete('tokens/{token}', [AuthController::class, 'revokeToken'])->middleware('throttle:auth.token-management')->name('tokens.destroy');
     });
 });
+
+Route::middleware(['api', 'auth:sanctum', 'user.scope:platform'])
+    ->prefix('api/v1/platform')
+    ->name('api.v1.platform.')
+    ->group(function (): void {
+        Route::get('roles', [PlatformUserController::class, 'roles'])->name('roles.index');
+        Route::get('users', [PlatformUserController::class, 'index'])->name('users.index');
+        Route::post('users', [PlatformUserController::class, 'store'])->name('users.store');
+        Route::get('users/{user}', [PlatformUserController::class, 'show'])->name('users.show');
+        Route::patch('users/{user}', [PlatformUserController::class, 'update'])->name('users.update');
+    });

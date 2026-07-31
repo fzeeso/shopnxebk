@@ -16,6 +16,9 @@ The module is designed to receive future global SaaS settings. It does not own
 merchant preferences, Store context, Store memberships, or Store-specific
 language selections.
 
+Currency and language administration lists use `page`/`per_page` pagination
+(25 by default, maximum 100) and return `data`, `links`, and `meta`.
+
 ## Access flow
 
 1. `user.scope:platform` rejects Store identities before settings data is read.

@@ -8,6 +8,12 @@ Authentication communicates with Stores in two intentional ways.
 
 Authentication must not insert into `stores` or `store_memberships` directly. If provisioning needs new behavior, extend the Stores contract and update both module documents and this communication contract.
 
+## Administrative account creation
+
+Authentication owns `/api/v1/platform/users` and creates only `scope = platform` identities. Stores owns `/api/v1/platform/merchants` and `/api/v1/store/users`; those services create `scope = store` identities but use Authentication's `User`, `ScopedRoleAssignmentService`, registration event, and verification notification contract. Merchant creation delegates Store/membership creation to `StoreProvisioner` and shares one database transaction.
+
+Authentication never creates a Store membership for a Platform account. Stores never assigns a Platform role. Role names are resolved from the extendable database catalog and constrained by `roles.scope` before assignment.
+
 ## Token issuance and store listing
 
 `IssueStoreToken` first requires a Store-scoped account, resolves a submitted Store ULID, then checks Stores-owned memberships with internal bigint IDs. Platform accounts cannot receive Store-bound tokens. `viewerStores` and `GET /api/v1/auth/stores` are Store-only.

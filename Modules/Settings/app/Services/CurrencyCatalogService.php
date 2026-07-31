@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Settings\Services;
 
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Settings\Models\Currency;
@@ -13,15 +13,15 @@ final readonly class CurrencyCatalogService
 {
     public function __construct(private PlatformSettingsAccessService $access) {}
 
-    /** @return Collection<int, Currency> */
-    public function listPlatform(User $user): Collection
+    /** @return LengthAwarePaginator<int, Currency> */
+    public function listPlatform(User $user, int $perPage = 25): LengthAwarePaginator
     {
         $this->access->ensureCanView($user);
 
         return Currency::query()
             ->orderByDesc('is_base')
             ->orderBy('code')
-            ->get();
+            ->paginate($perPage);
     }
 
     /** @param array<string, mixed> $data */

@@ -58,17 +58,20 @@ Every route requires:
 
 | Method | Route | Purpose |
 | --- | --- | --- |
-| `GET` | `/api/v1/platform/plans` | List plans with assignments. |
+| `GET` | `/api/v1/platform/plans` | Page plans with assignments. |
 | `POST` | `/api/v1/platform/plans` | Add a plan and price. |
 | `GET` | `/api/v1/platform/plans/{plan}` | View a plan by public ULID. |
 | `PATCH` | `/api/v1/platform/plans/{plan}` | Edit price, description, status, order, or pricing mode. |
 | `DELETE` | `/api/v1/platform/plans/{plan}` | Remove an unassigned plan. Assigned plans must be archived. |
-| `GET` | `/api/v1/platform/features` | List reusable features. |
+| `GET` | `/api/v1/platform/features` | Page reusable features. |
 | `POST` | `/api/v1/platform/features` | Add a feature definition. |
 | `PATCH` | `/api/v1/platform/features/{feature}` | Edit a feature definition. |
 | `DELETE` | `/api/v1/platform/features/{feature}` | Remove a feature after detaching it from all plans. |
 | `PUT` | `/api/v1/platform/plans/{plan}/features/{feature}` | Add or update a plan-feature assignment/add-on. |
 | `DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | Detach the feature from the plan. |
+
+Plan and feature lists accept `page` and `per_page`, default to 25 records,
+cap page size at 100, and return `data`, `links`, and `meta`.
 
 Public ULIDs cross the API. Internal bigint plan, feature, Store, and assignment keys never do.
 

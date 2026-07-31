@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Authentication\Http\Controllers\Api\V1;
 
+use App\Http\Requests\PaginatedIndexRequest;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\JsonResponse;
@@ -168,11 +169,11 @@ final class AuthController extends Controller
         return response()->json(['data' => StoreResource::collection($request->user()->stores()->wherePivot('status', 'active')->get())]);
     }
 
-    public function tokens(Request $request): JsonResponse
+    public function tokens(PaginatedIndexRequest $request): JsonResponse
     {
-        $tokens = $request->user()->tokens()->with('store')->latest()->get();
+        $tokens = $request->user()->tokens()->with('store')->latest()->paginate($request->perPage());
 
-        return response()->json(['data' => PersonalAccessTokenResource::collection($tokens)]);
+        return PersonalAccessTokenResource::collection($tokens)->response();
     }
 
     public function createToken(CreateTokenRequest $request, IssueStoreToken $action): JsonResponse

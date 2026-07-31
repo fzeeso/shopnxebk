@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Settings\Services;
 
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Modules\Authentication\Models\User;
 use Modules\Settings\Models\Language;
 
@@ -12,12 +12,12 @@ final readonly class LanguageCatalogService
 {
     public function __construct(private PlatformSettingsAccessService $access) {}
 
-    /** @return Collection<int, Language> */
-    public function listPlatform(User $user): Collection
+    /** @return LengthAwarePaginator<int, Language> */
+    public function listPlatform(User $user, int $perPage = 25): LengthAwarePaginator
     {
         $this->access->ensureCanView($user);
 
-        return Language::query()->orderBy('name')->get();
+        return Language::query()->orderBy('name')->paginate($perPage);
     }
 
     /** @param array<string, mixed> $data */

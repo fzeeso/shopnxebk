@@ -20,12 +20,13 @@ use Modules\Authentication\Models\User;
 use Modules\Authentication\Notifications\QueuedResetPassword;
 use Modules\Authentication\Notifications\QueuedVerifyEmail;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
+use Modules\Billing\Actions\EnsurePlanCatalog;
 use Modules\Stores\Enums\MembershipStatus;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
 
-final class AccountApiFeatureTest extends TestCase
+final class AuthenticationApiFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -99,10 +100,45 @@ final class AccountApiFeatureTest extends TestCase
             now()->addMinutes(43201),
         ));
 
+        $user->createToken('second-token', ['account:read']);
+        $this->actingAs($user, 'web')
+            ->getJson('/api/v1/auth/tokens?page=2&per_page=1')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('meta.per_page', 1)
+            ->assertJsonPath('meta.total', 2);
+
         $this->withToken($plain)->withHeader('X-Store-ID', $second->public_id)->postJson('/graphql', ['query' => '{ activeStore { id } }'])->assertForbidden();
         $publicId = $storedToken->public_id;
         $this->withToken($plain)->deleteJson('/api/v1/auth/tokens/'.$publicId)->assertNoContent();
         self::assertDatabaseMissing('personal_access_tokens', ['public_id' => $publicId]);
+    }
+
+    public function test_platform_users_plans_and_features_are_paginated(): void
+    {
+        $admin = User::factory()->platform()->create();
+        app(ScopedRoleAssignmentService::class)->assignPlatformRole($admin, 'Super Admin');
+        User::factory()->platform()->count(2)->create();
+        app(EnsurePlanCatalog::class)->ensure();
+
+        foreach (['users', 'plans', 'features'] as $resource) {
+            $this->actingAs($admin, 'web')
+                ->getJson("/api/v1/platform/{$resource}?page=2&per_page=1")
+                ->assertOk()
+                ->assertJsonCount(1, 'data')
+                ->assertJsonPath('meta.current_page', 2)
+                ->assertJsonPath('meta.per_page', 1)
+                ->assertJsonStructure([
+                    'links' => ['first', 'last', 'prev', 'next'],
+                    'meta' => ['current_page', 'from', 'last_page', 'path', 'per_page', 'to', 'total'],
+                ]);
+        }
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/platform/users?per_page=101')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('per_page');
     }
 
     public function test_token_login_rejects_inactive_or_non_member_without_disclosing_credentials(): void

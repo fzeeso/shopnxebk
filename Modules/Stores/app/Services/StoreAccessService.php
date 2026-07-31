@@ -29,14 +29,29 @@ final class StoreAccessService
 
     public function ensureCanManage(User $user, Store $store): void
     {
+        $this->ensurePermission($user, $store, 'manage store');
+    }
+
+    public function ensureCanManageMembers(User $user, Store $store): void
+    {
+        $this->ensurePermission($user, $store, 'manage store members');
+    }
+
+    public function ensureCanManageRoles(User $user, Store $store): void
+    {
+        $this->ensurePermission($user, $store, 'manage store roles');
+    }
+
+    private function ensurePermission(User $user, Store $store, string $permission): void
+    {
         $this->ensureCanView($user, $store);
 
         $previousStoreId = getPermissionsTeamId();
         setPermissionsTeamId($store->getKey());
 
         try {
-            if (! $user->can('manage store')) {
-                throw new AccessDeniedHttpException('The manage store permission is required.');
+            if (! $user->can($permission)) {
+                throw new AccessDeniedHttpException("The {$permission} permission is required.");
             }
         } finally {
             setPermissionsTeamId($previousStoreId);

@@ -14,6 +14,7 @@ final class EnsureAuthorizationCatalog
     /** @var array<string, list<string>> */
     private const ROLE_PERMISSIONS = [
         'Super Admin' => [
+            'manage platform users',
             'manage stores',
             'manage plans',
             'manage subscriptions',
@@ -65,6 +66,7 @@ final class EnsureAuthorizationCatalog
 
     /** @var list<string> */
     private const PLATFORM_PERMISSIONS = [
+        'manage platform users',
         'manage stores',
         'manage plans',
         'manage subscriptions',

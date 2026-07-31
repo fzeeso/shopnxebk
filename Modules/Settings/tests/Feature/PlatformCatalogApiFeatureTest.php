@@ -98,6 +98,19 @@ final class PlatformCatalogApiFeatureTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.is_active', false);
 
+        foreach (['currencies', 'languages'] as $catalog) {
+            $this->actingAs($admin, 'web')
+                ->getJson("/api/v1/platform/settings/{$catalog}?page=1&per_page=1")
+                ->assertOk()
+                ->assertJsonCount(1, 'data')
+                ->assertJsonPath('meta.current_page', 1)
+                ->assertJsonPath('meta.per_page', 1)
+                ->assertJsonStructure([
+                    'links' => ['first', 'last', 'prev', 'next'],
+                    'meta' => ['current_page', 'from', 'last_page', 'path', 'per_page', 'to', 'total'],
+                ]);
+        }
+
         $this->actingAs($admin, 'web')
             ->patchJson("/api/v1/platform/settings/languages/{$languageId}", [
                 'locale' => 'zz',
@@ -122,7 +135,9 @@ final class PlatformCatalogApiFeatureTest extends TestCase
         $this->actingAs($support, 'web')
             ->getJson('/api/v1/auth/interfaces')
             ->assertOk()
-            ->assertJsonCount(0, 'data.platform_admin.navigation');
+            ->assertJsonCount(1, 'data.platform_admin.navigation')
+            ->assertJsonPath('data.platform_admin.navigation.0.key', 'merchants')
+            ->assertJsonPath('data.platform_admin.navigation.0.permission', 'manage stores');
 
         $this->actingAs($support, 'web')
             ->postJson('/api/v1/platform/settings/languages', [

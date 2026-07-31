@@ -83,6 +83,11 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/platform/languages` | `api.v1.platform.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/languages` | `api.v1.platform.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/languages/{language}` | `api.v1.platform.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/merchant-roles` | `api.v1.platform.merchant-roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/merchants` | `api.v1.platform.merchants.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/merchants` | `api.v1.platform.merchants.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/merchants/{merchant}` | `api.v1.platform.merchants.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/merchants/{merchant}` | `api.v1.platform.merchants.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/plans` | `api.v1.platform.plans.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/plans` | `api.v1.platform.plans.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `DELETE` | `/api/v1/platform/plans/{plan}` | `api.v1.platform.plans.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -90,18 +95,30 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `PATCH` | `/api/v1/platform/plans/{plan}` | `api.v1.platform.plans.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | `api.v1.platform.plans.features.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PUT` | `/api/v1/platform/plans/{plan}/features/{feature}` | `api.v1.platform.plans.features.upsert` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/roles` | `api.v1.platform.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | `api.v1.platform.settings.currencies.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/settings/languages/{language}` | `api.v1.platform.settings.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/stores` | `api.v1.platform.stores.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/stores` | `api.v1.platform.stores.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/stores/{store}` | `api.v1.platform.stores.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/stores/{store}` | `api.v1.platform.stores.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/users` | `api.v1.platform.users.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/users` | `api.v1.platform.users.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/users/{user}` | `api.v1.platform.users.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/users/{user}` | `api.v1.platform.users.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/store` | `api.v1.store.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/settings` | `api.v1.store.settings.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/users` | `api.v1.store.users.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/users` | `api.v1.store.users.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/stores` | `api.v1.stores.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
 | `GET\|POST\|HEAD` | `/graphql` | `graphql` | api, throttle:graphql, store.optional, lighthouse.accept-json, lighthouse.authenticate |
 | `GET\|HEAD` | `/sanctum/csrf-cookie` | `sanctum.csrf-cookie` | web |
@@ -164,11 +181,11 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 
 | Area | Variables |
 | --- | --- |
-| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW` |
+| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW`, `LOCAL_MERCHANT_NAME`, `LOCAL_MERCHANT_EMAIL`, `LOCAL_MERCHANT_PASSWORD`, `LOCAL_MERCHANT_STORE_NAME`, `LOCAL_MERCHANT_STORE_SLUG` |
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |
 | Files and media | `FILESYSTEM_DISK`, `MEDIA_DISK`, `MEDIA_CONVERSIONS_DISK`, `MEDIA_QUEUE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_URL` |
 | Reverb and Octane | `BROADCAST_CONNECTION`, `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, `REVERB_SERVER_HOST`, `REVERB_SERVER_PORT`, `OCTANE_SERVER`, `OCTANE_HTTPS` |
 | Observability and GraphQL | `HORIZON_MAX_PROCESSES`, `PULSE_ENABLED`, `PULSE_STORAGE_KEEP`, `INTERNAL_DASHBOARDS_ENABLED`, `INTERNAL_DASHBOARD_IP_ALLOW_LIST`, `TELESCOPE_ENABLED`, `GRAPHQL_INTROSPECTION_ENABLED`, `GRAPHQL_MAX_DEPTH`, `GRAPHQL_MAX_COMPLEXITY`, `LIGHTHOUSE_DEBUG` |
-| Logging, mail, and local administration | `LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` |
+| Logging, mail, and local administration | `LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `PLATFORM_ADMIN_NAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` |

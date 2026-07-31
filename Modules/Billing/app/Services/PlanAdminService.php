@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Billing\Services;
 
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
@@ -14,8 +14,8 @@ final readonly class PlanAdminService
 {
     public function __construct(private PlatformPlanAccessService $access) {}
 
-    /** @return Collection<int, Plan> */
-    public function list(User $user): Collection
+    /** @return LengthAwarePaginator<int, Plan> */
+    public function list(User $user, int $perPage = 25): LengthAwarePaginator
     {
         $this->access->ensureCanManage($user);
 
@@ -23,7 +23,7 @@ final readonly class PlanAdminService
             ->with('planFeatures.feature')
             ->orderBy('sort_order')
             ->orderBy('price_amount')
-            ->get();
+            ->paginate($perPage);
     }
 
     public function view(User $user, Plan $plan): Plan

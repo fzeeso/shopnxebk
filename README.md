@@ -41,6 +41,8 @@ Start workers and realtime services with `composer horizon`, `composer reverb`, 
 - Interface access profile: `GET /api/v1/auth/interfaces`
 - Store-scoped requests use `X-Store-ID: <store ULID>`.
 - Store management: `/api/v1/stores` and `/api/v1/store/*`
+- Platform users and merchants: `/api/v1/platform/users` and `/api/v1/platform/merchants`
+- Store user management: `/api/v1/store/users`
 - Platform Plans & Pricing: `/api/v1/platform/plans` and `/api/v1/platform/features`
 - Every response includes an `X-Request-ID` header. A valid incoming ID is preserved; otherwise one is generated.
 
@@ -87,7 +89,7 @@ Internal dashboards, when explicitly enabled, are protected by the global `Super
 
 ## Modules
 
-`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Settings` owns extensible Platform-wide configuration, currently the language and currency catalogs. `Stores` owns merchant profile/settings services, memberships, context, and Store language selections. `Billing` owns Platform plan prices, reusable features, and add-on assignments. Start with the [canonical application context](docs/context.md), [admin component guides](docs/components.md), [Platform settings](docs/settings.md), [Store management](docs/store-management.md), and [Plans & Pricing](docs/plans-and-pricing.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
+`Authentication` owns REST authentication, global users, tokens, MFA, and permission models. `Settings` owns extensible Platform-wide configuration, currently the language and currency catalogs. `Stores` owns merchant profile/settings services, memberships, context, and Store language selections. `Billing` owns Platform plan prices, reusable features, and add-on assignments. Start with the [canonical application context](docs/context.md), [user and merchant management](docs/user-merchant-management.md), [admin component guides](docs/components.md), [Platform settings](docs/settings.md), [Store management](docs/store-management.md), and [Plans & Pricing](docs/plans-and-pricing.md), then see the separate [module documents](docs/modules/) and [module communication contracts](docs/module-communication/).
 
 ## Package baseline
 

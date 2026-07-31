@@ -39,6 +39,8 @@ final class StoreResource extends JsonResource
             'is_marketplace_enabled' => $this->is_marketplace_enabled,
             'launched_at' => $this->launched_at?->toIso8601String(),
             'trial_ends_at' => $this->trial_ends_at?->toIso8601String(),
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

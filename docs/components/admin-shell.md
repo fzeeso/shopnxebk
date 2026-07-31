@@ -24,6 +24,8 @@ Render only navigation entries returned in
 | --- | --- | --- | --- |
 | `plans_pricing` | Plans & Pricing | `/admin/plans` | `manage plans` |
 | `platform_settings` | Settings | `/admin/settings` | `manage platform settings` |
+| `platform_users` | Admin Users | `/admin/users` | `manage platform users` |
+| `merchants` | Merchants | `/admin/merchants` | `manage stores` |
 
 Navigation metadata improves the experience but is not authorization. The
 corresponding API still enforces account scope and permissions.
@@ -45,4 +47,6 @@ labels change, update every relevant frontend language file according to the
 
 See [Authentication](../authentication.md),
 [Authorization](../authorization.md), and
-[Platform Settings admin](platform-settings-admin.md).
+[Platform Settings admin](platform-settings-admin.md). The `merchants` entry
+may compose the [Platform Stores catalog](platform-stores-admin.md) with the
+owner-aware merchant provisioning workflow.
