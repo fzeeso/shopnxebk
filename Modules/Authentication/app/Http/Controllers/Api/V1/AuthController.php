@@ -30,14 +30,22 @@ use Modules\Authentication\Models\User;
 use Modules\Authentication\Services\AccountInterfaceAccessService;
 use Modules\Authentication\Support\MfaChallengeStore;
 use Modules\Stores\Http\Resources\StoreResource;
+use Modules\Stores\Services\StoreDashboardUrl;
 
 final class AuthController extends Controller
 {
-    public function register(RegisterRequest $request, RegisterUser $action): JsonResponse
-    {
+    public function register(
+        RegisterRequest $request,
+        RegisterUser $action,
+        StoreDashboardUrl $dashboardUrl,
+    ): JsonResponse {
         $result = $action->handle($request->validated());
 
-        return response()->json(['user' => new UserResource($result->user), 'store' => new StoreResource($result->store)], 201);
+        return response()->json([
+            'user' => new UserResource($result->user),
+            'store' => new StoreResource($result->store),
+            'dashboard_url' => $dashboardUrl->for($result->store),
+        ], 201);
     }
 
     public function login(LoginRequest $request, MfaChallengeStore $challenges): JsonResponse

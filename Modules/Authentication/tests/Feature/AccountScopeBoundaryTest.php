@@ -21,7 +21,7 @@ use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
 
-final class AccountScopeBoundaryFeatureTest extends TestCase
+final class AccountScopeBoundaryTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -151,6 +151,46 @@ final class AccountScopeBoundaryFeatureTest extends TestCase
             ->assertJsonValidationErrors(['roles.0']);
     }
 
+    public function test_platform_store_list_projects_primary_member_and_searches_store_domain_and_user(): void
+    {
+        $admin = User::factory()->platform()->create();
+        app(ScopedRoleAssignmentService::class)->assignPlatformRole($admin, 'Super Admin');
+
+        Store::factory()->count(11)->create();
+        $store = Store::factory()->create([
+            'name' => 'Graph Merchant Hub',
+            'primary_domain' => 'graph-merchant.example.test',
+        ]);
+        $owner = User::factory()->create([
+            'name' => 'Ayesha Store Owner',
+            'email' => 'ayesha.owner@example.test',
+        ]);
+        StoreMembership::factory()->create([
+            'store_id' => $store,
+            'user_id' => $owner,
+        ]);
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/platform/stores')
+            ->assertOk()
+            ->assertJsonCount(10, 'data')
+            ->assertJsonPath('meta.per_page', 10)
+            ->assertJsonPath('meta.total', 12);
+
+        foreach ([$store->name, $store->primary_domain, $owner->name, $owner->email] as $search) {
+            $this->actingAs($admin, 'web')
+                ->getJson('/api/v1/platform/stores?per_page=20&search='.rawurlencode($search))
+                ->assertOk()
+                ->assertJsonCount(1, 'data')
+                ->assertJsonPath('data.0.id', (string) $store->public_id)
+                ->assertJsonPath('data.0.name', $store->name)
+                ->assertJsonPath('data.0.primary_domain', $store->primary_domain)
+                ->assertJsonPath('data.0.owner.id', (string) $owner->public_id)
+                ->assertJsonPath('data.0.owner.name', $owner->name)
+                ->assertJsonPath('data.0.owner.email', $owner->email);
+        }
+    }
+
     public function test_database_rejects_cross_scope_memberships_roles_and_scope_changes(): void
     {
         app(EnsureAuthorizationCatalog::class)->ensure();
@@ -161,7 +201,7 @@ final class AccountScopeBoundaryFeatureTest extends TestCase
         $ownerRole = Role::query()->where('name', 'Owner')->firstOrFail();
 
         try {
-            DB::transaction(fn () => DB::table('store_memberships')->insert([
+            DB::transaction(fn () => DB::table('store_users')->insert([
                 'public_id' => (string) Str::ulid(),
                 'store_id' => $store->getKey(),
                 'user_id' => $platformUser->getKey(),

@@ -20,6 +20,17 @@ final readonly class UpdateStoreProfileService
         return DB::transaction(function () use ($store, $profile): Store {
             $store->fill($profile)->save();
 
+            $settings = [];
+            if (array_key_exists('email', $profile)) {
+                $settings['contact_email'] = $profile['email'];
+            }
+            if (array_key_exists('phone', $profile)) {
+                $settings['contact_phone'] = $profile['phone'];
+            }
+            if ($settings !== []) {
+                $store->storeSettings()->updateOrCreate([], $settings);
+            }
+
             return $store->refresh();
         });
     }

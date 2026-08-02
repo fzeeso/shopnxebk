@@ -4,7 +4,7 @@ Stores communicates with Authentication while provisioning and authorizing acces
 
 ## Provisioning
 
-`ProvisionStore` receives the Authentication-owned `User` through the `StoreProvisioner` contract and rejects any account not scoped to Store. After creating active membership, it calls Authentication’s `ScopedRoleAssignmentService`, which validates scope/membership, selects the Store team, and assigns `Owner`.
+`ProvisionStore` receives the Authentication-owned `User` through the `StoreProvisioner` contract and rejects any account not scoped to Store. It creates draft Store configuration/domain/theme records first. After creating active membership, it calls Authentication’s `ScopedRoleAssignmentService`, which validates scope/membership, selects the Store team, and assigns `Owner`. All database work shares one transaction; Store/authentication events and verification notifications wait for the outermost commit.
 
 The Stores module may reference the stable User identity model for membership foreign keys, but it must not read or change passwords, MFA secrets, sessions, reset tokens, or Sanctum hashes.
 

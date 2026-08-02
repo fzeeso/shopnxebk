@@ -49,7 +49,7 @@ final class UpdateMerchantRequest extends FormRequest
             }
         }
 
-        foreach (['currency_code', 'country_code'] as $field) {
+        foreach (['currency_code', 'country_code', 'store_country_code'] as $field) {
             if (array_key_exists($field, $store) && $store[$field] !== null) {
                 $store[$field] = Str::upper(trim((string) $store[$field]));
             }
@@ -83,7 +83,7 @@ final class UpdateMerchantRequest extends FormRequest
             'owner.name' => ['required', 'string', 'max:120'],
             'owner.email' => ['required', 'email:rfc', 'max:255', Rule::unique('users', 'email')->ignore($ownerId)],
             'owner.password' => ['sometimes', 'nullable', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
-            'store' => ['required', 'array:name,slug,legal_name,description,email,phone,primary_domain,industry,business_type,currency_code,language_code,timezone,country_code,status'],
+            'store' => ['required', 'array:name,slug,legal_name,description,email,phone,primary_domain,industry,business_type,currency_code,language_code,timezone,country_code,status,store_country_code,store_state,store_city,store_zip,store_address_1,store_address_2'],
             'store.name' => ['required', 'string', 'max:120'],
             'store.slug' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', Rule::unique('stores', 'slug')->ignore($store?->getKey())],
             'store.legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -97,6 +97,12 @@ final class UpdateMerchantRequest extends FormRequest
             'store.language_code' => ['sometimes', 'string', 'max:10', 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/', Rule::exists('languages', 'locale')->where('is_active', true)],
             'store.timezone' => ['sometimes', 'string', 'timezone:all'],
             'store.country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
+            'store.store_country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
+            'store.store_state' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'store.store_city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'store.store_zip' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'store.store_address_1' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'store.store_address_2' => ['sometimes', 'nullable', 'string', 'max:255'],
             'store.status' => ['required', Rule::enum(StoreStatus::class)],
         ];
     }

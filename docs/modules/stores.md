@@ -4,7 +4,7 @@
 
 `Modules/Stores` owns:
 
-- `stores`, `store_memberships`, and `store_languages`;
+- `stores`, `store_users`, `store_languages`, `store_domains`, `store_settings`, and `store_themes`;
 - Store identity, contact, branding, classification, locale, lifecycle, billing-link, and capability fields;
 - Store language selection/default workflows over the Settings-owned language catalog;
 - Store and membership status enums;
@@ -22,9 +22,9 @@ They accept `page`/`per_page`, default to 25, cap at 100, and return `data`,
 
 ## Identifier behavior
 
-`stores.id` and `store_memberships.id` are bigint internal keys. Their `public_id` values are ULIDs. `store_memberships.store_id` and `user_id` are bigint foreign keys. Middleware resolves a public Store ULID once; downstream database work uses the internal key.
+`stores.id`, `store_users.id`, `store_domains.id`, and `store_themes.id` are bigint internal keys. Their `public_id` values are ULIDs. Related `store_id`, user, and media keys are bigint foreign keys. `store_settings` is a one-to-one dependent record, so its bigint `store_id` is also its primary key and it has no independently routable public ID. Middleware resolves a public Store ULID once; downstream database work uses the internal key.
 
-Only `users.scope = store` accounts may appear in `store_memberships`, receive Store roles, request Store-bound tokens, or enter `StoreContext`. Platform accounts are rejected before Store data is loaded.
+Only `users.scope = store` accounts may appear in `store_users`, receive Store roles, request Store-bound tokens, or enter `StoreContext`. A `store_users` row grants access to the Store boundary; the Store-scoped roles and permissions assigned for the same `store_id` decide which operations the user may perform. Platform accounts are rejected before Store data is loaded.
 
 ## Store data groups
 
@@ -35,21 +35,34 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 | Classification | `industry`, `business_type` | Business type is nullable or one of `ecommerce`, `b2b`, `services`, `digital`, `restaurant`, `marketplace`. |
 | Billing links | `plan_id`, `subscription_id` | Nullable indexed internal bigints; not public API fields and not constrained until Billing exists. |
 | Locale | `currency_code`, `language_code`, `timezone`, `country_code` | Defaults are `USD`, `en`, and `UTC`; country remains nullable. |
-| Lifecycle | `status`, `launched_at`, `trial_ends_at` | Status is `pending`, `active`, `suspended`, or `cancelled`; timestamps are timezone-aware. |
+| Lifecycle | `status`, `launched_at`, `trial_ends_at` | Status is `draft`, `trial`, `active`, `suspended`, `frozen`, or `closed`; timestamps are timezone-aware. |
 | Capabilities | `is_verified`, `is_ai_enabled`, `is_pos_enabled`, `is_b2b_enabled`, `is_marketplace_enabled` | Boolean switches default to `false`. Authorization is still permission/policy based. |
 | Extensibility | `settings`, `metadata` | JSON objects for non-core configuration; do not move stable first-class fields back into JSON. |
 
 `BusinessType` and `StoreStatus` provide typed Eloquent casts. Store resources and GraphQL expose public-safe profile, locale, lifecycle, and capability values. Internal `id`, `plan_id`, and `subscription_id` are deliberately omitted.
 
+## Domains, settings, and themes
+
+| Table | Purpose and invariants |
+| --- | --- |
+| `store_domains` | Stores a globally unique domain, extensible `domain_type`, verification/SSL states, and verification time. A PostgreSQL partial unique index permits at most one `is_primary = true` row per Store. |
+| `store_settings` | Stores one contact, postal address (`store_country_code`, state, city, ZIP, and two address lines), storefront/password/order/branding/settings record per Store. `logo_media_id` and `favicon_media_id` are nullable bigint foreign keys to `media.id` and become null if that media row is deleted. `password_hash` is automatically hashed on model assignment and hidden from serialization. |
+| `store_themes` | Stores named template configurations with public ULIDs. A PostgreSQL partial unique index permits at most one active theme per Store. |
+
+Deleting a Store cascades all three records. Domain/SSL states and JSON settings remain extensible for later services. Provisioning writes these normalized records, while dedicated post-creation domain, normalized-settings, and theme management routes remain future work.
+
 ## Store management flow
 
-1. `POST /api/v1/stores` calls `CreateStoreService`, provisions an active Owner membership/role, and applies validated initial profile/settings.
-2. Existing Store routes resolve `X-Store-ID` and require an active membership.
-3. `GET /api/v1/store` and `GET /api/v1/store/settings` allow active members to view their own Store.
-4. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; `PATCH /api/v1/store/settings` calls `StoreSettingsService`.
-5. Both write paths require `manage store`, use a transaction, and return public-safe resources.
-6. Merchant validation prohibits Platform-owned lifecycle, Billing, verification, capability, and raw JSON fields.
-7. `/api/v1/platform/stores*` separately gives Platform staff with `manage
+1. Registration, `POST /api/v1/stores`, and Platform merchant creation call `StoreProvisioner` inside their owning transaction.
+2. `ProvisionStore` creates a `draft` Store, its one-to-one settings, the configured platform domain, and one active selected theme before adding the active Owner membership/role.
+3. A submitted custom domain is recorded as the pending primary domain while the verified platform domain remains available as a non-primary domain.
+4. Creation returns `dashboard_url=<STORE_ADMIN_DASHBOARD_URL>?store=<store-public-ulid>`; the frontend accepts only an ID present in the authenticated Store-access profile.
+5. Existing Store routes resolve `X-Store-ID` and require an active membership.
+6. `GET /api/v1/store` and `GET /api/v1/store/settings` allow active members to view their own Store.
+7. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; `PATCH /api/v1/store/settings` calls `StoreSettingsService` and persists contact/address values in `store_settings`.
+8. Both write paths require `manage store`, use a transaction, and return public-safe resources.
+9. Merchant validation prohibits Platform-owned lifecycle, Billing, verification, capability, and raw JSON fields.
+10. `/api/v1/platform/stores*` separately gives Platform staff with `manage
    stores` a searchable, filtered, paginated Store catalog plus direct
    create/view/edit operations without Store context.
 
@@ -65,7 +78,7 @@ Only `users.scope = store` accounts may appear in `store_memberships`, receive S
 
 ## Provisioning flow
 
-`ProvisionStore` requires a Store-scoped user, creates the Store and active owner membership, delegates validated `Owner` assignment to `ScopedRoleAssignmentService`, and dispatches `StoreCreated` after commit. The provisioning caller owns the surrounding transaction.
+`ProvisionStore` requires a Store-scoped user and enforces its own database transaction, which safely nests inside registration, additional-Store, Platform merchant, and local-fixture transactions. It validates the configured root domain and theme key, creates every required Store record, delegates validated `Owner` assignment to `ScopedRoleAssignmentService`, and dispatches `StoreCreated` only after the outermost transaction commits.
 
 `PlatformMerchantService` is the Platform-admin composition root for a merchant: it requires `manage stores`, creates the Authentication-owned Store identity, calls `StoreProvisioner`, applies merchant profile fields, synchronizes Store roles, and queues registration/verification behavior after the transaction commits. `StoreUserAdminService` separately creates Store staff under an already selected Store and requires both member and role management permissions. Neither flow can assign Platform roles.
 

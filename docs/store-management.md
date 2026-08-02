@@ -12,10 +12,10 @@ Viewing requires membership. Profile, settings, and language changes additionall
 
 | Service | Responsibility |
 | --- | --- |
-| `CreateStoreService` | Transactionally provisions the Store, active membership, Owner role, initial profile, locale, and preferences. |
+| `CreateStoreService` | Transactionally provisions a draft Store, normalized settings, platform/custom domains, selected active theme, active membership, Owner role, initial profile, locale, and preferences. |
 | `ViewStoreService` | Returns one Store only after Store-scope and active-membership checks. |
 | `UpdateStoreProfileService` | Updates merchant-owned identity, contact, branding, and classification fields after `manage store`. |
-| `StoreSettingsService` | Views locale/preferences for any active member and merges settings updates for Store managers. |
+| `StoreSettingsService` | Views locale, normalized contact/address data, and preferences for any active member and merges settings updates for Store managers. |
 | `StoreAccessService` | Centralizes Store scope, active membership, and `manage store` enforcement for services. |
 | `PlatformMerchantService` | Lets Platform staff with `manage stores` list/view merchants or atomically provision a Store-scoped owner, Store, membership, and roles. |
 | `PlatformStoreAdminService` | Lets Platform staff with `manage stores` search/filter/page, create, view, and edit Store rows without entering Store context. |
@@ -40,11 +40,17 @@ Controllers contain no business writes. Form Requests normalize and validate inp
 
 Platform merchant listing/provisioning uses `/api/v1/platform/merchants*` without a Store header. See [User and merchant management](user-merchant-management.md) for request shapes and the Platform/Store identity boundary.
 
+Merchant creation requests may send `theme_template_key`; omission uses the
+configured default. Successful registration, additional-Store creation, and
+Platform merchant creation responses include `dashboard_url`. It points to
+`STORE_ADMIN_DASHBOARD_URL` with `store=<public-ulid>`, never an internal key.
+
 The direct Platform Store API is intentionally different from merchant
 provisioning: it creates no owner, membership, Store role, plan, or
-subscription. Its list combines case-insensitive search with exact status,
+subscription. Its list combines case-insensitive Store and member search with exact status,
 classification, locale/country, verification/capability, and creation-date
-filters. Sort columns are whitelisted and `per_page` is capped at 100. See the
+filters. The list defaults to 10 rows, returns the earliest membership user's
+public identity as `owner`, and caps `per_page` at 100. See the
 [Platform Stores admin guide](components/platform-stores-admin.md).
 
 ## Field ownership
@@ -55,6 +61,7 @@ Store owners/managers may edit:
 - branding references: `logo`, `favicon`, and `cover_image`;
 - classification: `industry` and `business_type`;
 - locale: `currency_code`, `language_code`, `timezone`, and `country_code`;
+- normalized contact/address settings: `contact_email`, `contact_phone`, `store_country_code`, `store_state`, `store_city`, `store_zip`, `store_address_1`, and `store_address_2`;
 - validated preferences: order prefix, date/time formats, weight/dimension units, inventory tracking, guest checkout, tax-inclusive pricing, low-stock threshold, and support email.
 
 Platform/Billing-controlled fields are prohibited in merchant write requests: `status`, `plan_id`, `subscription_id`, verification, AI/POS/B2B/marketplace entitlements, launch/trial timestamps, raw `settings`, and raw `metadata`. Capabilities are visible in the settings response but read-only.
@@ -65,7 +72,7 @@ fields. Internal `plan_id`/`subscription_id`, raw JSON, preferences, owner
 payloads, and role payloads are prohibited there as well; each belongs to a
 separate validated workflow.
 
-Settings updates merge validated preference keys into the existing JSON object, so changing one preference does not erase the others. Stable business fields remain first-class columns rather than being moved into JSON.
+Settings updates write contact/address values to `store_settings` and merge validated preference keys into the existing JSON object, so changing one preference does not erase the others. Support email, weight unit, and order prefix stay synchronized with their normalized settings columns. Stable business fields remain first-class columns rather than being moved into JSON.
 
 ## Information flow
 

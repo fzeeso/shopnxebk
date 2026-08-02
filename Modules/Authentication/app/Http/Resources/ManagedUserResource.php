@@ -28,7 +28,7 @@ final class ManagedUserResource extends JsonResource
                 ->sort()
                 ->values()
                 ->all()),
-            'membership' => $this->whenPivotLoaded('store_memberships', fn (): array => [
+            'membership' => $this->whenPivotLoaded('store_users', fn (): array => [
                 'status' => $this->pivot->status instanceof \BackedEnum
                     ? $this->pivot->status->value
                     : (string) $this->pivot->status,

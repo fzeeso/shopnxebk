@@ -37,7 +37,7 @@ final readonly class PlatformStoreAdminService
     public function paginate(User $actor, array $filters): LengthAwarePaginator
     {
         $this->access->ensureCanManageStores($actor);
-        $query = Store::query();
+        $query = Store::query()->with('primaryMembership.user');
 
         $search = trim((string) ($filters['search'] ?? ''));
         if ($search !== '') {
@@ -47,7 +47,11 @@ final readonly class PlatformStoreAdminService
                     ->orWhere('legal_name', 'ilike', $pattern)
                     ->orWhere('slug', 'ilike', $pattern)
                     ->orWhere('email', 'ilike', $pattern)
-                    ->orWhere('primary_domain', 'ilike', $pattern);
+                    ->orWhere('primary_domain', 'ilike', $pattern)
+                    ->orWhereHas('memberships.user', function (Builder $query) use ($pattern): void {
+                        $query->where('users.name', 'ilike', $pattern)
+                            ->orWhere('users.email', 'ilike', $pattern);
+                    });
             });
         }
 
@@ -75,7 +79,7 @@ final readonly class PlatformStoreAdminService
         $query->orderBy($sort, $direction)->orderBy('id', $direction);
 
         return $query->paginate(
-            perPage: (int) ($filters['per_page'] ?? 25),
+            perPage: (int) ($filters['per_page'] ?? 10),
             page: (int) ($filters['page'] ?? 1),
         );
     }
@@ -90,7 +94,7 @@ final readonly class PlatformStoreAdminService
             $attributes['legal_name'] = filled($attributes['legal_name'] ?? null)
                 ? $attributes['legal_name']
                 : $attributes['name'];
-            $attributes['status'] = $attributes['status'] ?? StoreStatus::Pending;
+            $attributes['status'] = $attributes['status'] ?? StoreStatus::Draft;
             $attributes['settings'] = [];
             $attributes['metadata'] = [];
 

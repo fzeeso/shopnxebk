@@ -6,8 +6,10 @@ namespace Modules\Stores\Enums;
 
 enum StoreStatus: string
 {
-    case Pending = 'pending';
+    case Draft = 'draft';
+    case Trial = 'trial';
     case Active = 'active';
     case Suspended = 'suspended';
-    case Cancelled = 'cancelled';
+    case Frozen = 'frozen';
+    case Closed = 'closed';
 }

@@ -22,6 +22,7 @@ use Modules\Authentication\Notifications\QueuedVerifyEmail;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Billing\Actions\EnsurePlanCatalog;
 use Modules\Stores\Enums\MembershipStatus;
+use Modules\Stores\Enums\StoreStatus;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
 use Tests\TestCase;
@@ -30,17 +31,22 @@ final class AuthenticationApiFeatureTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_creates_user_store_owner_membership_and_permissions(): void
+    public function test_registration_provisions_a_complete_draft_store_and_returns_its_dashboard_url(): void
     {
         Notification::fake();
+        config()->set('stores.platform_domain', 'stores.example.test');
+        config()->set('stores.admin_dashboard_url', 'https://admin.example.test/dashboard');
         $response = $this->postJson('/api/v1/auth/register', $this->registrationPayload());
 
         $response->assertCreated()
             ->assertJsonPath('user.email', 'owner@example.test')
             ->assertJsonPath('user.scope', 'store')
-            ->assertJsonPath('store.slug', 'acme-shop');
+            ->assertJsonPath('store.slug', 'acme-shop')
+            ->assertJsonPath('store.status', StoreStatus::Draft->value)
+            ->assertJsonPath('store.primary_domain', 'acme-shop.stores.example.test');
         $user = User::query()->where('email', 'owner@example.test')->firstOrFail();
         $store = Store::query()->where('slug', 'acme-shop')->firstOrFail();
+        $response->assertJsonPath('dashboard_url', "https://admin.example.test/dashboard?store={$store->public_id}");
         self::assertIsInt($user->getKey());
         self::assertTrue(Str::isUlid($user->public_id));
         self::assertSame(AccessScope::Store, $user->scope);
@@ -50,6 +56,11 @@ final class AuthenticationApiFeatureTest extends TestCase
         self::assertSame('USD', $store->currency_code);
         self::assertSame('en', $store->language_code);
         self::assertSame('UTC', $store->timezone);
+        self::assertSame(StoreStatus::Draft, $store->status);
+        self::assertSame('owner@example.test', $store->storeSettings?->contact_email);
+        self::assertFalse((bool) $store->storeSettings?->storefront_enabled);
+        self::assertSame('acme-shop.stores.example.test', $store->domains()->where('domain_type', 'platform')->where('is_primary', true)->value('domain'));
+        self::assertSame('minimal', $store->activeTheme?->template_key);
         self::assertTrue(StoreMembership::query()->whereBelongsTo($store)->whereBelongsTo($user)->where('status', 'active')->exists());
         setPermissionsTeamId($store->getKey());
         self::assertTrue($user->fresh()->hasRole('Owner'));
@@ -259,6 +270,6 @@ final class AuthenticationApiFeatureTest extends TestCase
 
     private function registrationPayload(array $overrides = []): array
     {
-        return array_replace(['name' => 'Owner', 'email' => 'Owner@Example.Test', 'password' => 'StrongPassword!123', 'password_confirmation' => 'StrongPassword!123', 'store_name' => 'Acme Shop', 'store_slug' => 'acme-shop'], $overrides);
+        return array_replace(['name' => 'Owner', 'email' => 'Owner@Example.Test', 'password' => 'StrongPassword!123', 'password_confirmation' => 'StrongPassword!123', 'store_name' => 'Acme Shop', 'store_slug' => 'acme-shop', 'theme_template_key' => 'minimal'], $overrides);
     }
 }

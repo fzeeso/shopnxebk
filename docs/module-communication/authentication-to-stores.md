@@ -4,9 +4,9 @@ Authentication communicates with Stores in two intentional ways.
 
 ## Registration
 
-`RegisterUser` depends on `Modules\Stores\Contracts\StoreProvisioner`. It supplies a newly persisted `scope = store` User, Store name, and Store slug. The implementation creates the Store, active owner membership, validated Owner assignment, and after-commit `StoreCreated` event.
+`RegisterUser` depends on `Modules\Stores\Contracts\StoreProvisioner`. It supplies a newly persisted `scope = store` User, Store name, Store slug, merchant contact, and optional selected theme key. The implementation atomically creates the draft Store, settings, platform domain, active selected theme, active owner membership, validated Owner assignment, and after-commit `StoreCreated` event. Authentication returns the Stores-owned dashboard URL without constructing internal Store identifiers itself.
 
-Authentication must not insert into `stores` or `store_memberships` directly. If provisioning needs new behavior, extend the Stores contract and update both module documents and this communication contract.
+Authentication must not insert into `stores` or `store_users` directly. If provisioning needs new behavior, extend the Stores contract and update both module documents and this communication contract.
 
 ## Administrative account creation
 

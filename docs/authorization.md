@@ -8,7 +8,7 @@ Authorization combines five checks:
 4. Store membership must be active.
 5. Spatie Permission and Laravel policies authorize the requested operation.
 
-`users.scope`, `roles.scope`, and `permissions.scope` are `platform` or `store`. A user, role, and permission must have matching scopes. Platform assignments have a null Store; Store assignments require active membership and the matching internal `store_id`.
+`users.scope`, `roles.scope`, and `permissions.scope` are `platform` or `store`. A user, role, and permission must have matching scopes. Platform assignments have a null Store; Store assignments require an active `store_users` row and the matching internal `store_id`. The relationship decides which Store can be entered; roles and their permissions decide what the user can do there.
 
 `manage platform users` is initially granted only to `Super Admin` and protects the Platform user/role catalog APIs. `manage stores` protects the Platform Store catalog and merchant provisioning APIs. Inside a Store, `manage store members` permits member listing while both `manage store members` and `manage store roles` are required to create a Store user with roles.
 

@@ -78,17 +78,28 @@ Domain entities have two identifiers:
 
 Laravel route binding uses `public_id`. Requests resolve a ULID once and then use the bigint key for joins, scopes, permission teams, token binding, cache/search filters, and internal events. API resources and GraphQL types must never expose an internal bigint key as `id`.
 
-Entity tables such as `users`, `stores`, `store_memberships`, `roles`, `permissions`, `personal_access_tokens`, `media`, and future commerce records require both columns. Pure relationship tables managed through direct package inserts may use only an internal bigint `id`, because they are not addressable public resources. Protocol/infrastructure identifiers required by Laravel packages remain exceptions: notification IDs and Media Library UUIDs are UUIDs, failed-job UUIDs remain diagnostic identifiers, and cache/queue/monitoring tables follow their package contracts.
+Entity tables such as `users`, `stores`, `store_users`, `roles`, `permissions`, `personal_access_tokens`, `media`, and future commerce records require both columns. Pure relationship tables managed through direct package inserts may use only an internal bigint `id`, because they are not addressable public resources. Protocol/infrastructure identifiers required by Laravel packages remain exceptions: notification IDs and Media Library UUIDs are UUIDs, failed-job UUIDs remain diagnostic identifiers, and cache/queue/monitoring tables follow their package contracts.
 
 ## Store profile contract
 
-The `stores` table is the source of truth for merchant identity, contact details, branding references, classification, locale, lifecycle, and Store-level capability switches. `business_type` is nullable during onboarding and, when present, is one of `ecommerce`, `b2b`, `services`, `digital`, `restaurant`, or `marketplace`. `status` is one of `pending`, `active`, `suspended`, or `cancelled`.
+The `stores` table is the source of truth for merchant identity, contact details, branding references, classification, locale, lifecycle, and Store-level capability switches. `business_type` is nullable during onboarding and, when present, is one of `ecommerce`, `b2b`, `services`, `digital`, `restaurant`, or `marketplace`. `status` is one of `draft`, `trial`, `active`, `suspended`, `frozen`, or `closed`. The lifecycle migration maps historical `pending` rows to `draft` and `cancelled` rows to `closed`.
+
+Store-owned configuration is normalized into three additional tables. `store_domains` stores globally unique domains and permits only one primary domain per Store. `store_settings` is a dependent one-to-one record whose `store_id` is both its bigint primary key and Store foreign key; it has no public identifier because it is never addressed independently. `store_themes` has an internal bigint ID plus public ULID and permits one active theme per Store. Domain verification, SSL state, and theme settings remain extensible strings/JSON rather than closed database enums.
 
 `plan_id` and `subscription_id` are nullable internal bigint Billing integration keys. The Billing plan catalog now exists, but the historical Store columns remain unconstrained until existing values are audited and a subscription assignment workflow is implemented. They must never be returned as public identifiers. `logo`, `favicon`, and `cover_image` hold nullable storage references; upload authorization and file delivery remain Files/media responsibilities.
 
 Currency uses a three-character ISO 4217 code, country uses a two-character ISO 3166-1 alpha-2 code, language accepts a BCP 47-style code, and timezone stores an IANA timezone name. The database defaults new Stores to `USD`, `en`, `UTC`, and all capability/verification flags to `false`. Provisioning copies the display name into `legal_name`; imported historical Stores may keep optional profile values null until onboarding completes.
 
 Store management is service-based. `CreateStoreService` creates an additional Store and Owner membership for a Store-scoped identity. `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` require the selected Store ULID and active membership; profile/settings writes additionally require `manage store`. Merchant requests cannot change lifecycle, Billing links, verification, entitlements, launch/trial timestamps, or raw metadata/settings.
+
+Merchant Store creation is one atomic provisioning workflow. `ProvisionStore`
+creates the Store as `draft`, creates its one-to-one settings, reserves the
+`<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, optionally records a
+submitted custom primary domain as pending, installs and activates the selected
+theme, creates the active Owner membership/role, and returns the Store. The
+creation responses add a Store-specific `dashboard_url` built from
+`STORE_ADMIN_DASHBOARD_URL` and the Store public ULID. Any failed database step
+rolls back the entire Store setup.
 
 `PlatformStoreAdminService` is the Platform-only Store catalog boundary. It
 requires `manage stores`, returns public-safe Store resources, creates or edits
@@ -109,7 +120,7 @@ flowchart LR
     Request["Request with Store ULID"]
     Resolve["Resolve public_id"]
     Store["Store bigint id"]
-    Membership["Check store_memberships"]
+    Membership["Check store_users"]
     Token["Compare token.store_id"]
     Team["Set permission team to bigint store_id"]
     Domain["Run policy/action/query"]

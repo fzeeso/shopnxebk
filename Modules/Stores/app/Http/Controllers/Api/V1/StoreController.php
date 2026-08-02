@@ -15,19 +15,26 @@ use Modules\Stores\Http\Requests\UpdateStoreSettingsRequest;
 use Modules\Stores\Http\Resources\StoreResource;
 use Modules\Stores\Http\Resources\StoreSettingsResource;
 use Modules\Stores\Services\CreateStoreService;
+use Modules\Stores\Services\StoreDashboardUrl;
 use Modules\Stores\Services\StoreSettingsService;
 use Modules\Stores\Services\UpdateStoreProfileService;
 use Modules\Stores\Services\ViewStoreService;
 
 final class StoreController extends Controller
 {
-    public function store(CreateStoreRequest $request, CreateStoreService $service): JsonResponse
-    {
+    public function store(
+        CreateStoreRequest $request,
+        CreateStoreService $service,
+        StoreDashboardUrl $dashboardUrl,
+    ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
         $store = $service->create($user, $request->validated());
 
-        return response()->json(['data' => new StoreResource($store)], 201);
+        return response()->json([
+            'data' => new StoreResource($store),
+            'dashboard_url' => $dashboardUrl->for($store),
+        ], 201);
     }
 
     public function show(Request $request, StoreContext $context, ViewStoreService $service): JsonResponse

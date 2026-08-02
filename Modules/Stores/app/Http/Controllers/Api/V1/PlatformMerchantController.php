@@ -13,6 +13,7 @@ use Modules\Stores\Http\Requests\CreateMerchantRequest;
 use Modules\Stores\Http\Requests\UpdateMerchantRequest;
 use Modules\Stores\Http\Resources\MerchantResource;
 use Modules\Stores\Services\PlatformMerchantService;
+use Modules\Stores\Services\StoreDashboardUrl;
 
 final class PlatformMerchantController extends Controller
 {
@@ -24,13 +25,19 @@ final class PlatformMerchantController extends Controller
         return MerchantResource::collection($service->list($actor, $request->perPage()))->response();
     }
 
-    public function store(CreateMerchantRequest $request, PlatformMerchantService $service): JsonResponse
-    {
+    public function store(
+        CreateMerchantRequest $request,
+        PlatformMerchantService $service,
+        StoreDashboardUrl $dashboardUrl,
+    ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
 
+        $store = $service->create($actor, $request->validated());
+
         return response()->json([
-            'data' => new MerchantResource($service->create($actor, $request->validated())),
+            'data' => new MerchantResource($store),
+            'dashboard_url' => $dashboardUrl->for($store),
         ], 201);
     }
 

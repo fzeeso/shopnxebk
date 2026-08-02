@@ -20,13 +20,17 @@ final class CreateStoreRequest extends FormRequest
     {
         $values = ['slug' => Str::lower(trim((string) $this->input('slug')))];
 
+        if ($this->exists('theme_template_key')) {
+            $values['theme_template_key'] = Str::lower(trim((string) $this->input('theme_template_key')));
+        }
+
         foreach (['email', 'primary_domain'] as $field) {
             if ($this->exists($field) && $this->input($field) !== null) {
                 $values[$field] = Str::lower(trim((string) $this->input($field)));
             }
         }
 
-        foreach (['currency_code', 'country_code'] as $field) {
+        foreach (['currency_code', 'country_code', 'store_country_code'] as $field) {
             if ($this->exists($field) && $this->input($field) !== null) {
                 $values[$field] = Str::upper(trim((string) $this->input($field)));
             }
@@ -49,12 +53,13 @@ final class CreateStoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:120'],
-            'slug' => ['required', 'alpha_dash:ascii', 'min:3', 'max:80', 'unique:stores,slug'],
+            'slug' => ['required', 'string', 'min:3', 'max:80', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/', 'unique:stores,slug'],
+            'theme_template_key' => ['sometimes', 'string', 'max:120', 'regex:/^[a-z0-9][a-z0-9_-]*$/'],
             'legal_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'primary_domain' => ['sometimes', 'nullable', 'string', 'max:253', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', 'unique:stores,primary_domain'],
+            'primary_domain' => ['sometimes', 'nullable', 'string', 'max:253', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', 'unique:stores,primary_domain', 'unique:store_domains,domain'],
             'logo' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'favicon' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'cover_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
@@ -64,6 +69,12 @@ final class CreateStoreRequest extends FormRequest
             'language_code' => ['sometimes', 'string', 'max:10', 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/', Rule::exists('languages', 'locale')->where('is_active', true)],
             'timezone' => ['sometimes', 'string', 'timezone:all'],
             'country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
+            'store_country_code' => ['sometimes', 'nullable', 'string', 'alpha:ascii', 'size:2'],
+            'store_state' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'store_city' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'store_zip' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'store_address_1' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'store_address_2' => ['sometimes', 'nullable', 'string', 'max:255'],
             ...$this->preferenceRules(),
             ...$this->platformControlledRules(),
         ];

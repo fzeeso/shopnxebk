@@ -23,7 +23,7 @@ final class StoreMembership extends Model
         return StoreMembershipFactory::new();
     }
 
-    protected $table = 'store_memberships';
+    protected $table = 'store_users';
 
     public function store(): BelongsTo
     {

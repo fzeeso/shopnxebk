@@ -13,12 +13,22 @@ final class StoreSettingsResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $settings = $this->resource->storeSettings;
+
         return [
             'store_id' => $this->public_id,
             'currency_code' => $this->currency_code,
             'language_code' => $this->language_code,
             'timezone' => $this->timezone,
             'country_code' => $this->country_code,
+            'contact_email' => $settings?->contact_email,
+            'contact_phone' => $settings?->contact_phone,
+            'store_country_code' => $settings?->store_country_code,
+            'store_state' => $settings?->store_state,
+            'store_city' => $settings?->store_city,
+            'store_zip' => $settings?->store_zip,
+            'store_address_1' => $settings?->store_address_1,
+            'store_address_2' => $settings?->store_address_2,
             'preferences' => $this->settings ?? [],
             'capabilities' => [
                 'ai' => $this->is_ai_enabled,

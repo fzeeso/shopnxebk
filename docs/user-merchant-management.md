@@ -32,7 +32,7 @@ All routes require Sanctum, `users.scope = platform`, and the stated permission.
 | `GET/PATCH` | `/api/v1/platform/users/{user}` | `manage platform users` | View or edit one Platform user by User ULID. |
 | `GET` | `/api/v1/platform/merchant-roles` | `manage stores` | List assignable Store role names for merchant provisioning. |
 | `GET` | `/api/v1/platform/merchants` | `manage stores` | Page Stores and their users/Store roles. |
-| `POST` | `/api/v1/platform/merchants` | `manage stores` | Atomically create a Store-scoped owner, Store, active membership, and roles. |
+| `POST` | `/api/v1/platform/merchants` | `manage stores` | Atomically create a Store-scoped owner, draft Store, settings, platform domain, selected active theme, active membership, and roles; returns `dashboard_url`. |
 | `GET/PATCH` | `/api/v1/platform/merchants/{merchant}` | `manage stores` | View or edit a merchant owner/Store by Store ULID. |
 
 `manage platform users` belongs initially only to `Super Admin`. `manage stores` belongs initially to `Super Admin` and `Support`.

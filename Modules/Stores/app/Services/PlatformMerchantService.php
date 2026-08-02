@@ -31,6 +31,15 @@ final readonly class PlatformMerchantService
         'country_code',
     ];
 
+    private const ADDRESS_FIELDS = [
+        'store_country_code',
+        'store_state',
+        'store_city',
+        'store_zip',
+        'store_address_1',
+        'store_address_2',
+    ];
+
     public function __construct(
         private PlatformStoreAccessService $access,
         private StoreProvisioner $storeProvisioner,
@@ -55,7 +64,7 @@ final readonly class PlatformMerchantService
         $store = DB::transaction(function () use ($data): Store {
             /** @var array{name: string, email: string, password: string} $ownerData */
             $ownerData = $data['owner'];
-            /** @var array{name: string, slug: string} $storeData */
+            /** @var array{name: string, slug: string, theme_template_key?: string, primary_domain?: string|null, email?: string|null, phone?: string|null, country_code?: string|null, store_country_code?: string|null, store_state?: string|null, store_city?: string|null, store_zip?: string|null, store_address_1?: string|null, store_address_2?: string|null} $storeData */
             $storeData = $data['store'];
             $owner = User::query()->create([
                 'name' => $ownerData['name'],
@@ -63,8 +72,19 @@ final readonly class PlatformMerchantService
                 'password' => $ownerData['password'],
                 'scope' => AccessScope::Store,
             ]);
-            $store = $this->storeProvisioner->provision($owner, $storeData['name'], $storeData['slug']);
-            $profile = Arr::only($storeData, self::PROFILE_FIELDS);
+            $store = $this->storeProvisioner->provision($owner, $storeData['name'], $storeData['slug'], [
+                'theme_template_key' => $storeData['theme_template_key'] ?? config('stores.default_theme_key', 'default'),
+                'primary_domain' => $storeData['primary_domain'] ?? null,
+                'contact_email' => $storeData['email'] ?? $owner->email,
+                'contact_phone' => $storeData['phone'] ?? null,
+                'store_country_code' => $storeData['store_country_code'] ?? $storeData['country_code'] ?? null,
+                'store_state' => $storeData['store_state'] ?? null,
+                'store_city' => $storeData['store_city'] ?? null,
+                'store_zip' => $storeData['store_zip'] ?? null,
+                'store_address_1' => $storeData['store_address_1'] ?? null,
+                'store_address_2' => $storeData['store_address_2'] ?? null,
+            ]);
+            $profile = Arr::except(Arr::only($storeData, self::PROFILE_FIELDS), ['primary_domain']);
             if ($profile !== []) {
                 $store->fill($profile)->save();
             }
@@ -125,6 +145,17 @@ final readonly class PlatformMerchantService
                 ...Arr::only($storeData, [...self::PROFILE_FIELDS, 'status']),
             ])->save();
 
+            $settings = Arr::only($storeData, self::ADDRESS_FIELDS);
+            if (array_key_exists('email', $storeData)) {
+                $settings['contact_email'] = $storeData['email'];
+            }
+            if (array_key_exists('phone', $storeData)) {
+                $settings['contact_phone'] = $storeData['phone'];
+            }
+            if ($settings !== []) {
+                $store->storeSettings()->updateOrCreate([], $settings);
+            }
+
             if ($emailChanged) {
                 DB::afterCommit(function () use ($owner): void {
                     $owner->sendEmailVerificationNotification();
@@ -145,7 +176,10 @@ final readonly class PlatformMerchantService
 
     private function loadUsersAndRoles(Store $store): Store
     {
-        $store->load(['users' => fn ($query) => $query->orderBy('users.name')->orderBy('users.email')]);
+        $store->load([
+            'storeSettings',
+            'users' => fn ($query) => $query->orderBy('users.name')->orderBy('users.email'),
+        ]);
         $previousStoreId = getPermissionsTeamId();
         setPermissionsTeamId($store->getKey());
 

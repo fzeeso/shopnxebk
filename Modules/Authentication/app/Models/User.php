@@ -49,7 +49,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /** @return BelongsToMany<Store, self> */
     public function stores(): BelongsToMany
     {
-        return $this->belongsToMany(Store::class, 'store_memberships')
+        return $this->belongsToMany(Store::class, 'store_users')
             ->withPivot(['id', 'public_id', 'status', 'invited_at', 'joined_at'])
             ->withTimestamps();
     }

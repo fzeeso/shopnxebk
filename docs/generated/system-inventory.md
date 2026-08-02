@@ -149,6 +149,9 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_29_000500_add_profile_and_capabilities_to_stores.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_29_000710_create_store_languages_table.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_02_000800_update_store_status_lifecycle.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_02_000900_create_store_domains_settings_and_themes.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_02_001000_rename_store_memberships_and_add_store_setting_address.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |
@@ -182,7 +185,7 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 
 | Area | Variables |
 | --- | --- |
-| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW`, `LOCAL_MERCHANT_NAME`, `LOCAL_MERCHANT_EMAIL`, `LOCAL_MERCHANT_PASSWORD`, `LOCAL_MERCHANT_STORE_NAME`, `LOCAL_MERCHANT_STORE_SLUG` |
+| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `STORE_ADMIN_DASHBOARD_URL`, `STOREFRONT_ROOT_DOMAIN`, `STORE_DEFAULT_THEME_KEY`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW`, `LOCAL_MERCHANT_NAME`, `LOCAL_MERCHANT_EMAIL`, `LOCAL_MERCHANT_PASSWORD`, `LOCAL_MERCHANT_STORE_NAME`, `LOCAL_MERCHANT_STORE_SLUG` |
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |

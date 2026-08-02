@@ -21,6 +21,7 @@ final class MerchantResource extends JsonResource
 
         return [
             'store' => new StoreResource($this->resource),
+            'store_settings' => new StoreSettingsResource($this->resource),
             'owner' => $owner === null ? null : new ManagedUserResource($owner),
             'users' => ManagedUserResource::collection($this->whenLoaded('users')),
         ];

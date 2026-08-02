@@ -78,7 +78,7 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Settings/` owns extensible Platform-wide settings, currently the global language and currency catalogs, their administration routes, and USD-relative exchange rates.
 
-`Modules/Stores/` owns stores, the Platform Store catalog APIs, memberships, Store profiles/preferences, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, the Platform Store catalog APIs, `store_users` relationships, Store profiles/preferences/address settings, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
 
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
 
@@ -128,6 +128,8 @@ flowchart LR
 
 Use `ScopedRoleAssignmentService` for assignments. It checks account scope, role scope, active membership, and Store identity. PostgreSQL triggers reject bypasses through direct pivot inserts. `user.scope:platform` and `user.scope:store` middleware make route ownership explicit.
 
+The `store_users` row only establishes that a Store-scoped user belongs to a Store and records its active/suspended state. It does not grant management powers by itself. Store-scoped roles and permissions, evaluated with the same internal `store_id` as the permission team, decide which API operations that user may perform.
+
 Domain entities use bigint `id` for primary keys, bigint `*_id` foreign keys for internal joins, and ULID `public_id` for REST, GraphQL, URLs, public events, and file paths. Middleware and actions resolve a public ULID once, then keep the internal bigint through the database flow. API resources and GraphQL fields serialize `public_id` as `id`; they must not expose bigint keys.
 
 Pure relationship/package tables and protocol identifiers follow the documented exceptions in [application context](context.md). New business entity tables require both `id` and `public_id`.
@@ -143,12 +145,23 @@ Branding columns contain storage references only. `CreateStoreService`, `ViewSto
 Platform Store catalog routes are `/api/v1/platform/stores*`. They require a
 Platform account with `manage stores` and never use Store context.
 `PlatformStoreAdminService` provides case-insensitive search over stable Store
-identity fields, exact profile/capability filters, creation-date filters,
-whitelisted sorting, and deterministic pagination capped at 100 rows. Direct
-creation makes an unassigned Store, defaults it to `pending`, and keeps Billing
+identity fields and related member name/email, exact profile/capability
+filters, creation-date filters, whitelisted sorting, and deterministic
+pagination that defaults to 10 and is capped at 100 rows. List queries eager-
+load `primaryMembership.user`; `primaryMembership` is the earliest membership
+row and `PlatformStoreListResource` returns only that user's public ID, name,
+and email as `owner`. Direct
+creation makes an unassigned Store, defaults it to `draft`, and keeps Billing
 links/raw JSON outside the request contract. The separate
 `/api/v1/platform/merchants*` service remains the atomic owner-and-membership
 provisioning path.
+
+Store lifecycle values are `draft`, `trial`, `active`, `suspended`, `frozen`,
+and `closed`. Historical `pending` and `cancelled` rows are migrated to `draft`
+and `closed`. The Stores module also owns `store_domains`, the one-to-one
+`store_settings` record, and `store_themes`; normalized Store address fields live
+in `store_settings`, while membership rows live in `store_users`. See the module guide for keys,
+constraints, media relationships, and current API boundaries.
 
 ### Language catalog and Store language selection
 
@@ -253,16 +266,25 @@ sequenceDiagram
     Request->>Controller: Validated data
     Controller->>Register: handle(data)
     Register->>DB: Begin transaction and create Store-scoped user
-    Register->>Provision: provision(user, store name, slug)
-    Provision->>DB: Create store and active owner membership
-    Provision->>DB: Ensure authorization catalog and assign Owner
+    Register->>Provision: provision(user, store name, slug, selected theme)
+    Provision->>DB: Create draft Store
+    Provision->>DB: Create contact/address settings and platform/custom domains
+    Provision->>DB: Install selected active theme
+    Provision->>DB: Create active membership and assign Owner
     Register->>DB: Commit
     Register-->>Queue: Events and verification after commit
-    Register-->>Controller: User and store
-    Controller-->>Client: 201 JSON
+    Register-->>Controller: User and provisioned Store
+    Controller-->>Client: 201 JSON with dashboard_url
 ```
 
-The transaction prevents partial registration. External side effects run after commit. Password hashes and plain passwords never appear in resources.
+`ProvisionStore` owns an atomic nested transaction, so registration, additional
+Store creation, Platform merchant creation, and local fixture creation all use
+the same invariant. The Store starts as `draft`; settings, its
+`<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, and the selected active theme
+exist before the Owner membership is returned. External side effects run after
+the outermost commit. Password hashes and plain passwords never appear in
+resources. Creation responses build `dashboard_url` from
+`STORE_ADMIN_DASHBOARD_URL` and the Store public ULID.
 
 ## 7. Authentication and store selection
 
@@ -298,12 +320,13 @@ An account can never have both interfaces. The frontend selects the shell from `
 
 Platform staff management is served by `/api/v1/platform/users*`. `PlatformUserAdminService` requires Platform scope plus `manage platform users`, validates roles against Platform catalog rows, creates/edits the identity transactionally, and returns the User ULID with role names, verification timestamps, MFA state, and created/updated timestamps. Changing the managed email clears verification and queues verification for the new address after commit; omitting an edit password preserves the current hash. The platform role catalog is `/api/v1/platform/roles`.
 
-Merchant provisioning is served by `/api/v1/platform/merchants*` and requires `manage stores`. `PlatformMerchantService` creates a Store-scoped owner identity, Store, active membership, and Store-role assignments in one transaction; `Owner` is mandatory. It also edits owner identity/password and Platform-controlled Store profile/status without changing existing Store roles. Merchant resources identify the primary owner and return the Store users with membership metadata. Changing the owner email clears verification and queues verification for the new address after commit. The merchant role catalog is `/api/v1/platform/merchant-roles`.
+Merchant provisioning is served by `/api/v1/platform/merchants*` and requires `manage stores`. `PlatformMerchantService` creates a Store-scoped owner identity, Store, active `store_users` relationship, normalized Store settings/address, and Store-role assignments in one transaction; `Owner` is mandatory. It also edits owner identity/password, Store address, and Platform-controlled Store profile/status without changing existing Store roles. Merchant resources identify the primary owner, expose normalized `store_settings`, and return the Store users with membership metadata. Changing the owner email clears verification and queues verification for the new address after commit. The merchant role catalog is `/api/v1/platform/merchant-roles`.
 
 Direct Store catalog management is served by `/api/v1/platform/stores*` under
-the same permission. `GET` supports search, exact filters, date range,
-whitelisted sorting, and `page`/`per_page`; the collection response includes
-`data`, `meta`, and `links`. `POST` creates a Store without an owner or
+the same permission. `GET` supports Store/member search, exact filters, date
+range, whitelisted sorting, and `page`/`per_page`; the collection response
+includes `data`, `meta`, and `links`, with an `owner` projection from the
+earliest membership. `POST` creates a Store without an owner or
 membership, while `GET/PATCH /{store}` resolve a public Store ULID and expose
 only public-safe fields. Use the merchant route when an owner must exist.
 

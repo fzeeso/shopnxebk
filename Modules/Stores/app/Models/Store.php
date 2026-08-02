@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Modules\Authentication\Models\User;
 use Modules\Settings\Models\Language;
 use Modules\Stores\Database\Factories\StoreFactory;
@@ -61,9 +62,34 @@ final class Store extends BaseTenant
         return $this->hasMany(StoreMembership::class);
     }
 
+    public function primaryMembership(): HasOne
+    {
+        return $this->hasOne(StoreMembership::class)->oldestOfMany();
+    }
+
     public function storeLanguages(): HasMany
     {
         return $this->hasMany(StoreLanguage::class);
+    }
+
+    public function domains(): HasMany
+    {
+        return $this->hasMany(StoreDomain::class);
+    }
+
+    public function storeSettings(): HasOne
+    {
+        return $this->hasOne(StoreSetting::class);
+    }
+
+    public function themes(): HasMany
+    {
+        return $this->hasMany(StoreTheme::class);
+    }
+
+    public function activeTheme(): HasOne
+    {
+        return $this->hasOne(StoreTheme::class)->where('is_active', true);
     }
 
     public function languages(): BelongsToMany
@@ -75,7 +101,7 @@ final class Store extends BaseTenant
 
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'store_memberships')
+        return $this->belongsToMany(User::class, 'store_users')
             ->withPivot(['id', 'public_id', 'status', 'invited_at', 'joined_at'])
             ->withTimestamps();
     }

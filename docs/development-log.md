@@ -1,5 +1,36 @@
 # Development log
 
+## 2026-08-02 — Store users table and normalized Store address
+
+- Changed: Renamed the Store membership table to `store_users`; Eloquent pivots, membership enforcement, PostgreSQL authorization functions, broadcasting, Store-user administration, and API resources now use the renamed table. Store membership continues to establish Store access only, while Store-scoped roles and permissions decide permitted actions.
+- Reason: Make the Store-to-user relationship explicit in the database without weakening the existing scope, membership-status, role, permission, and policy layers.
+- Data/configuration impact: Added nullable `store_country_code`, `store_state`, `store_city`, `store_zip`, `store_address_1`, and `store_address_2` columns to `store_settings`. Registration, Store creation, Platform merchant create/edit, Store profile contact updates, and Store settings read/update now keep normalized settings synchronized. The migration preserves all existing relationship rows and rewrites PostgreSQL authorization functions to query `store_users`.
+- Compatibility or rollout notes: Public Store-user response keys remain `membership` for API compatibility. Apply migrations before deploying application code. Existing Store roles and permissions are unchanged.
+- Verification: Focused PostgreSQL migration, Store settings API, Platform merchant address, and authorization-boundary tests pass. Full verification is recorded after the documentation and quality gates below complete.
+
+## 2026-08-02 — Atomic merchant Store setup
+
+- Changed: Made Store provisioning create a draft Store, normalized settings, platform/custom domains, and one selected active theme before creating the Owner membership/role; registration, additional-Store creation, and Platform merchant creation now return a Store-specific `dashboard_url`.
+- Reason: Merchant setup must produce one complete, immediately manageable Store configuration instead of requiring disconnected follow-up inserts.
+- Data/configuration impact: No migration. Added `STOREFRONT_ROOT_DOMAIN`, `STORE_DEFAULT_THEME_KEY`, and `STORE_ADMIN_DASHBOARD_URL` configuration. Newly provisioned storefronts are disabled while the Store is draft; platform-domain SSL begins pending. Store slugs submitted through merchant creation must be DNS-safe lowercase labels separated by hyphens.
+- Compatibility or rollout notes: `theme_template_key` is optional and defaults to `default`. Existing custom-domain input becomes a pending primary custom domain while the generated platform domain remains active and verified. Direct unassigned Platform Store creation keeps its separate row-only contract.
+- Verification: Passed Pint, PHPStan, generated-documentation checks, and the full PostgreSQL suite with 29 tests and 386 assertions. The admin passed generated-documentation checks, TypeScript, ESLint, and a Next.js production build; its restarted local server returned HTTP 200 for login and correctly redirected unauthenticated Store-specific dashboard links on desktop and 390-pixel mobile with no console warnings/errors. Authenticated visual Store switching was not exercised because the verification browser had no signed-in merchant session.
+
+## 2026-08-02 — Store lifecycle and storefront configuration persistence
+
+- Changed: Replaced Store lifecycle values with `draft`, `trial`, `active`, `suspended`, `frozen`, and `closed`; added Store-owned domain, one-to-one settings, and theme persistence with Eloquent relationships and database invariants.
+- Reason: Give Store lifecycle, domains, storefront controls, media-backed branding, and theme configuration explicit relational ownership instead of relying only on legacy Store columns/JSON.
+- Data/configuration impact: Migrates `pending` Stores to `draft` and `cancelled` Stores to `closed`; creates `store_domains`, `store_settings`, and `store_themes`. Store deletion cascades dependent rows, media deletion nulls settings references, and PostgreSQL limits each Store to one primary domain and one active theme.
+- Compatibility or rollout notes: New direct Platform Stores default to `draft`. Domain/SSL state strings and JSON settings remain extensible. Existing profile/settings REST contracts are unchanged; dedicated APIs for the normalized records require a later service change.
+- Verification: Applied the migrations to the local development database; passed Pint, PHPStan, generated-documentation checks, and the full PostgreSQL suite with 27 tests and 364 assertions. The admin passed generated-documentation checks, TypeScript, ESLint, and a Next.js production build; its restarted local server returned HTTP 200. In-app visual reloading was blocked by browser URL policy after the restart, so no visual-pass claim is recorded.
+
+## 2026-08-02 — Owner-aware Platform Store directory
+
+- Changed: Extended `GET /api/v1/platform/stores` with a public owner projection from the earliest Store membership, related-member name/email search, and a 10-row default while retaining the 100-row maximum.
+- Data/configuration impact: No migration and no data rewrite. Existing `stores`, `store_memberships`, and `users` rows are read only; internal bigint keys remain private.
+- Compatibility or rollout notes: Existing Store fields, filters, sorting, `links`, and `meta` remain compatible. Collection items add nullable `owner`; direct Store create/detail/edit contracts are unchanged.
+- Verification: Added focused PostgreSQL feature coverage for the default page size, owner shape, and Store/domain/member search; targeted Pint passed.
+
 Record meaningful changes to behavior, architecture, dependencies, schemas, operations, or developer workflow. Keep entries concise; this is not a copy of Git history.
 
 Generated facts live in the [system inventory](generated/system-inventory.md). Run `composer docs:update` before completing an entry.

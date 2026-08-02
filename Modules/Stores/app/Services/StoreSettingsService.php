@@ -18,13 +18,24 @@ final readonly class StoreSettingsService
         'country_code',
     ];
 
+    private const NORMALIZED_SETTING_FIELDS = [
+        'contact_email',
+        'contact_phone',
+        'store_country_code',
+        'store_state',
+        'store_city',
+        'store_zip',
+        'store_address_1',
+        'store_address_2',
+    ];
+
     public function __construct(private StoreAccessService $access) {}
 
     public function view(User $user, Store $store): Store
     {
         $this->access->ensureCanView($user, $store);
 
-        return $store->refresh();
+        return $store->refresh()->load('storeSettings');
     }
 
     /** @param array<string, mixed> $data */
@@ -34,19 +45,34 @@ final readonly class StoreSettingsService
 
         return DB::transaction(function () use ($store, $data): Store {
             $attributes = Arr::only($data, self::LOCALE_FIELDS);
+            $normalizedSettings = Arr::only($data, self::NORMALIZED_SETTING_FIELDS);
 
             if (isset($data['preferences']) && is_array($data['preferences'])) {
                 $attributes['settings'] = array_replace(
                     is_array($store->settings) ? $store->settings : [],
                     $data['preferences'],
                 );
+
+                if (array_key_exists('support_email', $data['preferences'])) {
+                    $normalizedSettings['contact_email'] = $data['preferences']['support_email'];
+                }
+                if (array_key_exists('weight_unit', $data['preferences'])) {
+                    $normalizedSettings['weight_unit'] = $data['preferences']['weight_unit'];
+                }
+                if (array_key_exists('order_prefix', $data['preferences'])) {
+                    $normalizedSettings['order_number_prefix'] = $data['preferences']['order_prefix'];
+                }
             }
 
             if ($attributes !== []) {
                 $store->fill($attributes)->save();
             }
 
-            return $store->refresh();
+            if ($normalizedSettings !== []) {
+                $store->storeSettings()->updateOrCreate([], $normalizedSettings);
+            }
+
+            return $store->refresh()->load('storeSettings');
         });
     }
 }

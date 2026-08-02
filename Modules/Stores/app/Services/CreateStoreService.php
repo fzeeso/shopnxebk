@@ -18,7 +18,6 @@ final readonly class CreateStoreService
         'description',
         'email',
         'phone',
-        'primary_domain',
         'logo',
         'favicon',
         'cover_image',
@@ -40,11 +39,26 @@ final readonly class CreateStoreService
         }
 
         return DB::transaction(function () use ($owner, $data): Store {
-            $store = $this->storeProvisioner->provision($owner, (string) $data['name'], (string) $data['slug']);
+            $preferences = isset($data['preferences']) && is_array($data['preferences'])
+                ? $data['preferences']
+                : [];
+            $store = $this->storeProvisioner->provision($owner, (string) $data['name'], (string) $data['slug'], [
+                'theme_template_key' => $data['theme_template_key'] ?? config('stores.default_theme_key', 'default'),
+                'primary_domain' => $data['primary_domain'] ?? null,
+                'contact_email' => $data['email'] ?? $preferences['support_email'] ?? $owner->email,
+                'contact_phone' => $data['phone'] ?? null,
+                'store_country_code' => $data['store_country_code'] ?? $data['country_code'] ?? null,
+                'store_state' => $data['store_state'] ?? null,
+                'store_city' => $data['store_city'] ?? null,
+                'store_zip' => $data['store_zip'] ?? null,
+                'store_address_1' => $data['store_address_1'] ?? null,
+                'store_address_2' => $data['store_address_2'] ?? null,
+                'preferences' => $preferences,
+            ]);
             $profile = Arr::only($data, self::PROFILE_FIELDS);
 
-            if (isset($data['preferences']) && is_array($data['preferences'])) {
-                $profile['settings'] = $data['preferences'];
+            if ($preferences !== []) {
+                $profile['settings'] = $preferences;
             }
 
             if ($profile !== []) {
