@@ -86,11 +86,17 @@ The `stores` table is the source of truth for merchant identity, contact details
 
 Store-owned configuration is normalized into three additional tables. `store_domains` stores globally unique domains and permits only one primary domain per Store. `store_settings` is a dependent one-to-one record whose `store_id` is both its bigint primary key and Store foreign key; it has no public identifier because it is never addressed independently. `store_themes` has an internal bigint ID plus public ULID and permits one active theme per Store. Domain verification, SSL state, and theme settings remain extensible strings/JSON rather than closed database enums.
 
+`store_users` is the Store-to-user relationship table. Each row has its own internal bigint `id`, public ULID, bigint `store_id` and `user_id`, membership `status`, invitation/join timestamps, and audit timestamps. The Store/user pair is unique. The table was renamed from `store_memberships` without rewriting IDs or losing rows; its PostgreSQL constraints, indexes, and sequence now also use `store_users_*` names. Historical migrations retain the old name only as an upgrade step before the rename migration runs.
+
+Membership and authorization are separate layers. An active `store_users` row answers “may this Store-scoped identity enter this Store?” Store-scoped `model_has_roles` assignments and their permissions, evaluated with the same internal `store_id`, answer “what may this identity do?” A Platform identity cannot have a `store_users` row. PostgreSQL triggers reject mixed account scopes, Store role/direct-permission assignments without an active relationship, and scope changes while access records exist.
+
+The `store_settings` row contains normalized operational settings rather than routing them through arbitrary JSON. Its address fields are `store_country_code`, `store_state`, `store_city`, `store_zip`, `store_address_1`, and `store_address_2`; all are nullable during onboarding. Contact email/phone, weight unit, storefront/password switches, order prefix, branding media keys, social links, and extra settings remain alongside them. `store_country_code` is normalized to an uppercase two-character country code at API boundaries.
+
 `plan_id` and `subscription_id` are nullable internal bigint Billing integration keys. The Billing plan catalog now exists, but the historical Store columns remain unconstrained until existing values are audited and a subscription assignment workflow is implemented. They must never be returned as public identifiers. `logo`, `favicon`, and `cover_image` hold nullable storage references; upload authorization and file delivery remain Files/media responsibilities.
 
 Currency uses a three-character ISO 4217 code, country uses a two-character ISO 3166-1 alpha-2 code, language accepts a BCP 47-style code, and timezone stores an IANA timezone name. The database defaults new Stores to `USD`, `en`, `UTC`, and all capability/verification flags to `false`. Provisioning copies the display name into `legal_name`; imported historical Stores may keep optional profile values null until onboarding completes.
 
-Store management is service-based. `CreateStoreService` creates an additional Store and Owner membership for a Store-scoped identity. `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` require the selected Store ULID and active membership; profile/settings writes additionally require `manage store`. Merchant requests cannot change lifecycle, Billing links, verification, entitlements, launch/trial timestamps, or raw metadata/settings.
+Store management is service-based. `CreateStoreService` creates an additional Store and Owner relationship for a Store-scoped identity and passes contact/address data into `StoreProvisioner`. `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` require the selected Store ULID and active `store_users` row; profile/settings writes additionally require `manage store`. `GET /api/v1/store/settings` returns normalized contact/address values with locale, preferences, and read-only capabilities. `PATCH /api/v1/store/settings` updates those columns and synchronizes support email, weight unit, and order prefix from validated preferences. Profile email/phone changes synchronize the normalized contact columns. Merchant requests cannot change lifecycle, Billing links, verification, entitlements, launch/trial timestamps, or raw metadata/settings.
 
 Merchant Store creation is one atomic provisioning workflow. `ProvisionStore`
 creates the Store as `draft`, creates its one-to-one settings, reserves the
@@ -100,6 +106,14 @@ theme, creates the active Owner membership/role, and returns the Store. The
 creation responses add a Store-specific `dashboard_url` built from
 `STORE_ADMIN_DASHBOARD_URL` and the Store public ULID. Any failed database step
 rolls back the entire Store setup.
+
+The same address input is supported by account registration, authenticated
+`POST /api/v1/stores`, and Platform `POST /api/v1/platform/merchants`.
+Platform merchant detail/create/update resources include `store_settings`, and
+`PATCH /api/v1/platform/merchants/{merchant}` updates normalized address and
+contact data in the same transaction as owner and Store-profile changes. The
+public Store-user payload retains the key `membership` for API compatibility;
+that label does not expose or restore the former database table name.
 
 `PlatformStoreAdminService` is the Platform-only Store catalog boundary. It
 requires `manage stores`, returns public-safe Store resources, creates or edits

@@ -152,6 +152,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Stores | `Modules/Stores/database/migrations/2026_08_02_000800_update_store_status_lifecycle.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_02_000900_create_store_domains_settings_and_themes.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_02_001000_rename_store_memberships_and_add_store_setting_address.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_02_001100_normalize_store_users_database_object_names.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |

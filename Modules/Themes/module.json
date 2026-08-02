@@ -1,0 +1,1 @@
+{"name":"Themes","alias":"themes","description":"Theme marketplace catalog, immutable versions, review, licensing, and Store installations.","keywords":["themes","marketplace","storefront"],"priority":20,"providers":["Modules\\Themes\\Providers\\ThemesServiceProvider"],"files":[]}

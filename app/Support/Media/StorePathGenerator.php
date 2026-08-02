@@ -31,8 +31,12 @@ final class StorePathGenerator implements PathGenerator
         $storePublicId = $storeId === null ? null : Store::query()->whereKey($storeId)->value('public_id');
         $mediaPublicId = (string) $media->getAttribute('public_id');
 
-        if ($storePublicId === null || $mediaPublicId === '') {
-            throw new \LogicException('Media requires store_id and public_id before path generation.');
+        if ($mediaPublicId === '') {
+            throw new \LogicException('Media requires public_id before path generation.');
+        }
+
+        if ($storePublicId === null) {
+            return 'platform/media/'.$mediaPublicId;
         }
 
         return 'stores/'.$storePublicId.'/media/'.$mediaPublicId;

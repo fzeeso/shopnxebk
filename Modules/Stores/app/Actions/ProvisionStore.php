@@ -15,10 +15,14 @@ use Modules\Stores\Enums\StoreStatus;
 use Modules\Stores\Events\StoreCreated;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StoreMembership;
+use Modules\Themes\Contracts\ThemeInstaller;
 
 final readonly class ProvisionStore implements StoreProvisioner
 {
-    public function __construct(private ScopedRoleAssignmentService $roleAssignments) {}
+    public function __construct(
+        private ScopedRoleAssignmentService $roleAssignments,
+        private ThemeInstaller $themeInstaller,
+    ) {}
 
     /**
      * @param  array{
@@ -93,12 +97,7 @@ final readonly class ProvisionStore implements StoreProvisioner
                 ]);
             }
 
-            $store->themes()->create([
-                'name' => Str::headline($themeTemplateKey),
-                'template_key' => $themeTemplateKey,
-                'is_active' => true,
-                'settings' => [],
-            ]);
+            $this->themeInstaller->installSelected($store, $owner, $themeTemplateKey);
 
             StoreMembership::query()->create([
                 'store_id' => $store->getKey(),

@@ -121,7 +121,7 @@ flowchart LR
     User["users"]
     User --> Scope{"scope"}
     Scope -->|"platform"| Platform["Platform roles<br/>Super Admin, Support, Billing"]
-    Scope -->|"store"| Membership["Active Store membership"]
+    Scope -->|"store"| Membership["Active store_users row"]
     Membership --> StoreRole["Store role for same store_id<br/>Owner, Manager, Sales, Inventory"]
     Platform -. "cannot cross" .- Membership
 ```
@@ -129,6 +129,19 @@ flowchart LR
 Use `ScopedRoleAssignmentService` for assignments. It checks account scope, role scope, active membership, and Store identity. PostgreSQL triggers reject bypasses through direct pivot inserts. `user.scope:platform` and `user.scope:store` middleware make route ownership explicit.
 
 The `store_users` row only establishes that a Store-scoped user belongs to a Store and records its active/suspended state. It does not grant management powers by itself. Store-scoped roles and permissions, evaluated with the same internal `store_id` as the permission team, decide which API operations that user may perform.
+
+`store_users` has bigint `id`, ULID `public_id`, bigint `store_id`/`user_id`, `status`, invitation/join timestamps, and audit timestamps. The Store/user pair is unique. The rename migration preserves existing records and rewrites PostgreSQL authorization functions; a follow-up migration normalizes legacy sequences, constraints, foreign keys, and indexes to `store_users_*`. Eloquent's `StoreMembership` model name and the public `membership` resource field remain compatibility terminology, but both use the `store_users` table.
+
+Permission resolution for a Store request is:
+
+1. Require an authenticated `users.scope = store` identity.
+2. Resolve `X-Store-ID` from the public Store ULID to the internal bigint key.
+3. Require an active `store_users` row for that user and Store.
+4. For bearer authentication, require `store:access` and the same token `store_id`.
+5. Set Spatie Permission's team to that internal `store_id`.
+6. Evaluate Store roles, permissions, and the model policy for the requested action.
+
+Membership never substitutes for steps 5–6. For example, both Owner and Sales may have active `store_users` rows, while their assigned permissions expose different APIs.
 
 Domain entities use bigint `id` for primary keys, bigint `*_id` foreign keys for internal joins, and ULID `public_id` for REST, GraphQL, URLs, public events, and file paths. Middleware and actions resolve a public ULID once, then keep the internal bigint through the database flow. API resources and GraphQL fields serialize `public_id` as `id`; they must not expose bigint keys.
 
@@ -162,6 +175,32 @@ and `closed`. The Stores module also owns `store_domains`, the one-to-one
 `store_settings` record, and `store_themes`; normalized Store address fields live
 in `store_settings`, while membership rows live in `store_users`. See the module guide for keys,
 constraints, media relationships, and current API boundaries.
+
+### Normalized Store settings and address flow
+
+`store_settings.store_id` is both the primary key and the cascading foreign key
+to `stores.id`; the row is not independently URL-addressable. The normalized
+address columns are:
+
+| API/database field | Validation and behavior |
+| --- | --- |
+| `store_country_code` | Nullable two-letter country code, normalized uppercase. |
+| `store_state` | Nullable state/province/region, maximum 120 characters. |
+| `store_city` | Nullable city, maximum 120 characters. |
+| `store_zip` | Nullable postal/ZIP value, maximum 32 characters. |
+| `store_address_1` | Nullable primary street/address line, maximum 255 characters. |
+| `store_address_2` | Nullable secondary address line, maximum 255 characters. |
+
+Registration, `CreateStoreService`, and `PlatformMerchantService` pass these
+fields into `StoreProvisioner`, so the initial `store_settings` row is created
+inside the same transaction as the draft Store, domains, theme, Owner
+relationship, and Owner role. `GET /api/v1/store/settings` loads the one-to-one
+record. `PATCH /api/v1/store/settings` requires `manage store`, updates contact
+and address columns, and keeps `support_email`, `weight_unit`, and
+`order_prefix` synchronized with their normalized columns. Profile email/phone
+updates also synchronize contact settings. Platform merchant create/detail/edit
+responses include `store_settings`; Platform merchant edits update it in the
+same transaction as owner and Store-profile changes.
 
 ### Language catalog and Store language selection
 

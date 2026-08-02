@@ -15,6 +15,7 @@ use Modules\Settings\Models\Language;
 use Modules\Stores\Database\Factories\StoreFactory;
 use Modules\Stores\Enums\BusinessType;
 use Modules\Stores\Enums\StoreStatus;
+use Modules\Themes\Models\StoreTheme;
 use Spatie\Multitenancy\Models\Tenant as BaseTenant;
 
 #[Fillable([
@@ -89,7 +90,7 @@ final class Store extends BaseTenant
 
     public function activeTheme(): HasOne
     {
-        return $this->hasOne(StoreTheme::class)->where('is_active', true);
+        return $this->hasOne(StoreTheme::class)->where('status', 'published');
     }
 
     public function languages(): BelongsToMany
