@@ -1,5 +1,60 @@
 # Development log
 
+## 2026-08-03 — Theme marketplace architecture, APIs, and admin interface
+
+- Changed: Replaced the simple Store template table with the full Themes module:
+  publishers, categories/assignments, marketplace listings, immutable versions,
+  numbered review submissions, Store licenses, and licensed installed Store
+  copies. Added Platform catalog/release/review/license APIs, Store
+  marketplace/install/customize/duplicate/publish/delete APIs, Store
+  provisioning through `ThemeInstaller`, global Theme media support, and the
+  permission-gated Next.js Theme list/taxonomy/publisher interface.
+- Reason: Keep global marketplace identity and immutable release evidence
+  separate from Store-specific mutable settings/layout/CSS while supporting
+  safe review, licensing, installation, and future marketplace growth.
+- Data/configuration impact: The migration intentionally drops the former
+  `store_themes(name, template_key, is_active, settings)` table, creates the
+  eight-table Theme architecture, allows Platform media rows with null
+  `store_id`, and backfills the bundled default Theme/version/free license plus
+  one published installation for existing Stores. PostgreSQL enforces one
+  primary category, one current Store/Theme license, and one published
+  installation per Store.
+- Compatibility or rollout notes: Apply the Theme migrations before deploying
+  the new services. Store provisioning still accepts `theme_template_key` but
+  resolves it to a marketplace Theme/version/license. `theme_sales` is
+  intentionally deferred until provider-backed orders, commissions, refunds,
+  and payouts exist. Theme artifact metadata registration never executes
+  package code.
+- Documentation: Added the Theme architecture/module guide, all directional
+  module communication contracts, all 23 REST routes and OpenAPI request
+  shapes, and updated Store/context/developer/admin guides to the new ownership
+  model.
+- Verification: Applied a clean PostgreSQL migration set; validated OpenAPI
+  YAML; passed PHP syntax checks, Pint, PHPStan, and the full backend suite with
+  29 tests and 433 assertions. The admin passed generated-documentation checks,
+  TypeScript, ESLint, and its 21-page Next.js production build. The restarted
+  local admin returned `200` for `/login`, its Laravel proxy returned the
+  expected validation response, and the unauthenticated login screen passed
+  desktop and 390-pixel layout/overflow/console checks. Authenticated Theme
+  workflows were not exercised because no signed-in Platform session was
+  available in the verification browser.
+
+## 2026-08-03 — Platform Store domain settings and complete add workflow
+
+- Changed: Added Platform Store domain list/create/update APIs over `store_domains`, primary-domain synchronization, domain verification/routing/SSL controls, and complete direct Store creation of normalized locale, settings, generated platform-domain, and optional custom-domain records.
+- Reason: The Store editor needs one safe domain-settings form object and a usable Add Store workflow without duplicating domain data in another table.
+- Data/configuration impact: No migration. Existing `store_domains` remains authoritative. New direct Platform Stores receive `<slug>.<STOREFRONT_ROOT_DOMAIN>` and optionally a pending custom primary domain; `stores.primary_domain` changes transactionally when primary selection changes. Create requests may include normalized `locale_settings` preferences.
+- Compatibility or rollout notes: All routes require Platform scope plus `manage stores` and never use `X-Store-ID`. No delete route is exposed. Hostnames are globally unique, the current primary cannot be unset directly, and owner/membership/role/plan/subscription creation remains outside the direct Store API.
+- Verification: Pint, PHPStan, generated-documentation checks, and the full PostgreSQL suite pass with 32 tests and 458 assertions, including initial domain creation, locale persistence, domain listing/add/update, primary switching, verification state, and global hostname uniqueness. The separate admin passed generated-documentation checks, TypeScript, ESLint, a Next.js production build, and authenticated desktop/mobile browser checks with a clean console.
+
+## 2026-08-03 — Store locale settings
+
+- Changed: Added the one-to-one `store_locale_settings` table and Platform Store locale-settings read/update API. The API combines Store-owned currency/language/country/timezone fields with normalized date, time, week, number, weight, and dimension preferences for one editor workflow.
+- Reason: Keep regional presentation settings in a focused Store-edit section without mixing them into profile, lifecycle, billing, or raw JSON controls.
+- Data/configuration impact: The migration backfills every existing Store from validated legacy preference values and defaults, and new Store provisioning creates the row transactionally. Store-language selection remains in `store_languages`; currency, language, country, and IANA timezone remain first-class `stores` columns instead of being duplicated. UTF-8 and daylight-saving behavior are platform-managed.
+- Compatibility or rollout notes: `GET/PATCH /api/v1/platform/stores/{store}/locale-settings` requires Platform scope plus `manage stores`. Merchant `PATCH /api/v1/store/settings` continues to work and synchronizes its date/time/weight/dimension preference subset into the normalized row.
+- Verification: Applied the migration locally. Focused PostgreSQL coverage passes with 2 tests and 21 assertions.
+
 ## 2026-08-02 — Store users table and normalized Store address
 
 - Changed: Renamed the Store membership table to `store_users`; Eloquent pivots, membership enforcement, PostgreSQL authorization functions, broadcasting, Store-user administration, and API resources now use the renamed table. Store membership continues to establish Store access only, while Store-scoped roles and permissions decide permitted actions.

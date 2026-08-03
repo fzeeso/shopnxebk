@@ -45,6 +45,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Billing | yes | 5 | Platform plan, pricing, reusable feature, and plan-feature administration. | `Modules\Billing\Providers\BillingServiceProvider` |
 | Settings | yes | 15 | Platform-admin settings and global language and currency catalogs. | `Modules\Settings\Providers\SettingsServiceProvider` |
 | Stores | yes | 10 | Shared-schema store context, memberships, and store lifecycle. | `Modules\Stores\Providers\StoresServiceProvider` |
+| Themes | yes | 20 | Theme marketplace catalog, immutable versions, review, licensing, and Store installations. | `Modules\Themes\Providers\ThemesServiceProvider` |
 
 ## HTTP routes
 
@@ -107,6 +108,27 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/platform/stores` | `api.v1.platform.stores.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/stores/{store}` | `api.v1.platform.stores.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/stores/{store}` | `api.v1.platform.stores.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/stores/{store}/domains` | `api.v1.platform.stores.domains.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/stores/{store}/domains` | `api.v1.platform.stores.domains.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/stores/{store}/domains/{domain}` | `api.v1.platform.stores.domains.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/stores/{store}/locale-settings` | `api.v1.platform.stores.locale-settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/stores/{store}/locale-settings` | `api.v1.platform.stores.locale-settings.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/theme-categories` | `api.v1.platform.theme-categories.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/theme-categories` | `api.v1.platform.theme-categories.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/theme-categories/{themeCategory}` | `api.v1.platform.theme-categories.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/theme-licenses/{themeLicense}` | `api.v1.platform.theme-licenses.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/theme-publishers` | `api.v1.platform.theme-publishers.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/theme-publishers` | `api.v1.platform.theme-publishers.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/theme-publishers/{themePublisher}` | `api.v1.platform.theme-publishers.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/theme-submissions/{themeSubmission}/review` | `api.v1.platform.theme-submissions.review` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/theme-versions/{themeVersion}/publish` | `api.v1.platform.theme-versions.publish` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/theme-versions/{themeVersion}/submit` | `api.v1.platform.theme-versions.submit` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/themes` | `api.v1.platform.themes.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/themes` | `api.v1.platform.themes.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/themes/{theme}` | `api.v1.platform.themes.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/themes/{theme}` | `api.v1.platform.themes.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/themes/{theme}/licenses` | `api.v1.platform.themes.licenses.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `POST` | `/api/v1/platform/themes/{theme}/versions` | `api.v1.platform.themes.versions.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/users` | `api.v1.platform.users.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/users` | `api.v1.platform.users.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/users/{user}` | `api.v1.platform.users.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -118,6 +140,13 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/settings` | `api.v1.store.settings.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/theme-marketplace` | `api.v1.store.theme-marketplace.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/themes` | `api.v1.store.themes.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/themes` | `api.v1.store.themes.install` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/themes/{storeTheme}` | `api.v1.store.themes.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/themes/{storeTheme}` | `api.v1.store.themes.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/themes/{storeTheme}/duplicate` | `api.v1.store.themes.duplicate` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/themes/{storeTheme}/publish` | `api.v1.store.themes.publish` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/users` | `api.v1.store.users.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/users` | `api.v1.store.users.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/stores` | `api.v1.stores.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store |
@@ -153,6 +182,10 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Stores | `Modules/Stores/database/migrations/2026_08_02_000900_create_store_domains_settings_and_themes.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_02_001000_rename_store_memberships_and_add_store_setting_address.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_02_001100_normalize_store_users_database_object_names.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_03_000100_create_store_locale_settings_table.php` |
+| Themes | `Modules/Themes/database/migrations/2026_08_02_001200_create_theme_marketplace_catalog.php` |
+| Themes | `Modules/Themes/database/migrations/2026_08_02_001210_create_theme_review_licensing_and_installations.php` |
+| Themes | `Modules/Themes/database/migrations/2026_08_02_001220_backfill_default_theme_for_existing_stores.php` |
 | Application foundation | `database/migrations/0001_01_01_000001_create_cache_table.php` |
 | Application foundation | `database/migrations/0001_01_01_000002_create_jobs_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000250_create_notifications_table.php` |

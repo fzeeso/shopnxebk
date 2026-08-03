@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Platform settings, and Plans & Pricing endpoints. GraphQL is documented by the Lighthouse schema.
+  description: Authentication, Store management, Theme marketplace, Platform settings, and Plans & Pricing endpoints. GraphQL is documented by the Lighthouse schema.
 servers:
   - url: http://localhost:8000
 tags:
@@ -14,6 +14,8 @@ tags:
     description: Member and role management inside one selected Store.
   - name: Platform Settings
     description: Global SaaS language and currency configuration for the /admin/settings component.
+  - name: Themes
+    description: Platform marketplace/releases/licenses and Store-installed Theme copies.
 paths:
   /api/health/live:
     get:
@@ -317,7 +319,7 @@ paths:
       tags: [Platform Accounts]
       security: [{sanctum: []}]
       summary: Create a merchant
-      description: Atomically creates a Store user, draft Store, settings, platform domain, selected active theme, active membership, and Store roles; Owner is always included.
+      description: Atomically creates a Store user, draft Store, settings, platform domain, Theme license, published installed Theme copy, active membership, and Store roles; Owner is always included.
       requestBody:
         required: true
         content:
@@ -404,7 +406,7 @@ paths:
       tags: [Platform Stores]
       security: [{sanctum: []}]
       summary: Create an unassigned Store
-      description: Requires manage stores. Creates no owner, membership, role, plan, or subscription; status defaults to draft.
+      description: Requires manage stores. Creates normalized locale/settings and platform/custom domain records, but no owner, membership, role, plan, or subscription; status defaults to draft.
       requestBody:
         required: true
         content:
@@ -455,6 +457,104 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Store not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/stores/{store}/locale-settings:
+    parameters:
+      - {name: store, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store ULID}
+    get:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: View Store locale settings
+      description: Requires Platform scope and manage stores. UTF-8 and automatic IANA timezone daylight-saving behavior are read-only managed standards.
+      responses:
+        '200':
+          description: Unified Store regional and display-format settings
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreLocaleSettingsResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+    patch:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Update Store locale settings
+      description: Updates Store currency/language/country/timezone and normalized display-format preferences in one transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateStoreLocaleSettingsRequest'}
+      responses:
+        '200':
+          description: Store locale settings updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreLocaleSettingsResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/stores/{store}/domains:
+    parameters:
+      - {name: store, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store ULID}
+    get:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: List Store domains
+      description: Requires Platform scope and manage stores. Returns primary first, then hostname order.
+      responses:
+        '200':
+          description: Normalized Store domain records
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreDomainsResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+    post:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Add a Store domain
+      description: Hostnames are globally unique. The first domain is always primary; making a later domain primary updates stores.primary_domain transactionally.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateStoreDomainRequest'}
+      responses:
+        '201':
+          description: Store domain created
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreDomainResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/stores/{store}/domains/{domain}:
+    parameters:
+      - {name: store, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store ULID}
+      - {name: domain, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store-domain ULID}
+    patch:
+      tags: [Platform Stores]
+      security: [{sanctum: []}]
+      summary: Update a Store domain
+      description: Updates hostname/type/routing/SSL/verification state and primary selection. A current primary can only be replaced by making another domain primary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/UpdateStoreDomainRequest'}
+      responses:
+        '200':
+          description: Store domain updated
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StoreDomainResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Store or domain not found}
         '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/store/roles:
     get:
@@ -885,6 +985,322 @@ paths:
       responses:
         '204': {description: Feature detached}
         '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/platform/theme-publishers:
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: List Theme publishers
+      description: Requires Platform scope and manage marketplace.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated publisher catalog}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Create a Theme publisher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemePublisherWriteRequest'}
+      responses:
+        '201': {description: Publisher created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-publishers/{themePublisher}:
+    parameters:
+      - {name: themePublisher, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Update a Theme publisher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemePublisherWriteRequest'}
+      responses:
+        '200': {description: Publisher updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-categories:
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: List Theme taxonomy and facets
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated Theme categories}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Create a Theme category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeCategoryWriteRequest'}
+      responses:
+        '201': {description: Category created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-categories/{themeCategory}:
+    parameters:
+      - {name: themeCategory, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Update a Theme category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeCategoryWriteRequest'}
+      responses:
+        '200': {description: Category updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/themes:
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: List marketplace Themes
+      description: Requires Platform scope and manage marketplace.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 160}}
+        - {name: source_type, in: query, schema: {type: string, enum: [platform, third_party, custom]}}
+        - {name: status, in: query, schema: {type: string, enum: [draft, pending_review, approved, published, suspended, rejected, retired]}}
+        - {name: visibility, in: query, schema: {type: string, enum: [public, private, unlisted]}}
+      responses:
+        '200': {description: Paginated Theme listings}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Create a Theme listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeWriteRequest'}
+      responses:
+        '201': {description: Theme created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/themes/{theme}:
+    parameters:
+      - {name: theme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: View a Theme with versions and submissions
+      responses:
+        '200':
+          description: Theme detail
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ThemeResponse'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Theme not found}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Update a Theme listing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeWriteRequest'}
+      responses:
+        '200': {description: Theme updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/themes/{theme}/versions:
+    parameters:
+      - {name: theme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Register an immutable Theme version
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeVersionWriteRequest'}
+      responses:
+        '201': {description: Version registered}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-versions/{themeVersion}/submit:
+    parameters:
+      - {name: themeVersion, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Submit a Theme version for review
+      responses:
+        '201': {description: Numbered submission created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-submissions/{themeSubmission}/review:
+    parameters:
+      - {name: themeSubmission, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Decide a Theme review submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeReviewRequest'}
+      responses:
+        '200': {description: Review decision recorded}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-versions/{themeVersion}/publish:
+    parameters:
+      - {name: themeVersion, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Publish an approved immutable Theme version
+      responses:
+        '200': {description: Theme current-version pointer updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/themes/{theme}/licenses:
+    parameters:
+      - {name: theme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Issue a Theme license to a Store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ThemeLicenseIssueRequest'}
+      responses:
+        '201': {description: License issued}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/theme-licenses/{themeLicense}:
+    parameters:
+      - {name: themeLicense, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Update a Theme license lifecycle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: {type: string, enum: [active, revoked, transferred, refunded, expired]}
+      responses:
+        '200': {description: License updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/theme-marketplace:
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: List Themes installable by the selected Store
+      description: Requires active Store membership and manage themes.
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 160}}
+      responses:
+        '200': {description: Paginated marketplace Themes}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/themes:
+    get:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: List installed Theme copies
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated Store Theme installations}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Install a Theme as a draft Store copy
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StoreThemeInstallRequest'}
+      responses:
+        '201': {description: Theme installed}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/themes/{storeTheme}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storeTheme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Update a Store Theme copy with optimistic revision control
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/StoreThemeUpdateRequest'}
+      responses:
+        '200': {description: Store Theme updated with incremented revision}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Soft-delete a non-published Store Theme copy
+      responses:
+        '204': {description: Store Theme deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/themes/{storeTheme}/duplicate:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storeTheme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Duplicate an installed Theme into a draft
+      responses:
+        '201': {description: Draft duplicate created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/themes/{storeTheme}/publish:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storeTheme, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Themes]
+      security: [{sanctum: []}]
+      summary: Publish this copy and archive the former published copy
+      responses:
+        '200': {description: Store Theme published}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /graphql:
     post:
       summary: Lighthouse GraphQL endpoint
@@ -929,6 +1345,10 @@ components:
         per_page: {type: integer, minimum: 1, maximum: 100}
         to: {type: [integer, 'null'], minimum: 1}
         total: {type: integer, minimum: 0}
+    PublicUlid:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+      description: Public ULID; the internal bigint key is never exposed.
     Health:
       type: object
       required: [status]
@@ -1159,9 +1579,115 @@ components:
         - {$ref: '#/components/schemas/PlatformStoreWriteFields'}
         - type: object
           required: [name, slug]
+          properties:
+            locale_settings: {$ref: '#/components/schemas/CreateStoreLocaleSettings'}
     UpdatePlatformStoreRequest:
       allOf:
         - {$ref: '#/components/schemas/PlatformStoreWriteFields'}
+    UpdateStoreLocaleSettingsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        currency_code: {type: string, pattern: '^[A-Za-z]{3}$', description: Must be an active Platform currency code.}
+        language_code: {type: string, maxLength: 10, description: Must be an active Platform language locale; hyphens normalize to underscores.}
+        timezone: {type: string, description: IANA timezone identifier.}
+        country_code: {type: [string, 'null'], pattern: '^[A-Za-z]{2}$'}
+        date_format: {type: string, enum: ['Y-m-d', 'd/m/Y', 'm/d/Y']}
+        time_format: {type: string, enum: [12h, 24h]}
+        week_starts_on: {type: string, enum: [monday, sunday, saturday]}
+        weight_unit: {type: string, enum: [kg, lb]}
+        dimension_unit: {type: string, enum: [cm, in]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        decimal_separator: {type: string, enum: [dot, comma]}
+        thousands_separator: {type: string, enum: [comma, dot, space, none]}
+    CreateStoreLocaleSettings:
+      type: object
+      additionalProperties: false
+      properties:
+        date_format: {type: string, enum: ['Y-m-d', 'd/m/Y', 'm/d/Y']}
+        time_format: {type: string, enum: [12h, 24h]}
+        week_starts_on: {type: string, enum: [monday, sunday, saturday]}
+        weight_unit: {type: string, enum: [kg, lb]}
+        dimension_unit: {type: string, enum: [cm, in]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        decimal_separator: {type: string, enum: [dot, comma]}
+        thousands_separator: {type: string, enum: [comma, dot, space, none]}
+    StoreLocaleSettings:
+      type: object
+      required: [store_id, currency_code, language_code, timezone, date_format, time_format, week_starts_on, weight_unit, dimension_unit, decimal_places, decimal_separator, thousands_separator, managed]
+      properties:
+        store_id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        currency_code: {type: string, minLength: 3, maxLength: 3}
+        language_code: {type: string}
+        timezone: {type: string}
+        country_code: {type: [string, 'null'], minLength: 2, maxLength: 2}
+        date_format: {type: string, enum: ['Y-m-d', 'd/m/Y', 'm/d/Y']}
+        time_format: {type: string, enum: [12h, 24h]}
+        week_starts_on: {type: string, enum: [monday, sunday, saturday]}
+        weight_unit: {type: string, enum: [kg, lb]}
+        dimension_unit: {type: string, enum: [cm, in]}
+        decimal_places: {type: integer, minimum: 0, maximum: 4}
+        decimal_separator: {type: string, enum: [dot, comma]}
+        thousands_separator: {type: string, enum: [comma, dot, space, none]}
+        managed:
+          type: object
+          required: [character_set, daylight_saving]
+          properties:
+            character_set: {type: string, enum: [UTF-8]}
+            daylight_saving: {type: string, enum: [automatic]}
+        updated_at: {type: [string, 'null'], format: date-time}
+    StoreLocaleSettingsResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/StoreLocaleSettings'}
+    StoreDomain:
+      type: object
+      required: [id, domain, domain_type, is_primary, status, ssl_status, is_verified]
+      properties:
+        id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+        domain: {type: string, maxLength: 253}
+        domain_type: {type: string, enum: [platform, custom]}
+        is_primary: {type: boolean}
+        status: {type: string, enum: [pending, active, failed, disabled]}
+        ssl_status: {type: string, enum: [pending, provisioning, active, failed]}
+        is_verified: {type: boolean}
+        verified_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CreateStoreDomainRequest:
+      type: object
+      additionalProperties: false
+      required: [domain]
+      properties:
+        domain: {type: string, maxLength: 253}
+        domain_type: {type: string, enum: [platform, custom], default: custom}
+        is_primary: {type: boolean, default: false}
+        status: {type: string, enum: [pending, active, failed, disabled], default: pending}
+        ssl_status: {type: string, enum: [pending, provisioning, active, failed], default: pending}
+        is_verified: {type: boolean, default: false}
+    UpdateStoreDomainRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        domain: {type: string, maxLength: 253}
+        domain_type: {type: string, enum: [platform, custom]}
+        is_primary: {type: boolean}
+        status: {type: string, enum: [pending, active, failed, disabled]}
+        ssl_status: {type: string, enum: [pending, provisioning, active, failed]}
+        is_verified: {type: boolean}
+    StoreDomainResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/StoreDomain'}
+    StoreDomainsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/StoreDomain'}
     StoreResponse:
       type: object
       required: [data]
@@ -1293,6 +1819,236 @@ components:
         tax_inclusive_pricing: {type: boolean}
         low_stock_threshold: {type: integer, minimum: 0, maximum: 1000000}
         support_email: {type: [string, 'null'], format: email}
+    ThemePublisher:
+      type: object
+      required: [id, publisher_type, display_name, slug, status, support_email]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        owner_user_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        publisher_type: {type: string, enum: [platform, third_party]}
+        display_name: {type: string}
+        slug: {type: string}
+        status: {type: string, enum: [pending, active, suspended, rejected, closed]}
+        support_email: {type: string, format: email}
+        support_url: {type: [string, 'null'], format: uri}
+        website_url: {type: [string, 'null'], format: uri}
+        payout_account_reference: {type: [string, 'null'], description: Opaque provider reference; never credentials or bank details.}
+        default_commission_bps: {type: [integer, 'null'], minimum: 0, maximum: 10000}
+        verified_at: {type: [string, 'null'], format: date-time}
+        terms_accepted_at: {type: [string, 'null'], format: date-time}
+    ThemePublisherWriteRequest:
+      type: object
+      properties:
+        owner_user_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        publisher_type: {type: string, enum: [platform, third_party]}
+        display_name: {type: string, maxLength: 160}
+        slug: {type: string, maxLength: 100}
+        status: {type: string, enum: [pending, active, suspended, rejected, closed]}
+        support_email: {type: string, format: email}
+        support_url: {type: [string, 'null'], format: uri}
+        website_url: {type: [string, 'null'], format: uri}
+        payout_account_reference: {type: [string, 'null'], maxLength: 255}
+        default_commission_bps: {type: [integer, 'null'], minimum: 0, maximum: 10000}
+        verified_at: {type: [string, 'null'], format: date-time}
+        terms_accepted_at: {type: [string, 'null'], format: date-time}
+    ThemeCategory:
+      type: object
+      required: [id, name, slug, category_type, sort_order, is_active]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        parent_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        name: {type: string}
+        slug: {type: string}
+        description: {type: [string, 'null']}
+        category_type: {type: string, enum: [industry, style, feature, catalog_size]}
+        sort_order: {type: integer, minimum: 0}
+        is_active: {type: boolean}
+        is_primary: {type: boolean}
+    ThemeCategoryWriteRequest:
+      type: object
+      properties:
+        parent_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        name: {type: string, maxLength: 120}
+        slug: {type: string, maxLength: 120}
+        description: {type: [string, 'null'], maxLength: 5000}
+        category_type: {type: string, enum: [industry, style, feature, catalog_size]}
+        sort_order: {type: integer, minimum: 0, maximum: 1000000}
+        is_active: {type: boolean}
+    ThemeVersion:
+      type: object
+      required: [id, version, status, engine_version, source_archive_object_key, package_sha256, package_size_bytes, uncompressed_size_bytes, file_count, manifest]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        version: {type: string}
+        status: {type: string, enum: [uploaded, scanning, validating, validation_failed, ready_for_review, approved, published, deprecated, blocked]}
+        engine_version: {type: string}
+        minimum_platform_version: {type: [string, 'null']}
+        maximum_platform_version: {type: [string, 'null']}
+        source_archive_object_key: {type: string, description: Private quarantine object key; not a public download URL.}
+        compiled_artifact_object_key: {type: [string, 'null']}
+        package_sha256: {type: string, pattern: '^[A-Fa-f0-9]{64}$'}
+        package_size_bytes: {type: integer, minimum: 1}
+        uncompressed_size_bytes: {type: integer, minimum: 1}
+        file_count: {type: integer, minimum: 1}
+        manifest: {type: object}
+        settings_schema: {type: array}
+        validation_report: {type: object}
+        release_notes: {type: [string, 'null']}
+        approved_at: {type: [string, 'null'], format: date-time}
+        published_at: {type: [string, 'null'], format: date-time}
+    Theme:
+      type: object
+      required: [id, name, slug, summary, source_type, visibility, commercial_type, status, price, is_featured]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        publisher:
+          oneOf:
+            - {$ref: '#/components/schemas/ThemePublisher'}
+            - {type: 'null'}
+        owner_store_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        created_by_user_id: {$ref: '#/components/schemas/PublicUlid'}
+        name: {type: string}
+        slug: {type: string}
+        summary: {type: string}
+        description: {type: [string, 'null']}
+        source_type: {type: string, enum: [platform, third_party, custom]}
+        visibility: {type: string, enum: [public, private, unlisted]}
+        commercial_type: {type: string, enum: [free, paid, private]}
+        status: {type: string, enum: [draft, pending_review, approved, published, suspended, rejected, retired]}
+        price:
+          type: object
+          required: [amount_minor, currency_code]
+          properties:
+            amount_minor: {type: [integer, 'null'], minimum: 0}
+            currency_code: {type: [string, 'null'], pattern: '^[A-Z]{3}$'}
+        support_email: {type: [string, 'null'], format: email}
+        support_url: {type: [string, 'null'], format: uri}
+        documentation_url: {type: [string, 'null'], format: uri}
+        demo_url: {type: [string, 'null'], format: uri}
+        listing_metadata: {type: object}
+        is_featured: {type: boolean}
+        published_at: {type: [string, 'null'], format: date-time}
+        current_version:
+          oneOf:
+            - {$ref: '#/components/schemas/ThemeVersion'}
+            - {type: 'null'}
+        versions:
+          type: array
+          items: {$ref: '#/components/schemas/ThemeVersion'}
+        categories:
+          type: array
+          items: {$ref: '#/components/schemas/ThemeCategory'}
+    ThemeResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Theme'}
+    ThemeWriteRequest:
+      type: object
+      properties:
+        publisher_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        owner_store_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        name: {type: string, maxLength: 160}
+        slug: {type: string, maxLength: 120}
+        summary: {type: string, maxLength: 320}
+        description: {type: [string, 'null'], maxLength: 20000}
+        source_type: {type: string, enum: [platform, third_party, custom]}
+        visibility: {type: string, enum: [public, private, unlisted]}
+        commercial_type: {type: string, enum: [free, paid, private]}
+        status: {type: string, enum: [draft, pending_review, approved, published, suspended, rejected, retired]}
+        price_amount_minor: {type: [integer, 'null'], minimum: 0}
+        price_currency: {type: [string, 'null'], pattern: '^[A-Z]{3}$'}
+        support_email: {type: [string, 'null'], format: email}
+        support_url: {type: [string, 'null'], format: uri}
+        documentation_url: {type: [string, 'null'], format: uri}
+        demo_url: {type: [string, 'null'], format: uri}
+        listing_metadata: {type: object}
+        is_featured: {type: boolean}
+        category_ids:
+          type: array
+          maxItems: 30
+          items: {$ref: '#/components/schemas/PublicUlid'}
+        primary_category_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+    ThemeVersionWriteRequest:
+      type: object
+      required: [version, source_archive_object_key, package_sha256, package_size_bytes, uncompressed_size_bytes, file_count, manifest]
+      properties:
+        version: {type: string, maxLength: 30, description: Semantic version}
+        engine_version: {type: string, maxLength: 30}
+        minimum_platform_version: {type: [string, 'null'], maxLength: 30}
+        maximum_platform_version: {type: [string, 'null'], maxLength: 30}
+        source_archive_object_key: {type: string, maxLength: 2048}
+        compiled_artifact_object_key: {type: [string, 'null'], maxLength: 2048}
+        package_sha256: {type: string, pattern: '^[A-Fa-f0-9]{64}$'}
+        package_size_bytes: {type: integer, minimum: 1, maximum: 104857600}
+        uncompressed_size_bytes: {type: integer, minimum: 1, maximum: 524288000}
+        file_count: {type: integer, minimum: 1, maximum: 10000}
+        manifest: {type: object}
+        settings_schema: {type: array}
+        validation_report: {type: object}
+        release_notes: {type: [string, 'null'], maxLength: 20000}
+    ThemeReviewRequest:
+      type: object
+      required: [decision]
+      properties:
+        decision: {type: string, enum: [approved, changes_requested, rejected]}
+        review_notes: {type: [string, 'null'], maxLength: 20000}
+        rejection_codes:
+          type: array
+          maxItems: 100
+          items: {type: string, maxLength: 120}
+    ThemeLicenseIssueRequest:
+      type: object
+      required: [store_id, license_type]
+      properties:
+        store_id: {$ref: '#/components/schemas/PublicUlid'}
+        license_type: {type: string, enum: [trial, free, paid, custom_owner, complimentary]}
+        billing_order_item_id: {type: [integer, 'null'], minimum: 1}
+        purchased_by_user_id:
+          oneOf:
+            - {$ref: '#/components/schemas/PublicUlid'}
+            - {type: 'null'}
+        trial_expires_at: {type: [string, 'null'], format: date-time}
+    StoreThemeInstallRequest:
+      type: object
+      required: [theme_id]
+      properties:
+        theme_id: {$ref: '#/components/schemas/PublicUlid'}
+        name: {type: [string, 'null'], maxLength: 160}
+        as_trial: {type: boolean, default: false}
+    StoreThemeUpdateRequest:
+      type: object
+      required: [customization_revision]
+      properties:
+        name: {type: string, maxLength: 160}
+        settings_data: {type: object}
+        template_data: {type: object}
+        custom_css: {type: [string, 'null'], maxLength: 200000}
+        customization_revision: {type: integer, minimum: 1}
     Plan:
       type: object
       required: [id, name, slug, price, status, is_featured, sort_order, features]

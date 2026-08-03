@@ -43,13 +43,21 @@ references, and JSON social/extra settings.
 The normalized postal address is stored as `store_country_code`, `store_state`,
 `store_city`, `store_zip`, `store_address_1`, and `store_address_2`.
 
-`store_themes` uses bigint IDs and public ULIDs for named template instances,
-with JSON settings and at most one active theme per Store. These persistence
-records are available through `Store::domains()`, `Store::storeSettings()`,
-`Store::themes()`, and `Store::activeTheme()`. Provisioning creates the initial
-records. `GET/PATCH /api/v1/store/settings` reads and updates the normalized
-contact/address values; dedicated post-creation domain and theme APIs remain
-outside the current REST contract.
+`store_locale_settings` is a second one-to-one dependent record keyed by
+`store_id`. It normalizes date/time/week, general number presentation, weight,
+and dimension preferences. Currency, default language, country, and IANA
+timezone remain first-class `stores` fields, while UTF-8 and automatic
+timezone daylight-saving rules are platform-managed standards.
+
+Themes owns `store_themes`. Each installed copy has bigint/public-ULID
+identity and references a Theme, immutable version, and Store license. It keeps
+mutable settings/template data/CSS plus an optimistic customization revision;
+PostgreSQL permits one non-deleted `published` copy per Store.
+`Store::themes()` and `Store::activeTheme()` expose those relationships,
+while Theme services own writes. `GET/PATCH /api/v1/store/settings` reads and
+updates normalized contact/address values. Post-creation Theme marketplace,
+install, customize, duplicate, publish, and draft-delete APIs are documented in
+[Theme marketplace and Store themes](themes.md).
 
 ## Store provisioning
 
@@ -59,12 +67,14 @@ Merchant onboarding accepts an optional `theme_template_key`, defaulting to
 1. creates the Store with `status = draft`;
 2. creates `store_settings` with the merchant contact/preferences and a
    disabled public storefront;
-3. reserves `<slug>.<STOREFRONT_ROOT_DOMAIN>` as an immediately verified
+3. creates `store_locale_settings` from validated preferences or defaults;
+4. reserves `<slug>.<STOREFRONT_ROOT_DOMAIN>` as an immediately verified
    platform domain with SSL pending;
-4. records an optional custom domain as pending and primary;
-5. installs the selected template as the single active Store theme;
-6. creates the active Owner membership and role; and
-7. returns `dashboard_url`, containing the Store public ULID as the `store`
+5. records an optional custom domain as pending and primary;
+6. calls `ThemeInstaller` to resolve a published version, issue the license,
+   and create the selected Theme as the Store's published copy;
+7. creates the active Owner membership and role; and
+8. returns `dashboard_url`, containing the Store public ULID as the `store`
    query parameter.
 
 A constraint or authorization failure at any stage rolls back every inserted

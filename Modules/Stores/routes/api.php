@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformMerchantController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreController;
+use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreDomainController;
+use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreLocaleSettingsController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreLanguageController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreUserController;
@@ -34,6 +36,11 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:platform'])
     ->group(function (): void {
         Route::get('stores', [PlatformStoreController::class, 'index'])->name('stores.index');
         Route::post('stores', [PlatformStoreController::class, 'store'])->name('stores.store');
+        Route::get('stores/{store}/domains', [PlatformStoreDomainController::class, 'index'])->name('stores.domains.index');
+        Route::post('stores/{store}/domains', [PlatformStoreDomainController::class, 'store'])->name('stores.domains.store');
+        Route::patch('stores/{store}/domains/{domain}', [PlatformStoreDomainController::class, 'update'])->name('stores.domains.update');
+        Route::get('stores/{store}/locale-settings', [PlatformStoreLocaleSettingsController::class, 'show'])->name('stores.locale-settings.show');
+        Route::patch('stores/{store}/locale-settings', [PlatformStoreLocaleSettingsController::class, 'update'])->name('stores.locale-settings.update');
         Route::get('stores/{store}', [PlatformStoreController::class, 'show'])->name('stores.show');
         Route::patch('stores/{store}', [PlatformStoreController::class, 'update'])->name('stores.update');
         Route::get('merchant-roles', [PlatformMerchantController::class, 'roles'])->name('merchant-roles.index');

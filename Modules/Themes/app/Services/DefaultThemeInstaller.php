@@ -41,9 +41,10 @@ final readonly class DefaultThemeInstaller implements ThemeInstaller
                 ->first();
 
             if ($license === null) {
-                $licenseType = match ($theme->commercial_type) {
-                    'free' => 'free',
-                    'private' when $theme->owner_store_id === $store->getKey() => 'custom_owner',
+                $licenseType = match (true) {
+                    $theme->commercial_type === 'free' => 'free',
+                    $theme->commercial_type === 'private'
+                        && $theme->owner_store_id === $store->getKey() => 'custom_owner',
                     default => null,
                 };
                 if ($licenseType === null) {

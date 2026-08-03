@@ -28,7 +28,15 @@ final readonly class PlatformStoreAdminService
         'is_marketplace_enabled',
     ];
 
-    public function __construct(private PlatformStoreAccessService $access) {}
+    private const LOCALE_SETTING_FIELDS = [
+        'date_format', 'time_format', 'week_starts_on', 'weight_unit',
+        'dimension_unit', 'decimal_places', 'decimal_separator', 'thousands_separator',
+    ];
+
+    public function __construct(
+        private PlatformStoreAccessService $access,
+        private StoreDomainManager $domains,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $filters
@@ -91,14 +99,34 @@ final readonly class PlatformStoreAdminService
 
         return DB::transaction(function () use ($data): Store {
             $attributes = Arr::only($data, self::WRITABLE_FIELDS);
+            $localeSettings = is_array($data['locale_settings'] ?? null)
+                ? Arr::only($data['locale_settings'], self::LOCALE_SETTING_FIELDS)
+                : [];
+            $primaryDomain = array_key_exists('primary_domain', $attributes)
+                ? $attributes['primary_domain']
+                : null;
+            unset($attributes['primary_domain']);
             $attributes['legal_name'] = filled($attributes['legal_name'] ?? null)
                 ? $attributes['legal_name']
                 : $attributes['name'];
             $attributes['status'] = $attributes['status'] ?? StoreStatus::Draft;
-            $attributes['settings'] = [];
+            $attributes['settings'] = Arr::only($localeSettings, [
+                'date_format', 'time_format', 'weight_unit', 'dimension_unit',
+            ]);
             $attributes['metadata'] = [];
 
-            return Store::query()->create($attributes)->refresh();
+            $store = Store::query()->create($attributes);
+            $store->localeSettings()->create($localeSettings);
+            $store->storeSettings()->create([
+                'contact_email' => $store->email,
+                'contact_phone' => $store->phone,
+                'weight_unit' => $localeSettings['weight_unit'] ?? 'kg',
+                'social_links' => [],
+                'extra_settings' => [],
+            ]);
+            $this->domains->initialize($store, is_string($primaryDomain) ? $primaryDomain : null);
+
+            return $store->refresh();
         });
     }
 
@@ -117,8 +145,17 @@ final readonly class PlatformStoreAdminService
 
         return DB::transaction(function () use ($data, $store): Store {
             $attributes = Arr::only($data, self::WRITABLE_FIELDS);
+            $updatesPrimaryDomain = array_key_exists('primary_domain', $attributes);
+            $primaryDomain = $updatesPrimaryDomain ? $attributes['primary_domain'] : null;
+            unset($attributes['primary_domain']);
             if ($attributes !== []) {
                 $store->fill($attributes)->save();
+            }
+            if ($updatesPrimaryDomain) {
+                $this->domains->syncPrimaryDomain(
+                    $store,
+                    is_string($primaryDomain) ? $primaryDomain : null,
+                );
             }
 
             return $store->refresh();

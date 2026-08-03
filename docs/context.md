@@ -43,6 +43,14 @@ catalog and the owner-aware merchant workflow. Its Store catalog uses only
 `manage stores`. See the
 [Platform Stores component guide](components/platform-stores-admin.md).
 
+The `themes` navigation entry mounts at `/admin/themes` only for a Platform
+user with `manage marketplace`. Its catalog, publisher, category, immutable
+version, submission, review, publication, and license calls use
+`/api/v1/platform/theme*` routes without Store context. Merchant installations
+are a separate Store interface under `/api/v1/store/theme*`, require
+`X-Store-ID` plus `manage themes`, and never store merchant customization on
+the global Theme listing.
+
 Store Settings is a separate future Store-admin component. It will operate on
 one selected Store through Store-scoped routes and must not create or edit
 Platform master catalog rows. See the [admin component guides](components.md).
@@ -84,7 +92,15 @@ Entity tables such as `users`, `stores`, `store_users`, `roles`, `permissions`, 
 
 The `stores` table is the source of truth for merchant identity, contact details, branding references, classification, locale, lifecycle, and Store-level capability switches. `business_type` is nullable during onboarding and, when present, is one of `ecommerce`, `b2b`, `services`, `digital`, `restaurant`, or `marketplace`. `status` is one of `draft`, `trial`, `active`, `suspended`, `frozen`, or `closed`. The lifecycle migration maps historical `pending` rows to `draft` and `cancelled` rows to `closed`.
 
-Store-owned configuration is normalized into three additional tables. `store_domains` stores globally unique domains and permits only one primary domain per Store. `store_settings` is a dependent one-to-one record whose `store_id` is both its bigint primary key and Store foreign key; it has no public identifier because it is never addressed independently. `store_themes` has an internal bigint ID plus public ULID and permits one active theme per Store. Domain verification, SSL state, and theme settings remain extensible strings/JSON rather than closed database enums.
+Store-owned configuration includes `store_domains`, one-to-one
+`store_settings`, and Theme installations. Domains are globally unique and
+permit only one primary domain per Store. Settings use `store_id` as both
+bigint primary key and Store foreign key because the row is never independently
+addressed. `store_themes` now belongs to the Themes module: each row references
+a global/custom Theme, immutable version, and Store license, owns mutable
+settings/template/CSS with an optimistic revision, and permits only one
+non-deleted `published` copy per Store. Domain/SSL states and Theme
+customization JSON remain extensible.
 
 `store_users` is the Store-to-user relationship table. Each row has its own internal bigint `id`, public ULID, bigint `store_id` and `user_id`, membership `status`, invitation/join timestamps, and audit timestamps. The Store/user pair is unique. The table was renamed from `store_memberships` without rewriting IDs or losing rows; its PostgreSQL constraints, indexes, and sequence now also use `store_users_*` names. Historical migrations retain the old name only as an upgrade step before the rename migration runs.
 
@@ -101,8 +117,10 @@ Store management is service-based. `CreateStoreService` creates an additional St
 Merchant Store creation is one atomic provisioning workflow. `ProvisionStore`
 creates the Store as `draft`, creates its one-to-one settings, reserves the
 `<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, optionally records a
-submitted custom primary domain as pending, installs and activates the selected
-theme, creates the active Owner membership/role, and returns the Store. The
+submitted custom primary domain as pending, calls the Themes-owned
+`ThemeInstaller` contract to resolve the selected published version, issue a
+license, and create the first published Store copy, creates the active Owner
+membership/role, and returns the Store. The
 creation responses add a Store-specific `dashboard_url` built from
 `STORE_ADMIN_DASHBOARD_URL` and the Store public ULID. Any failed database step
 rolls back the entire Store setup.
@@ -163,8 +181,8 @@ Store roles:
 
 | Role | Initial permissions |
 | --- | --- |
-| Owner | access/manage store, members, roles, products, orders, customers, discounts |
-| Manager | access/manage store, members, products, orders, customers, discounts |
+| Owner | access/manage store, members, roles, themes, products, orders, customers, discounts |
+| Manager | access/manage store, members, themes, products, orders, customers, discounts |
 | Sales | access store, manage orders, customers, discounts |
 | Inventory | access store, manage products |
 
@@ -175,11 +193,14 @@ Platform roles are evaluated without an active store team. Store-role assignment
 - Authentication owns global identities, credentials, sessions, MFA, tokens, email verification, password reset, and the role/permission catalog.
 - Settings owns Platform-wide language/currency catalogs, their seed actions, and global Settings administration.
 - Stores owns stores, Platform Store catalog administration, memberships, merchant profile/settings management, Store language selections, store resolution, context lifecycle, provisioning, and store isolation helpers.
+- Themes owns marketplace publishers/categories/listings, immutable versions,
+  review submissions, Store licenses, installed/customized Store copies, and
+  the Store-provisioning installer contract.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Billing module](modules/billing.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

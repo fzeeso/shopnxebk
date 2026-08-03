@@ -4,11 +4,12 @@
 
 `Modules/Stores` owns:
 
-- `stores`, `store_users`, `store_languages`, `store_domains`, `store_settings`, and `store_themes`;
+- `stores`, `store_users`, `store_languages`, `store_domains`,
+  `store_settings`, and `store_locale_settings`;
 - Store identity, contact, branding, classification, locale, lifecycle, billing-link, and capability fields;
 - Store language selection/default workflows over the Settings-owned language catalog;
 - Store and membership status enums;
-- `StoreProvisioner`;
+- `StoreProvisioner` and its call to the Themes-owned `ThemeInstaller`;
 - Store ULID resolution from `X-Store-ID`;
 - request-scoped `StoreContext`;
 - active-membership and token/store enforcement;
@@ -22,7 +23,14 @@ They accept `page`/`per_page`, default to 25, cap at 100, and return `data`,
 
 ## Identifier behavior
 
-`stores.id`, `store_users.id`, `store_domains.id`, and `store_themes.id` are bigint internal keys. Their `public_id` values are ULIDs. Related `store_id`, user, and media keys are bigint foreign keys. `store_settings` is a one-to-one dependent record, so its bigint `store_id` is also its primary key and it has no independently routable public ID. Middleware resolves a public Store ULID once; downstream database work uses the internal key.
+`stores.id`, `store_users.id`, and `store_domains.id` are bigint internal
+keys. Their `public_id` values are ULIDs. Related `store_id`, user, and media
+keys are bigint foreign keys. `store_settings` is a one-to-one dependent
+record, so its bigint `store_id` is also its primary key and it has no
+independently routable public ID. `store_locale_settings` follows the same
+one-to-one key rule. Themes owns the bigint/public-ULID
+`store_themes` contract. Middleware resolves a public Store ULID once;
+downstream database work uses the internal key.
 
 Only `users.scope = store` accounts may appear in `store_users`, receive Store roles, request Store-bound tokens, or enter `StoreContext`. A `store_users` row grants access to the Store boundary; the Store-scoped roles and permissions assigned for the same `store_id` decide which operations the user may perform. Platform accounts are rejected before Store data is loaded.
 
@@ -41,20 +49,26 @@ Only `users.scope = store` accounts may appear in `store_users`, receive Store r
 
 `BusinessType` and `StoreStatus` provide typed Eloquent casts. Store resources and GraphQL expose public-safe profile, locale, lifecycle, and capability values. Internal `id`, `plan_id`, and `subscription_id` are deliberately omitted.
 
-## Domains, settings, and themes
+## Domains, settings, and Theme integration
 
 | Table | Purpose and invariants |
 | --- | --- |
 | `store_domains` | Stores a globally unique domain, extensible `domain_type`, verification/SSL states, and verification time. A PostgreSQL partial unique index permits at most one `is_primary = true` row per Store. |
 | `store_settings` | Stores one contact, postal address (`store_country_code`, state, city, ZIP, and two address lines), storefront/password/order/branding/settings record per Store. `logo_media_id` and `favicon_media_id` are nullable bigint foreign keys to `media.id` and become null if that media row is deleted. `password_hash` is automatically hashed on model assignment and hidden from serialization. |
-| `store_themes` | Stores named template configurations with public ULIDs. A PostgreSQL partial unique index permits at most one active theme per Store. |
+| `store_locale_settings` | Stores one date/time/week, number-format, weight, and dimension preference row per Store. Currency, language, country, and IANA timezone stay on `stores`; UTF-8 and automatic timezone daylight-saving behavior are managed standards rather than columns. |
 
-Deleting a Store cascades all three records. Domain/SSL states and JSON settings remain extensible for later services. Provisioning writes these normalized records, while dedicated post-creation domain, normalized-settings, and theme management routes remain future work.
+Deleting a Store cascades its domains/settings and the Themes-owned licenses and
+installed copies. Domain/SSL states and JSON settings remain extensible.
+Provisioning writes Store records then calls `ThemeInstaller`; post-creation
+Theme marketplace/install/customize/publish routes are implemented by Themes.
 
 ## Store management flow
 
 1. Registration, `POST /api/v1/stores`, and Platform merchant creation call `StoreProvisioner` inside their owning transaction.
-2. `ProvisionStore` creates a `draft` Store, its one-to-one settings, the configured platform domain, and one active selected theme before adding the active Owner membership/role.
+2. `ProvisionStore` creates a `draft` Store, its one-to-one settings, the
+   configured platform domain, then calls `ThemeInstaller` to issue the
+   selected Theme license and create one published installation before adding
+   the active Owner membership/role.
 3. A submitted custom domain is recorded as the pending primary domain while the verified platform domain remains available as a non-primary domain.
 4. Creation returns `dashboard_url=<STORE_ADMIN_DASHBOARD_URL>?store=<store-public-ulid>`; the frontend accepts only an ID present in the authenticated Store-access profile.
 5. Existing Store routes resolve `X-Store-ID` and require an active membership.
@@ -65,6 +79,12 @@ Deleting a Store cascades all three records. Domain/SSL states and JSON settings
 10. `/api/v1/platform/stores*` separately gives Platform staff with `manage
    stores` a searchable, filtered, paginated Store catalog plus direct
    create/view/edit operations without Store context.
+11. `GET/PATCH /api/v1/platform/stores/{store}/locale-settings` composes Store
+    locale columns and `store_locale_settings` through one Platform service.
+12. `GET/POST /api/v1/platform/stores/{store}/domains` and `PATCH
+    /api/v1/platform/stores/{store}/domains/{domain}` map Platform domain forms
+    to `store_domains`, while `StoreDomainManager` keeps primary selection and
+    `stores.primary_domain` synchronized.
 
 ## Store selection flow
 
@@ -78,7 +98,13 @@ Deleting a Store cascades all three records. Domain/SSL states and JSON settings
 
 ## Provisioning flow
 
-`ProvisionStore` requires a Store-scoped user and enforces its own database transaction, which safely nests inside registration, additional-Store, Platform merchant, and local-fixture transactions. It validates the configured root domain and theme key, creates every required Store record, delegates validated `Owner` assignment to `ScopedRoleAssignmentService`, and dispatches `StoreCreated` only after the outermost transaction commits.
+`ProvisionStore` requires a Store-scoped user and enforces its own database
+transaction, which safely nests inside registration, additional-Store,
+Platform merchant, and local-fixture transactions. It validates the configured
+root domain and Theme key, creates every required Store record, calls the
+Themes-owned `ThemeInstaller`, delegates validated `Owner` assignment to
+`ScopedRoleAssignmentService`, and dispatches `StoreCreated` only after the
+outermost transaction commits.
 
 `PlatformMerchantService` is the Platform-admin composition root for a merchant: it requires `manage stores`, creates the Authentication-owned Store identity, calls `StoreProvisioner`, applies merchant profile fields, synchronizes Store roles, and queues registration/verification behavior after the transaction commits. `StoreUserAdminService` separately creates Store staff under an already selected Store and requires both member and role management permissions. Neither flow can assign Platform roles.
 
@@ -104,6 +130,6 @@ IDs and raw JSON.
 
 ## Outbound communication
 
-Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md), [Stores to Settings](../module-communication/stores-to-settings.md), and [Stores to Files](../module-communication/stores-to-files.md). See the dedicated [Store management contract](../store-management.md).
+Store profile integrations are defined separately in [Stores to Billing](../module-communication/stores-to-billing.md), [Stores to Settings](../module-communication/stores-to-settings.md), [Stores to Files](../module-communication/stores-to-files.md), and [Stores to Themes](../module-communication/stores-to-themes.md). See the dedicated [Store management contract](../store-management.md).
 
 See [Stores → Authentication](../module-communication/stores-to-authentication.md). Business modules should depend on `StoreContext`, Store ULIDs in public contracts, and bigint `store_id` in their own persistence.

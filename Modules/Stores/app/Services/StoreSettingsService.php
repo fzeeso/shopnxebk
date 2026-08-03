@@ -29,13 +29,20 @@ final readonly class StoreSettingsService
         'store_address_2',
     ];
 
+    private const LOCALE_SETTING_FIELDS = [
+        'date_format',
+        'time_format',
+        'weight_unit',
+        'dimension_unit',
+    ];
+
     public function __construct(private StoreAccessService $access) {}
 
     public function view(User $user, Store $store): Store
     {
         $this->access->ensureCanView($user, $store);
 
-        return $store->refresh()->load('storeSettings');
+        return $store->refresh()->load(['storeSettings', 'localeSettings']);
     }
 
     /** @param array<string, mixed> $data */
@@ -62,6 +69,11 @@ final readonly class StoreSettingsService
                 if (array_key_exists('order_prefix', $data['preferences'])) {
                     $normalizedSettings['order_number_prefix'] = $data['preferences']['order_prefix'];
                 }
+
+                $localeSettings = Arr::only($data['preferences'], self::LOCALE_SETTING_FIELDS);
+                if ($localeSettings !== []) {
+                    $store->localeSettings()->updateOrCreate([], $localeSettings);
+                }
             }
 
             if ($attributes !== []) {
@@ -72,7 +84,7 @@ final readonly class StoreSettingsService
                 $store->storeSettings()->updateOrCreate([], $normalizedSettings);
             }
 
-            return $store->refresh()->load('storeSettings');
+            return $store->refresh()->load(['storeSettings', 'localeSettings']);
         });
     }
 }

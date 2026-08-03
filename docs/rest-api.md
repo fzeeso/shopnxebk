@@ -10,9 +10,10 @@ Table-style list endpoints accept `page` and `per_page`. The usual default page
 size is 25; the Platform Store catalog defaults to 10 for its admin directory.
 The maximum is 100. Responses keep records in `data` and add Laravel
 `links` and `meta` pagination objects. This applies to personal access tokens,
-Platform users, Stores, merchants, plans, features, currencies, languages, and
-selected-Store users. Selector/option endpoints such as roles, active Store
-memberships, and Store language choices remain complete unpaginated lists.
+Platform users, Stores, merchants, plans, features, currencies, languages,
+Themes, Theme publishers/categories, installed Store Themes, and selected-Store
+users. Selector/option endpoints such as roles, active Store memberships, and
+Store language choices remain complete unpaginated lists.
 
 User and merchant administration contracts:
 
@@ -23,7 +24,9 @@ User and merchant administration contracts:
 | `GET` | `/api/v1/platform/roles` | List assignable Platform roles. |
 | `GET/POST` | `/api/v1/platform/stores` | Search/filter/page or directly create Store rows; requires `manage stores`. |
 | `GET/PATCH` | `/api/v1/platform/stores/{store}` | View or edit a Store by public ULID; requires `manage stores`. |
-| `GET/POST` | `/api/v1/platform/merchants` | Page merchants or atomically create a draft Store, Store owner, settings, platform domain, selected active theme, membership, and Store roles; requires `manage stores`. |
+| `GET/POST` | `/api/v1/platform/stores/{store}/domains` | List or add normalized Store domains; requires `manage stores`. |
+| `PATCH` | `/api/v1/platform/stores/{store}/domains/{domain}` | Update domain routing/SSL/verification/primary state by public ULID. |
+| `GET/POST` | `/api/v1/platform/merchants` | Page merchants or atomically create a draft Store, Store owner, settings, platform domain, licensed published Theme copy, membership, and Store roles; requires `manage stores`. |
 | `GET/PATCH` | `/api/v1/platform/merchants/{merchant}` | View or edit a merchant owner/Store by Store ULID. |
 | `GET` | `/api/v1/platform/merchant-roles` | List assignable Store roles for merchant creation. |
 | `GET/POST` | `/api/v1/store/users` | Page members or create a new Store user under `X-Store-ID`; creation requires member and role management permissions. |
@@ -41,11 +44,14 @@ fields. Each list item adds `owner` with the public ID, name, and email from the
 earliest membership row, or `null` when the Store has no membership.
 
 Direct Platform Store creation creates an unassigned `draft` Store unless a
-status is supplied. It never creates an owner, membership, Store role,
-subscription, or plan assignment. Use `/api/v1/platform/merchants` for the
-complete owner-aware workflow. Platform Store writes accept validated public
-profile, locale, lifecycle, and capability fields; internal Billing links and
-raw JSON are prohibited. See the
+status is supplied. It also creates normalized locale/settings rows, a
+generated platform domain, and an optional pending custom primary domain. It
+never creates an owner, membership, Store role, subscription, or plan
+assignment. Use `/api/v1/platform/merchants` for the complete owner-aware
+workflow. Platform Store writes accept validated public profile, locale,
+lifecycle, and capability fields; internal Billing links and raw JSON are
+prohibited. Domain list/create/update routes own hostname type, routing state,
+SSL state, verification state, and primary selection. See the
 [Platform Stores admin component guide](components/platform-stores-admin.md).
 
 Accepted Store lifecycle values are `draft`, `trial`, `active`, `suspended`,
@@ -87,6 +93,41 @@ Plans & Pricing REST contracts:
 | `PUT/DELETE` | `/api/v1/platform/plans/{plan}/features/{feature}` | Add/update or detach a plan feature/add-on. |
 
 All plan routes require Platform scope and `manage plans`. Fixed and add-on prices are integer minor units. Assigned plans must be archived instead of deleted. See [Plans & Pricing](plans-and-pricing.md).
+
+Theme marketplace Platform REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/themes` | Page/filter or create marketplace listings; requires `manage marketplace`. |
+| `GET/PATCH` | `/api/v1/platform/themes/{theme}` | View or update a listing by Theme public ULID. |
+| `GET/POST` | `/api/v1/platform/theme-publishers` | Page or create Platform/third-party publishers. |
+| `PATCH` | `/api/v1/platform/theme-publishers/{publisher}` | Update publisher identity, support, verification, lifecycle, and commission default. |
+| `GET/POST` | `/api/v1/platform/theme-categories` | Page or create industry/style/feature/catalog-size taxonomy. |
+| `PATCH` | `/api/v1/platform/theme-categories/{category}` | Update taxonomy/facet metadata. |
+| `POST` | `/api/v1/platform/themes/{theme}/versions` | Register immutable version/artifact metadata. |
+| `POST` | `/api/v1/platform/theme-versions/{version}/submit` | Create the next numbered review submission. |
+| `PATCH` | `/api/v1/platform/theme-submissions/{submission}/review` | Approve, request changes, or reject a submission. |
+| `POST` | `/api/v1/platform/theme-versions/{version}/publish` | Publish an approved version and update the Theme current-version pointer. |
+| `POST` | `/api/v1/platform/themes/{theme}/licenses` | Issue a Store license. |
+| `PATCH` | `/api/v1/platform/theme-licenses/{license}` | Update/revoke a license lifecycle. |
+
+Platform Theme routes never send `X-Store-ID`. The global listing/version
+does not contain merchant settings, layout, or CSS.
+
+Selected-Store Theme REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/theme-marketplace` | Page installable published Themes for the selected Store. |
+| `GET` | `/api/v1/store/themes` | Page licensed installed/customized copies for the selected Store. |
+| `POST` | `/api/v1/store/themes` | Install a current version as a draft after validating/issuing the license. |
+| `PATCH` | `/api/v1/store/themes/{storeTheme}` | Update name/settings/template/CSS using required `customization_revision`. |
+| `POST` | `/api/v1/store/themes/{storeTheme}/duplicate` | Create a draft child copy. |
+| `POST` | `/api/v1/store/themes/{storeTheme}/publish` | Publish this copy and archive the former published copy. |
+| `DELETE` | `/api/v1/store/themes/{storeTheme}` | Soft-delete a non-published copy. |
+
+These routes require Store scope, `X-Store-ID`, active membership, and
+`manage themes`. See [Theme marketplace and Store themes](themes.md).
 
 Platform Settings REST contracts:
 

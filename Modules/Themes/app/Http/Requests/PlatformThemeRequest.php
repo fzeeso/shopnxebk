@@ -33,12 +33,13 @@ final class PlatformThemeRequest extends FormRequest
     public function rules(): array
     {
         $required = $this->isMethod('post') ? 'required' : 'sometimes';
+        $relationshipPresence = $this->isMethod('post') ? 'present' : 'sometimes';
         $theme = $this->route('theme');
         $ignoreId = $theme instanceof Theme ? $theme->getKey() : null;
 
         return [
-            'publisher_id' => [$required, 'nullable', 'string', 'exists:theme_publishers,public_id'],
-            'owner_store_id' => [$required, 'nullable', 'string', 'exists:stores,public_id'],
+            'publisher_id' => [$relationshipPresence, 'nullable', 'string', 'exists:theme_publishers,public_id'],
+            'owner_store_id' => [$relationshipPresence, 'nullable', 'string', 'exists:stores,public_id'],
             'name' => [$required, 'string', 'max:160'],
             'slug' => [$required, 'alpha_dash:ascii', 'max:120', Rule::unique('themes', 'slug')->ignore($ignoreId)],
             'summary' => [$required, 'string', 'max:320'],

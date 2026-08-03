@@ -15,6 +15,7 @@ flowchart LR
     Auth["Authentication module"]
     Settings["Settings module"]
     Store["Stores module"]
+    Themes["Themes module"]
     Billing["Billing module"]
     GraphQL["Lighthouse GraphQL"]
     DB[("PostgreSQL")]
@@ -29,11 +30,13 @@ flowchart LR
     HTTP --> Auth
     HTTP --> Settings
     HTTP --> Store
+    HTTP --> Themes
     HTTP --> Billing
     HTTP --> GraphQL
     Auth --> DB
     Settings --> DB
     Store --> DB
+    Themes --> DB
     Billing --> DB
     GraphQL --> DB
     HTTP --> Redis
@@ -80,6 +83,10 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Stores/` owns stores, the Platform Store catalog APIs, `store_users` relationships, Store profiles/preferences/address settings, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
 
+`Modules/Themes/` owns Theme publishers/categories/listings, immutable
+versions, review submissions, Store licenses, installed/customized Store
+copies, and the Theme installer used by Store provisioning.
+
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
@@ -91,6 +98,8 @@ component contracts under [Admin component guides](components.md).
 `GET /api/v1/auth/interfaces` drives the Platform shell:
 
 - `Plans & Pricing` mounts at `/admin/plans` with `manage plans`.
+- `Themes` mounts at `/admin/themes` with `manage marketplace`; its
+  Platform requests never send `X-Store-ID`.
 - `Settings` mounts at `/admin/settings` with
   `manage platform settings`.
 - `Merchants` mounts at `/admin/merchants` with `manage stores`; it may
@@ -169,12 +178,31 @@ links/raw JSON outside the request contract. The separate
 `/api/v1/platform/merchants*` service remains the atomic owner-and-membership
 provisioning path.
 
+The Store edit workflow has a dedicated locale boundary at
+`GET/PATCH /api/v1/platform/stores/{store}/locale-settings`. It returns the
+active Store currency/language/country/timezone together with the one-to-one
+`store_locale_settings` display preferences. `PlatformStoreLocaleSettingsService`
+updates those sources in one transaction and preserves the older Store-settings
+preference projection for compatible merchant clients.
+
+Domain administration uses `GET/POST
+/api/v1/platform/stores/{store}/domains` and `PATCH
+/api/v1/platform/stores/{store}/domains/{domain}`. These routes expose public
+Store/domain ULIDs only and map directly to `store_domains`. Hostnames are
+globally unique; `StoreDomainManager` enforces primary-domain switching and
+keeps `stores.primary_domain` synchronized in the same transaction. Direct
+Platform Store creation always generates the configured ShopNXE platform
+hostname, optionally registers a submitted custom primary domain, and accepts
+an optional normalized `locale_settings` object for first-save regional
+preferences.
+
 Store lifecycle values are `draft`, `trial`, `active`, `suspended`, `frozen`,
-and `closed`. Historical `pending` and `cancelled` rows are migrated to `draft`
-and `closed`. The Stores module also owns `store_domains`, the one-to-one
-`store_settings` record, and `store_themes`; normalized Store address fields live
-in `store_settings`, while membership rows live in `store_users`. See the module guide for keys,
-constraints, media relationships, and current API boundaries.
+and `closed`. Historical `pending` and `cancelled` rows are migrated to
+`draft` and `closed`. Stores owns `store_domains` and the one-to-one
+`store_settings` record. Themes owns `store_themes`, licenses, catalog
+identity, and immutable versions; normalized Store address fields live in
+`store_settings`, while membership rows live in `store_users`. See the
+module guides for keys, constraints, media relationships, and API boundaries.
 
 ### Normalized Store settings and address flow
 
@@ -202,6 +230,24 @@ updates also synchronize contact settings. Platform merchant create/detail/edit
 responses include `store_settings`; Platform merchant edits update it in the
 same transaction as owner and Store-profile changes.
 
+### Store locale settings
+
+`store_locale_settings.store_id` is both its primary key and a cascading
+foreign key to `stores.id`. It owns `date_format`, `time_format`,
+`week_starts_on`, `weight_unit`, `dimension_unit`, `decimal_places`,
+`decimal_separator`, and `thousands_separator`. The Store row remains the
+single source for `currency_code`, `language_code`, `country_code`, and the
+IANA `timezone`; the table does not duplicate those stable fields, and
+`store_languages` remains the source for enabled/default language selection.
+
+The migration backfills every Store using validated legacy preferences where
+available. Direct Platform Store creation and full merchant provisioning both
+create the locale row in the same transaction. Store settings writes keep the
+legacy date/time/weight/dimension projection synchronized, while the dedicated
+Platform locale service also synchronizes `store_settings.weight_unit`.
+Character encoding is always UTF-8, and IANA timezone rules provide automatic
+daylight-saving changes; neither is a manually persisted switch.
+
 ### Language catalog and Store language selection
 
 `languages` is the Settings-owned platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, an immutable unique locale, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 24-language catalog, including Hindi (`hi`, LTR), Urdu (`ur`, RTL), and Persian (`fa`, RTL). The separate Stores action `EnsureStoreLanguageDefaults` gives an existing Store one default selection matching `stores.language_code`, falling back to English.
@@ -226,6 +272,36 @@ Platform plan routes require Platform scope plus `manage plans`, initially held 
 
 The idempotent sample seeder inserts Launch 1 ($3), Launch 5 ($5), Starter ($9), Growth ($29), Professional ($79), Business ($199), and custom Enterprise. Existing admin edits are not overwritten. See [Plans & Pricing](plans-and-pricing.md).
 
+### Theme marketplace, release, and Store installation
+
+The Theme model separates four responsibilities:
+
+1. `themes` plus publisher/category rows describe the marketplace product.
+2. `theme_versions` and numbered `theme_submissions` preserve immutable
+   artifact and review history.
+3. `theme_licenses` grant one Store the right to use a Theme.
+4. `store_themes` hold only that Store's mutable settings, layout data, CSS,
+   ancestry, and publication state.
+
+Platform Theme routes require `manage marketplace`; Store Theme routes require
+resolved Store context plus `manage themes`. Owner and Manager receive the
+Store permission. `ThemeCatalogAdminService` owns paginated catalog/taxonomy
+writes, `ThemeReleaseAdminService` owns release/review/license state, and
+`StoreThemeService` owns installation, revision-safe customization,
+duplication, publication, and draft deletion.
+
+`ProvisionStore` calls the `ThemeInstaller` interface so Stores does not
+write Theme tables. `DefaultThemeInstaller` ensures the bundled Platform
+Theme/version, issues a license, and creates the first published installation
+inside the Store transaction. Existing Stores are backfilled with the same
+catalog/version/license/install structure.
+
+Theme archives are opaque private-storage keys plus SHA-256 and package limits.
+Metadata registration never executes package code. A later artifact worker
+must quarantine, scan, safely extract, validate the manifest/schema, and only
+then produce a compiled artifact key. See [Theme marketplace and Store
+themes](themes.md) and [Themes module](modules/themes.md).
+
 ## 4. Application boot sequence
 
 1. `public/index.php` loads Composer and creates the application from `bootstrap/app.php`.
@@ -236,8 +312,10 @@ The idempotent sample seeder inserts Launch 1 ($3), Launch 5 ($5), Starter ($9),
 6. `SettingsServiceProvider` loads global Settings routes and catalog migrations.
 7. `StoresServiceProvider` binds request-scoped store context, store provisioning, policies, migrations, and queue context hooks.
 8. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
-9. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
-10. Laravel accepts the request and runs the middleware pipeline.
+9. `ThemesServiceProvider` loads Theme routes/migrations, media relationships,
+   and binds the Store-provisioning `ThemeInstaller`.
+10. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
+11. Laravel accepts the request and runs the middleware pipeline.
 
 Diagnose discovery with:
 
@@ -308,7 +386,7 @@ sequenceDiagram
     Register->>Provision: provision(user, store name, slug, selected theme)
     Provision->>DB: Create draft Store
     Provision->>DB: Create contact/address settings and platform/custom domains
-    Provision->>DB: Install selected active theme
+    Provision->>DB: Issue Theme license and create published Store copy
     Provision->>DB: Create active membership and assign Owner
     Register->>DB: Commit
     Register-->>Queue: Events and verification after commit
@@ -319,8 +397,9 @@ sequenceDiagram
 `ProvisionStore` owns an atomic nested transaction, so registration, additional
 Store creation, Platform merchant creation, and local fixture creation all use
 the same invariant. The Store starts as `draft`; settings, its
-`<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, and the selected active theme
-exist before the Owner membership is returned. External side effects run after
+`<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, the Theme license, and the
+published installed Store copy exist before the Owner membership is returned.
+External side effects run after
 the outermost commit. Password hashes and plain passwords never appear in
 resources. Creation responses build `dashboard_url` from
 `STORE_ADMIN_DASHBOARD_URL` and the Store public ULID.
@@ -365,9 +444,13 @@ Direct Store catalog management is served by `/api/v1/platform/stores*` under
 the same permission. `GET` supports Store/member search, exact filters, date
 range, whitelisted sorting, and `page`/`per_page`; the collection response
 includes `data`, `meta`, and `links`, with an `owner` projection from the
-earliest membership. `POST` creates a Store without an owner or
-membership, while `GET/PATCH /{store}` resolve a public Store ULID and expose
-only public-safe fields. Use the merchant route when an owner must exist.
+earliest membership. `POST` creates a Store, normalized locale/settings rows,
+and platform/custom domain records without an owner or membership, while
+`GET/PATCH /{store}` resolve a public Store ULID and expose only public-safe
+fields. Use the merchant route when an owner must exist.
+`GET/PATCH /{store}/locale-settings` is the separate regional-format workflow
+and `GET/POST /{store}/domains` plus `PATCH /{store}/domains/{domain}` are the
+separate domain lifecycle workflow. Neither requires or accepts `X-Store-ID`.
 
 Within one selected Store, `/api/v1/store/users` lists members or creates a new unique-email Store user. Listing requires `manage store members`; creation also requires `manage store roles`. `/api/v1/store/roles` lists roles for the selected Store. Public requests and responses use ULIDs, while membership and role-team writes use bigint keys. Platform/Store roles can never be combined. See [User and merchant management](user-merchant-management.md).
 

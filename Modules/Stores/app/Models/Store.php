@@ -83,6 +83,11 @@ final class Store extends BaseTenant
         return $this->hasOne(StoreSetting::class);
     }
 
+    public function localeSettings(): HasOne
+    {
+        return $this->hasOne(StoreLocaleSetting::class);
+    }
+
     public function themes(): HasMany
     {
         return $this->hasMany(StoreTheme::class);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Stores\Http\Requests;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\Stores\Enums\BusinessType;
@@ -51,9 +52,13 @@ abstract class PlatformStoreWriteRequest extends PlatformStoreRequest
         $required = $partial ? 'sometimes' : 'required';
         $slugUnique = Rule::unique('stores', 'slug');
         $domainUnique = Rule::unique('stores', 'primary_domain');
+        $normalizedDomainUnique = Rule::unique('store_domains', 'domain');
         if ($storeKey !== null) {
             $slugUnique->ignore($storeKey);
             $domainUnique->ignore($storeKey);
+            $normalizedDomainUnique->where(
+                fn (Builder $query): Builder => $query->where('store_id', '<>', $storeKey),
+            );
         }
 
         return [
@@ -63,7 +68,7 @@ abstract class PlatformStoreWriteRequest extends PlatformStoreRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'email' => ['sometimes', 'nullable', 'email:rfc', 'max:255'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:32'],
-            'primary_domain' => ['sometimes', 'nullable', 'string', 'max:253', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $domainUnique],
+            'primary_domain' => ['sometimes', 'nullable', 'string', 'max:253', 'regex:/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/', $domainUnique, $normalizedDomainUnique],
             'logo' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'favicon' => ['sometimes', 'nullable', 'string', 'max:2048'],
             'cover_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
@@ -81,6 +86,15 @@ abstract class PlatformStoreWriteRequest extends PlatformStoreRequest
             'is_marketplace_enabled' => ['sometimes', 'boolean'],
             'launched_at' => ['sometimes', 'nullable', 'date'],
             'trial_ends_at' => ['sometimes', 'nullable', 'date'],
+            'locale_settings' => [$partial ? 'prohibited' : 'sometimes', 'array'],
+            'locale_settings.date_format' => ['sometimes', Rule::in(['Y-m-d', 'd/m/Y', 'm/d/Y'])],
+            'locale_settings.time_format' => ['sometimes', Rule::in(['12h', '24h'])],
+            'locale_settings.week_starts_on' => ['sometimes', Rule::in(['monday', 'sunday', 'saturday'])],
+            'locale_settings.weight_unit' => ['sometimes', Rule::in(['kg', 'lb'])],
+            'locale_settings.dimension_unit' => ['sometimes', Rule::in(['cm', 'in'])],
+            'locale_settings.decimal_places' => ['sometimes', 'integer', 'min:0', 'max:4'],
+            'locale_settings.decimal_separator' => ['sometimes', Rule::in(['dot', 'comma'])],
+            'locale_settings.thousands_separator' => ['sometimes', Rule::in(['comma', 'dot', 'space', 'none'])],
             'plan_id' => ['prohibited'],
             'subscription_id' => ['prohibited'],
             'settings' => ['prohibited'],

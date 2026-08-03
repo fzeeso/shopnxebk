@@ -60,7 +60,11 @@ final class AuthenticationApiFeatureTest extends TestCase
         self::assertSame('owner@example.test', $store->storeSettings?->contact_email);
         self::assertFalse((bool) $store->storeSettings?->storefront_enabled);
         self::assertSame('acme-shop.stores.example.test', $store->domains()->where('domain_type', 'platform')->where('is_primary', true)->value('domain'));
-        self::assertSame('minimal', $store->activeTheme?->template_key);
+        $installedTheme = $store->activeTheme()->with(['theme', 'themeVersion', 'license'])->firstOrFail();
+        self::assertSame('minimal', $installedTheme->theme->slug);
+        self::assertSame('published', $installedTheme->statusValue());
+        self::assertSame('published', $installedTheme->themeVersion->statusValue());
+        self::assertSame('active', $installedTheme->license->status);
         self::assertTrue(StoreMembership::query()->whereBelongsTo($store)->whereBelongsTo($user)->where('status', 'active')->exists());
         setPermissionsTeamId($store->getKey());
         self::assertTrue($user->fresh()->hasRole('Owner'));

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Modules\Stores\Contracts\StoreContext;
-use Illuminate\Database\Eloquent\Builder;
 use Spatie\MediaLibrary\MediaCollections\Models\Media as BaseMedia;
 
 final class Media extends BaseMedia

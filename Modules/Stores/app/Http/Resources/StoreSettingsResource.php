@@ -14,6 +14,17 @@ final class StoreSettingsResource extends JsonResource
     public function toArray(Request $request): array
     {
         $settings = $this->resource->storeSettings;
+        $localeSettings = $this->resource->localeSettings;
+        $preferences = is_array($this->settings) ? $this->settings : [];
+
+        if ($localeSettings !== null) {
+            $preferences = array_replace($preferences, [
+                'date_format' => $localeSettings->date_format,
+                'time_format' => $localeSettings->time_format,
+                'weight_unit' => $localeSettings->weight_unit,
+                'dimension_unit' => $localeSettings->dimension_unit,
+            ]);
+        }
 
         return [
             'store_id' => $this->public_id,
@@ -29,7 +40,7 @@ final class StoreSettingsResource extends JsonResource
             'store_zip' => $settings?->store_zip,
             'store_address_1' => $settings?->store_address_1,
             'store_address_2' => $settings?->store_address_2,
-            'preferences' => $this->settings ?? [],
+            'preferences' => $preferences,
             'capabilities' => [
                 'ai' => $this->is_ai_enabled,
                 'pos' => $this->is_pos_enabled,

@@ -12,7 +12,7 @@ Viewing requires membership. Profile, settings, and language changes additionall
 
 | Service | Responsibility |
 | --- | --- |
-| `CreateStoreService` | Transactionally provisions a draft Store, normalized settings, platform/custom domains, selected active theme, active membership, Owner role, initial profile, locale, and preferences. |
+| `CreateStoreService` | Transactionally provisions a draft Store, normalized settings, platform/custom domains, selected Theme license/published installed copy through `ThemeInstaller`, active membership, Owner role, initial profile, locale, and preferences. |
 | `ViewStoreService` | Returns one Store only after Store-scope and active-membership checks. |
 | `UpdateStoreProfileService` | Updates merchant-owned identity, contact, branding, and classification fields after `manage store`. |
 | `StoreSettingsService` | Views locale, normalized contact/address data, and preferences for any active member and merges settings updates for Store managers. |
@@ -37,6 +37,9 @@ Controllers contain no business writes. Form Requests normalize and validate inp
 | `GET` | `/api/v1/store/roles` | `X-Store-ID` | `manage store roles` |
 | `GET/POST` | `/api/v1/platform/stores` | none | Platform `manage stores`; page/search/filter or direct Store creation |
 | `GET/PATCH` | `/api/v1/platform/stores/{store}` | none | Platform `manage stores`; public-ULID view/edit |
+| `GET/PATCH` | `/api/v1/platform/stores/{store}/locale-settings` | none | Platform `manage stores`; unified regional and display-format settings |
+| `GET/POST` | `/api/v1/platform/stores/{store}/domains` | none | Platform `manage stores`; list or add normalized domains |
+| `PATCH` | `/api/v1/platform/stores/{store}/domains/{domain}` | none | Platform `manage stores`; edit routing, SSL, verification, and primary selection |
 
 Platform merchant listing/provisioning uses `/api/v1/platform/merchants*` without a Store header. See [User and merchant management](user-merchant-management.md) for request shapes and the Platform/Store identity boundary.
 
@@ -46,8 +49,9 @@ Platform merchant creation responses include `dashboard_url`. It points to
 `STORE_ADMIN_DASHBOARD_URL` with `store=<public-ulid>`, never an internal key.
 
 The direct Platform Store API is intentionally different from merchant
-provisioning: it creates no owner, membership, Store role, plan, or
-subscription. Its list combines case-insensitive Store and member search with exact status,
+provisioning: it creates normalized locale/settings/domain records but no
+owner, membership, Store role, plan, or subscription. Its list combines
+case-insensitive Store and member search with exact status,
 classification, locale/country, verification/capability, and creation-date
 filters. The list defaults to 10 rows, returns the earliest membership user's
 public identity as `owner`, and caps `per_page` at 100. See the
@@ -72,7 +76,25 @@ fields. Internal `plan_id`/`subscription_id`, raw JSON, preferences, owner
 payloads, and role payloads are prohibited there as well; each belongs to a
 separate validated workflow.
 
+The dedicated Platform locale-settings endpoint edits Store currency,
+language, country, and IANA timezone together with normalized date/time/week,
+number-separator, precision, weight, and dimension preferences. Stable locale
+fields remain in `stores`; display and measurement preferences live in the
+one-to-one `store_locale_settings` row. Character encoding is fixed to UTF-8,
+and daylight-saving changes follow the timezone database automatically.
+
+The dedicated Platform domain endpoints map one form object to each
+`store_domains` row: `domain`, `domain_type`, `is_primary`, routing `status`,
+`ssl_status`, and verification time. Hostnames are globally unique and only
+one row may be primary per Store. Making another row primary updates
+`stores.primary_domain` transactionally. Direct creation registers the
+generated platform hostname and an optional submitted custom primary hostname;
+it does not create a duplicate `domain_setting` table.
+
 Settings updates write contact/address values to `store_settings` and merge validated preference keys into the existing JSON object, so changing one preference does not erase the others. Support email, weight unit, and order prefix stay synchronized with their normalized settings columns. Stable business fields remain first-class columns rather than being moved into JSON.
+Date/time/weight/dimension preference writes also synchronize
+`store_locale_settings` so existing merchant API consumers and the Platform
+locale editor observe the same values.
 
 ## Information flow
 

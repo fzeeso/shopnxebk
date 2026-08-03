@@ -7,6 +7,7 @@ Implemented modules:
 | Authentication | Identity, credentials, MFA, exclusive account scopes, tokens, roles, and permissions |
 | Settings | Platform-wide language/currency catalogs and extensible global administration |
 | Stores | Store profiles/settings, memberships/context, Store language selections, and isolation |
+| Themes | Marketplace publishers/categories/listings, immutable releases/review, Store licenses, and installed/customized Store copies |
 | Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
 
 The following modules are planned but are not created:
@@ -34,4 +35,10 @@ Orders must use contracts rather than importing another module's Eloquent models
 
 To add a module, use the API-only nwidart generator, keep its migrations/routes/schema/tests inside the module, add a provider and composer PSR-4 mapping, and expose cross-module behavior through contracts, actions, or domain events.
 
-Every implemented module also receives a separate document under `docs/modules/`. Every directional dependency receives a separate contract under `docs/module-communication/`; update both sides whenever a cross-module interface changes. All modules inherit the identifier, Store-language, and authorization rules from [application context](context.md).
+Every implemented module also receives a separate document under
+`docs/modules/`. Every directional dependency receives a separate contract
+under `docs/module-communication/`; update both sides whenever a cross-module
+interface changes. Themes is documented in [Themes module](modules/themes.md)
+and [Theme marketplace and Store themes](themes.md). All modules inherit the
+identifier, Store-language, and authorization rules from
+[application context](context.md).

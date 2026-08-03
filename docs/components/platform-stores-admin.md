@@ -17,11 +17,17 @@ authenticated Platform account with `manage stores`.
 | `POST` | `/api/v1/platform/stores` | Create an unassigned Store row. |
 | `GET` | `/api/v1/platform/stores/{store}` | Load one Store by public ULID. |
 | `PATCH` | `/api/v1/platform/stores/{store}` | Edit validated Platform-controlled Store fields. |
+| `GET` | `/api/v1/platform/stores/{store}/locale-settings` | Load unified regional and display-format settings. |
+| `PATCH` | `/api/v1/platform/stores/{store}/locale-settings` | Update normalized Store locale settings transactionally. |
+| `GET` | `/api/v1/platform/stores/{store}/domains` | List normalized domains with the primary row first. |
+| `POST` | `/api/v1/platform/stores/{store}/domains` | Add a globally unique hostname. |
+| `PATCH` | `/api/v1/platform/stores/{store}/domains/{domain}` | Update hostname/type, routing, SSL, verification, or primary selection. |
 
 The existing `/api/v1/platform/merchants*` workflow remains the correct choice
 when the administrator must create or edit an owner identity, membership, and
 Store roles together. Direct Store creation intentionally creates no user,
-membership, role assignment, subscription, or plan assignment.
+membership, role assignment, subscription, or plan assignment. It does create
+the one-to-one locale/settings rows and initial platform/custom domain records.
 
 ## List controls
 
@@ -48,9 +54,13 @@ page-size changes reset the page to 1.
 | Authorization/validation | `Modules/Stores/app/Http/Requests/ListPlatformStoresRequest.php` | Requires `manage stores`; normalizes and validates query inputs. |
 | Controller | `Modules/Stores/app/Http/Controllers/Api/V1/PlatformStoreController.php` | Passes validated filters and the authenticated actor to the service. |
 | Query service | `Modules/Stores/app/Services/PlatformStoreAdminService.php` | Applies Store/member search, filters, deterministic sorting, eager loading, and length-aware pagination. |
+| Domain controller/service | `Modules/Stores/app/Http/Controllers/Api/V1/PlatformStoreDomainController.php`, `Modules/Stores/app/Services/PlatformStoreDomainService.php` | Lists, creates, and updates public domain resources after Platform authorization. |
+| Domain invariant manager | `Modules/Stores/app/Services/StoreDomainManager.php` | Generates initial domains, enforces primary selection, and synchronizes `stores.primary_domain`. |
 | Store relationship | `Modules/Stores/app/Models/Store.php` | `primaryMembership()` selects the earliest `store_users` row; `memberships()` supports member search. |
 | Membership relationship | `Modules/Stores/app/Models/StoreMembership.php` | Resolves `user_id` to `Modules/Authentication/Models/User`. |
 | Collection resource | `Modules/Stores/app/Http/Resources/PlatformStoreListResource.php` | Adds a public `owner` projection to the normal Store resource without exposing bigint keys. |
+| Locale service | `Modules/Stores/app/Services/PlatformStoreLocaleSettingsService.php` | Reads/writes Store locale columns and the one-to-one format row in one transaction while maintaining compatibility projections. |
+| Locale resource | `Modules/Stores/app/Http/Resources/StoreLocaleSettingsResource.php` | Returns Store currency/language/country/timezone, format preferences, and the fixed UTF-8/automatic-DST policy. |
 
 The request runs in the Laravel API process at `http://127.0.0.1:8000` during
 local development. Start it from `C:\xampp\htdocs\shopnxebk` with
@@ -105,8 +115,9 @@ Errors are JSON: `401` unauthenticated, `403` missing Platform scope or
 
 The form groups fields as follows:
 
-- identity/contact: name, slug, legal name, description, email, phone, and
-  primary domain;
+- identity/contact: name, slug, legal name, description, email, and phone;
+- domains: hostname, type, primary selection, routing status, SSL status, and
+  verification;
 - branding/classification: logo, favicon, cover image, industry, and business
   type;
 - locale: active currency code, active language locale, timezone, and country;
@@ -116,6 +127,19 @@ The form groups fields as follows:
 Load currency and language choices from the Platform Settings read APIs. Codes
 are normalized by the backend. New direct Stores default to `draft`, and
 legal name defaults to the submitted display name when omitted.
+
+The create and edit interfaces separate Profile, Operations, Assets &
+capabilities, Locale settings, and Domain settings into tabs. The Locale tab
+uses the dedicated locale-settings
+endpoint and saves independently, so a profile update cannot overwrite a more
+recent locale change. It also manages date/time/week formats, numeric precision
+and separators, and weight/dimension defaults. `store_languages` still owns the
+Store's enabled/default language set; this form edits the compatibility default
+locale only. Character encoding is always UTF-8, and daylight-saving changes
+follow IANA timezone rules. The Domain tab reads and mutates normalized
+`store_domains` rows independently. New Store creation submits all initial
+profile/operations/assets/locale/domain values through one `POST`, after which
+the independent Locale and Domain save boundaries are used.
 
 The Store status selector and filters use exactly `draft`, `trial`, `active`,
 `suspended`, `frozen`, and `closed`. Do not send the retired `pending` or
@@ -147,3 +171,5 @@ merchant-owner provisioning are separate workflows.
 5. Direct Store creation is visibly distinguished from complete merchant
    provisioning.
 6. Internal Billing links and raw JSON never cross the component boundary.
+7. Locale settings save independently and remain synchronized with compatible
+   merchant settings projections.

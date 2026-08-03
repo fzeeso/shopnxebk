@@ -78,6 +78,13 @@ final readonly class ProvisionStore implements StoreProvisioner
                 'extra_settings' => Arr::except($preferences, ['support_email', 'weight_unit', 'order_prefix']),
             ]);
 
+            $store->localeSettings()->create([
+                'date_format' => $preferences['date_format'] ?? 'Y-m-d',
+                'time_format' => $preferences['time_format'] ?? '24h',
+                'weight_unit' => $preferences['weight_unit'] ?? 'kg',
+                'dimension_unit' => $preferences['dimension_unit'] ?? 'cm',
+            ]);
+
             $store->domains()->create([
                 'domain' => $platformDomain,
                 'domain_type' => 'platform',
