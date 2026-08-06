@@ -108,3 +108,14 @@ owned by `Modules/Settings`, not Store Management. Stores consumes active
 languages and owns only Store-specific selection rows. Numeric language and
 Store keys never cross the API; both contracts use public ULIDs. See
 [Platform settings](settings.md).
+
+## Store policies
+
+Stores owns the Platform policy-type catalog and Store-local policy records.
+`store_policies` is unique by Store/type and Store/slug; localized content and
+SEO fields live in `store_policy_translations`. Immutable `policy_versions`
+are language-scoped, are appended automatically when content changes, and
+support rollback without rewriting history. Store policy writes require the
+`manage policies` permission, while public storefront reads expose published
+content only. See [Store policies](store-policies.md) for the complete schema,
+lifecycle, authorization, and REST contract.

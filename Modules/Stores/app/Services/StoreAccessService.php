@@ -42,6 +42,11 @@ final class StoreAccessService
         $this->ensurePermission($user, $store, 'manage store roles');
     }
 
+    public function ensureCanManagePolicies(User $user, Store $store): void
+    {
+        $this->ensurePermission($user, $store, 'manage policies');
+    }
+
     private function ensurePermission(User $user, Store $store, string $permission): void
     {
         $this->ensureCanView($user, $store);

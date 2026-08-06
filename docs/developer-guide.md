@@ -17,6 +17,7 @@ flowchart LR
     Store["Stores module"]
     Themes["Themes module"]
     Billing["Billing module"]
+    Catalog["Catalog module"]
     GraphQL["Lighthouse GraphQL"]
     DB[("PostgreSQL")]
     Redis[("Redis")]
@@ -32,12 +33,14 @@ flowchart LR
     HTTP --> Store
     HTTP --> Themes
     HTTP --> Billing
+    HTTP --> Catalog
     HTTP --> GraphQL
     Auth --> DB
     Settings --> DB
     Store --> DB
     Themes --> DB
     Billing --> DB
+    Catalog --> DB
     GraphQL --> DB
     HTTP --> Redis
     HTTP --> Files
@@ -81,13 +84,18 @@ The generated inventory is the authoritative installed-package list.
 
 `Modules/Settings/` owns extensible Platform-wide settings, currently the global language and currency catalogs, their administration routes, and USD-relative exchange rates.
 
-`Modules/Stores/` owns stores, the Platform Store catalog APIs, `store_users` relationships, Store profiles/preferences/address settings, Store language selections, store context, store resolution, policies, cache keys, and provisioning.
+`Modules/Stores/` owns stores, the Platform Store catalog APIs, `store_users` relationships, Store profiles/preferences/address settings, Store language selections, the policy-type catalog, localized Store policies and immutable versions, store context, store resolution, authorization policies, cache keys, and provisioning.
 
 `Modules/Themes/` owns Theme publishers/categories/listings, immutable
 versions, review submissions, Store licenses, installed/customized Store
 copies, and the Theme installer used by Store provisioning.
 
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
+
+`Modules/Catalog/` owns Store-local brands, collections, categories, products,
+options, variants, media/fulfillment metadata, license-key pools, and typed
+custom-field persistence. Its first delivery is schema-only; no Catalog API is
+registered yet.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 
@@ -204,6 +212,13 @@ identity, and immutable versions; normalized Store address fields live in
 `store_settings`, while membership rows live in `store_users`. See the
 module guides for keys, constraints, media relationships, and API boundaries.
 
+Store legal/customer-information pages use the normalized policy architecture
+documented in [Store policies](store-policies.md). Platform-maintained
+`policy_types` provide stable codes, Store-local policies are unique by type
+and slug, translations reference the Settings language catalog, and immutable
+versions are scoped by policy and language. Merchant writes require
+`manage policies`; anonymous storefront reads return published content only.
+
 ### Normalized Store settings and address flow
 
 `store_settings.store_id` is both the primary key and the cascading foreign key
@@ -264,6 +279,27 @@ Platform users call `GET /api/v1/platform/settings/languages`. Creating another 
 
 Any Platform-scoped user may read `GET /api/v1/platform/settings/currencies`. Creating a currency through `POST /api/v1/platform/settings/currencies` or changing format, active state, or rate through `PATCH /api/v1/platform/settings/currencies/{currency}` requires `manage platform settings`, initially assigned only to `Super Admin`. The former `/api/v1/platform/currencies` routes remain compatibility aliases. Store accounts cannot use this API. The existing `stores.currency_code` remains the Store compatibility setting; Store-level catalog selection is outside this change.
 
+### Catalog persistence foundation
+
+Catalog owns 33 normalized tables spanning brands, manual/rule/AI collections,
+strict category trees, tags, products, translated content, product assignments,
+options/values, variants, images, digital assets, software license-key pools,
+and typed custom fields. Addressable rows use bigint internal IDs, public ULIDs,
+indexed Store IDs, and timezone timestamps. Translations and relationship rows
+carry Store IDs for composite foreign keys even when their primary key is a
+natural pair.
+
+PostgreSQL makes localized slugs unique per Store and locale, permits one
+primary category per product, keeps every relationship within the same Store
+and product, and constrains lifecycle/type values. Variant money follows the
+platform convention: non-negative integer minor units plus an uppercase
+three-letter currency code. The schema does not yet expose routes, GraphQL,
+models, upload/download behavior, or search indexing. Those application
+contracts require Store context, `manage products`, public ULIDs, and the
+service/event boundaries described in the [Catalog module](modules/catalog.md).
+The [Catalog schema reference](catalog.md) documents every column, relationship,
+constraint, index, deletion rule, and operational query pattern.
+
 ### Plans, features, and add-ons
 
 `plans` stores an editable name/slug, audience, fixed or custom price, currency, monthly/yearly interval, lifecycle status, featured flag, and display order. Money uses integer minor units. `features` is the reusable definition catalog; `plan_features` assigns typed values to plans and can mark an assignment as an optional add-on with its own price.
@@ -314,8 +350,9 @@ themes](themes.md) and [Themes module](modules/themes.md).
 8. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
 9. `ThemesServiceProvider` loads Theme routes/migrations, media relationships,
    and binds the Store-provisioning `ThemeInstaller`.
-10. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
-11. Laravel accepts the request and runs the middleware pipeline.
+10. `CatalogServiceProvider` loads the Store-local Catalog migrations.
+11. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
+12. Laravel accepts the request and runs the middleware pipeline.
 
 Diagnose discovery with:
 
@@ -453,6 +490,24 @@ and `GET/POST /{store}/domains` plus `PATCH /{store}/domains/{domain}` are the
 separate domain lifecycle workflow. Neither requires or accepts `X-Store-ID`.
 
 Within one selected Store, `/api/v1/store/users` lists members or creates a new unique-email Store user. Listing requires `manage store members`; creation also requires `manage store roles`. `/api/v1/store/roles` lists roles for the selected Store. Public requests and responses use ULIDs, while membership and role-team writes use bigint keys. Platform/Store roles can never be combined. See [User and merchant management](user-merchant-management.md).
+
+### Signed-in password changes
+
+Platform and Store users share the authenticated `PATCH /api/v1/auth/password`
+account-security route. The JSON body is
+`{ current_password, password, password_confirmation }`. Laravel verifies the
+current hash and applies the same strong-password policy used by registration
+and reset: at least 12 characters with mixed case, a number, and a symbol. The
+new value must differ from the current password.
+
+On success Laravel rotates `remember_token`, regenerates the active web session
+and CSRF token, revokes every personal access token owned by the account, emits
+`PasswordReset`, and returns
+`{ message: "Password changed successfully.", tokens_revoked: number }`. The
+current browser session remains authenticated. Password mutation attempts are
+limited to five per minute per authenticated user through
+`auth.password-management`. Because MFA challenges are bound to the password
+hash, changing the password also invalidates every outstanding challenge.
 
 ### TOTP multi-factor authentication
 
@@ -757,6 +812,8 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Settings module](modules/settings.md)
 - [Stores module](modules/stores.md)
 - [Billing module](modules/billing.md)
+- [Catalog module](modules/catalog.md)
+- [Catalog schema reference](catalog.md)
 - [Module communication contracts](module-communication/)
 - [Authentication](authentication.md)
 - [Platform settings](settings.md)

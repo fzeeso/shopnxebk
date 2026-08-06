@@ -9,6 +9,7 @@ use Modules\Billing\Actions\EnsurePlanCatalog;
 use Modules\Settings\Actions\EnsureCurrencyCatalog;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Modules\Stores\Actions\EnsureLocalMerchant;
+use Modules\Stores\Actions\EnsurePolicyTypeCatalog;
 use Modules\Stores\Actions\EnsureStoreLanguageDefaults;
 
 class DatabaseSeeder extends Seeder
@@ -21,6 +22,7 @@ class DatabaseSeeder extends Seeder
         app(EnsureAuthorizationCatalog::class)->ensure();
         app(EnsureCurrencyCatalog::class)->ensure();
         app(EnsureLanguageCatalog::class)->ensure();
+        app(EnsurePolicyTypeCatalog::class)->ensure();
         app(EnsureStoreLanguageDefaults::class)->ensure();
         app(EnsurePlanCatalog::class)->ensure();
 

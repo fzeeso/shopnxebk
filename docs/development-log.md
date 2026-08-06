@@ -1,5 +1,74 @@
 # Development log
 
+## 2026-08-07 — Localized Store policies and version history
+
+- Changed: Added the eight-type system policy catalog, Platform custom-type
+  administration, Store-local draft/published policies, localized content and
+  SEO fields, automatic immutable language-scoped versions, rollback,
+  merchant management APIs, and public published storefront reads.
+- Reason: Give every Store a normalized, translatable policy structure with
+  strong Store isolation and auditable legal-content changes instead of
+  storing unrelated pages in settings or unversioned blobs.
+- Data/configuration impact: One additive Stores migration creates
+  `policy_types`, `store_policies`, `store_policy_translations`, and
+  `policy_versions`. Database constraints enforce one policy per Store/type,
+  Store-local slug uniqueness, valid publication state, unique translations,
+  and positive per-language versions. The authorization catalog adds
+  `manage policies` to Owner and Manager.
+- Compatibility or rollout notes: Run the database seeder after migration to
+  idempotently install the system types. Storefront policy routes require
+  `X-Store-ID` but intentionally do not require authentication. Content may be
+  Markdown or previously sanitized HTML; this backend does not sanitize or
+  render arbitrary HTML.
+- Verification: Added PostgreSQL feature coverage for catalog protection,
+  Store isolation and uniqueness, translation version creation, publication,
+  public locale reads, rollback, and last-translation protection.
+
+## 2026-08-05 — Store-local Catalog schema
+
+- Changed: Added and enabled the Catalog module with 33 normalized tables for
+  brands, translated collections/categories/products, collection rules and AI
+  jobs, tags and assignments, options/values/variants, product images, digital
+  assets, software license-key pools, and typed custom fields. Added a complete
+  schema reference covering every column, relationship, constraint, index,
+  deletion rule, application responsibility, and core PostgreSQL query pattern.
+- Reason: Establish stable Store-local product identifiers and database
+  invariants before adding Catalog APIs, search projections, Inventory, Files,
+  or Orders integrations.
+- Data/configuration impact: Four additive migrations use bigint internal IDs,
+  ULID public IDs, timezone timestamps, Store-scoped localized slugs, composite
+  foreign keys, partial/expression uniqueness, checked lifecycle/type values,
+  and integer-minor-unit variant prices. Store deletion cascades Catalog rows.
+- Compatibility or rollout notes: This delivery is persistence-only and adds
+  no public route or GraphQL field. Apply all four migrations in order. Future
+  write paths must encrypt license material and protect digital asset locators.
+- Verification: Applied all four migrations to the configured development
+  PostgreSQL database. Module discovery, generated-documentation update/check,
+  Pint, PHPStan, and the full PostgreSQL suite pass with 22 tests and 323
+  assertions, including all 33 tables, Store-local slug reuse/uniqueness, and
+  cross-Store assignment rejection. The complete reference was mechanically
+  checked against all 33 migration table names, and its local links resolve.
+
+## 2026-08-05 — Self-service password changes
+
+- Changed: Added the authenticated `PATCH /api/v1/auth/password` contract for
+  both Platform and Store users, current-password verification, the shared
+  strong-password policy, per-user rate limiting, active session/CSRF rotation,
+  remember-token rotation, personal access-token revocation, and feature tests.
+- Reason: Allow every signed-in admin account to replace its own password from
+  the Next.js Security page without exposing a scope-specific or privileged
+  password route.
+- Data/configuration impact: No schema change. Successful changes invalidate
+  outstanding MFA challenges through their existing password-hash binding and
+  revoke all personal API tokens while preserving the current browser session.
+- Compatibility or rollout notes: Clients must send `current_password`,
+  `password`, and `password_confirmation` with a Sanctum-authenticated,
+  CSRF-protected PATCH request. Laravel Fortify remains the MFA engine; the
+  password endpoint is a ShopNXE Authentication module contract.
+- Verification: Focused PostgreSQL feature tests passed for Platform and Store
+  scopes, weak/incorrect passwords, unauthenticated access, token revocation,
+  and password/session credential rotation.
+
 ## 2026-08-03 — Theme marketplace architecture, APIs, and admin interface
 
 - Changed: Replaced the simple Store template table with the full Themes module:

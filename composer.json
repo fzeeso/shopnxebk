@@ -43,6 +43,7 @@
             "Database\\Seeders\\": "database/seeders/",
             "Modules\\Authentication\\": "Modules/Authentication/app/",
             "Modules\\Billing\\": "Modules/Billing/app/",
+            "Modules\\Catalog\\": "Modules/Catalog/app/",
             "Modules\\Settings\\": "Modules/Settings/app/",
             "Modules\\Stores\\": "Modules/Stores/app/",
             "Modules\\Themes\\": "Modules/Themes/app/"
@@ -57,6 +58,7 @@
             "Modules\\Authentication\\Database\\Factories\\": "Modules/Authentication/database/factories/",
             "Modules\\Authentication\\Database\\Seeders\\": "Modules/Authentication/database/seeders/",
             "Modules\\Billing\\Database\\Factories\\": "Modules/Billing/database/factories/",
+            "Modules\\Catalog\\Tests\\": "Modules/Catalog/tests/",
             "Modules\\Settings\\Tests\\": "Modules/Settings/tests/",
             "Modules\\Stores\\Database\\Factories\\": "Modules/Stores/database/factories/",
             "Modules\\Themes\\Tests\\": "Modules/Themes/tests/"

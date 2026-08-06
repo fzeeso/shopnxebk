@@ -40,6 +40,7 @@ final class EnsureAuthorizationCatalog
             'manage customers',
             'manage discounts',
             'manage themes',
+            'manage policies',
         ],
         'Manager' => [
             'access store',
@@ -50,6 +51,7 @@ final class EnsureAuthorizationCatalog
             'manage customers',
             'manage discounts',
             'manage themes',
+            'manage policies',
         ],
         'Sales' => [
             'access store',

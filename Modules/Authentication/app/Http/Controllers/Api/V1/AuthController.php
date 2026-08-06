@@ -11,12 +11,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Actions\IssueStoreToken;
 use Modules\Authentication\Actions\RegisterUser;
+use Modules\Authentication\Http\Requests\ChangePasswordRequest;
 use Modules\Authentication\Http\Requests\CreateTokenRequest;
 use Modules\Authentication\Http\Requests\ForgotPasswordRequest;
 use Modules\Authentication\Http\Requests\LoginRequest;
@@ -124,6 +126,34 @@ final class AuthController extends Controller
         }
 
         return response()->json(['message' => 'Password reset successfully.']);
+    }
+
+    public function changePassword(ChangePasswordRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $password = $request->string('password')->toString();
+
+        $tokensRevoked = DB::transaction(function () use ($password, $user): int {
+            $user->forceFill([
+                'password' => Hash::make($password),
+                'remember_token' => Str::random(60),
+            ])->save();
+
+            return $user->tokens()->delete();
+        });
+
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+            $request->session()->regenerateToken();
+        }
+
+        event(new PasswordReset($user));
+
+        return response()->json([
+            'message' => 'Password changed successfully.',
+            'tokens_revoked' => $tokensRevoked,
+        ]);
     }
 
     public function verifyEmail(Request $request, string $id, string $hash): JsonResponse

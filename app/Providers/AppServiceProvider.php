@@ -72,6 +72,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth.register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
         RateLimiter::for('auth.token', fn (Request $request) => Limit::perMinute(5)->by(Str::lower((string) $request->input('email')).'|'.$request->ip()));
         RateLimiter::for('auth.token-management', fn (Request $request) => Limit::perMinute(10)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('auth.password-management', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('auth.mfa', fn (Request $request) => Limit::perMinute(5)->by(hash('sha256', (string) $request->input('challenge_token')).'|'.$request->ip()));
         RateLimiter::for('auth.mfa-management', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('graphql', fn (Request $request) => Limit::perMinute(60)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));

@@ -145,6 +145,24 @@ Billing owns `plans`, reusable `features`, and `plan_features`. A plan-feature a
 
 Plan administration is Platform-only and requires `manage plans`. `Super Admin` and `Billing` can initially manage the catalog; `Support` and all Store users cannot. Assigned plans are archived rather than deleted. Public APIs use plan/feature ULIDs and never expose bigint relationships.
 
+## Catalog persistence contract
+
+Catalog owns Store-local brands, collections, categories, tags, products,
+options, variants, media/fulfillment metadata, software license-key pools, and
+typed custom fields. Addressable rows use bigint primary keys, public ULIDs,
+non-null indexed Store IDs, and timezone timestamps. Translation and
+relationship rows retain Store IDs so composite foreign keys reject cross-Store
+associations at the database boundary.
+
+Translated slugs are unique per Store and locale. Categories are the strict
+navigation taxonomy; collections are manual, rule-based, or AI-generated
+merchandising groups. Variant prices use non-negative integer minor units plus
+an uppercase three-letter currency code. The initial Catalog module provides
+persistence only: future API/model/search/file behavior must preserve Store
+context, public-ID, permission, and cross-module contracts. The complete
+column, relationship, constraint, and deletion contract is documented in the
+[Catalog schema reference](catalog.md).
+
 ## Store context and request flow
 
 ```mermaid
@@ -197,10 +215,14 @@ Platform roles are evaluated without an active store team. Store-role assignment
   review submissions, Store licenses, installed/customized Store copies, and
   the Store-provisioning installer contract.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
+- Catalog owns Store-local merchandising, products, variants, fulfillment
+  metadata, and custom fields. Inventory, Files, Search, and Orders consume its
+  stable identifiers through future contracts/events rather than writing its
+  tables.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

@@ -7,8 +7,13 @@ use Modules\Stores\Http\Controllers\Api\V1\PlatformMerchantController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreDomainController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreLocaleSettingsController;
+use Modules\Stores\Http\Controllers\Api\V1\PolicyTypeController;
+use Modules\Stores\Http\Controllers\Api\V1\PolicyVersionController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreController;
+use Modules\Stores\Http\Controllers\Api\V1\StorefrontPolicyController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreLanguageController;
+use Modules\Stores\Http\Controllers\Api\V1\StorePolicyController;
+use Modules\Stores\Http\Controllers\Api\V1\StorePolicyTranslationController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreUserController;
 
 Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
@@ -24,6 +29,18 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
             Route::patch('settings', [StoreController::class, 'updateSettings'])->name('settings.update');
             Route::get('languages', [StoreLanguageController::class, 'index'])->name('languages.index');
             Route::put('languages', [StoreLanguageController::class, 'update'])->name('languages.update');
+            Route::get('policy-types', [PolicyTypeController::class, 'storeIndex'])->name('policy-types.index');
+            Route::get('policies', [StorePolicyController::class, 'index'])->name('policies.index');
+            Route::post('policies', [StorePolicyController::class, 'store'])->name('policies.store');
+            Route::get('policies/{storePolicy}', [StorePolicyController::class, 'show'])->name('policies.show');
+            Route::patch('policies/{storePolicy}', [StorePolicyController::class, 'update'])->name('policies.update');
+            Route::post('policies/{storePolicy}/publish', [StorePolicyController::class, 'publish'])->name('policies.publish');
+            Route::post('policies/{storePolicy}/unpublish', [StorePolicyController::class, 'unpublish'])->name('policies.unpublish');
+            Route::put('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'upsert'])->name('policies.translations.upsert');
+            Route::delete('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'destroy'])->name('policies.translations.destroy');
+            Route::get('policies/{storePolicy}/versions', [PolicyVersionController::class, 'index'])->name('policies.versions.index');
+            Route::post('policies/{storePolicy}/versions/{policyVersion}/restore', [PolicyVersionController::class, 'restore'])->name('policies.versions.restore');
+            Route::delete('policies/{storePolicy}', [StorePolicyController::class, 'destroy'])->name('policies.destroy');
             Route::get('roles', [StoreUserController::class, 'roles'])->name('roles.index');
             Route::get('users', [StoreUserController::class, 'index'])->name('users.index');
             Route::post('users', [StoreUserController::class, 'store'])->name('users.store');
@@ -48,4 +65,16 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:platform'])
         Route::post('merchants', [PlatformMerchantController::class, 'store'])->name('merchants.store');
         Route::get('merchants/{merchant}', [PlatformMerchantController::class, 'show'])->name('merchants.show');
         Route::patch('merchants/{merchant}', [PlatformMerchantController::class, 'update'])->name('merchants.update');
+        Route::get('policy-types', [PolicyTypeController::class, 'platformIndex'])->name('policy-types.index');
+        Route::post('policy-types', [PolicyTypeController::class, 'store'])->name('policy-types.store');
+        Route::patch('policy-types/{policyType}', [PolicyTypeController::class, 'update'])->name('policy-types.update');
+        Route::delete('policy-types/{policyType}', [PolicyTypeController::class, 'destroy'])->name('policy-types.destroy');
+    });
+
+Route::middleware(['api', 'store'])
+    ->prefix('api/v1/storefront')
+    ->name('api.v1.storefront.')
+    ->group(function (): void {
+        Route::get('policies', [StorefrontPolicyController::class, 'index'])->name('policies.index');
+        Route::get('policies/{slug}', [StorefrontPolicyController::class, 'show'])->name('policies.show');
     });

@@ -176,3 +176,22 @@ Language and Store identifiers in request/response bodies are public ULIDs.
 `locale` accepts a language plus optional region and normalizes hyphens to an
 underscore. Store updates require at least one language and a default included
 in the selected set.
+
+Store policy REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/policy-types` | Page or create master policy types; writes require `manage platform settings`. |
+| `PATCH/DELETE` | `/api/v1/platform/policy-types/{policyType}` | Edit or remove a custom unreferenced type; system types are protected. |
+| `GET` | `/api/v1/store/policy-types` | List the ordered policy-type catalog for an active Store member. |
+| `GET/POST` | `/api/v1/store/policies` | List Store policies or create one draft; writes require `manage policies`. |
+| `GET/PATCH/DELETE` | `/api/v1/store/policies/{storePolicy}` | Read, edit, or delete one Store-owned policy. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/publish` | Publish a policy containing at least one translation. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/unpublish` | Return a published policy to draft. |
+| `PUT/DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | Upsert or delete localized title/content/SEO fields. |
+| `GET` | `/api/v1/store/policies/{storePolicy}/versions` | List immutable per-language content versions. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/versions/{policyVersion}/restore` | Restore content and append a new version. |
+| `GET` | `/api/v1/storefront/policies[/{slug}]` | Publicly read published policies for `X-Store-ID`, optionally selecting `locale`. |
+
+All entity and language parameters use public ULIDs except the public policy
+slug. See [Store policies](store-policies.md).

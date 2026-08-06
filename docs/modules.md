@@ -9,12 +9,12 @@ Implemented modules:
 | Stores | Store profiles/settings, memberships/context, Store language selections, and isolation |
 | Themes | Marketplace publishers/categories/listings, immutable releases/review, Store licenses, and installed/customized Store copies |
 | Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
+| Catalog | Store-local brands, collections, taxonomy, products, variants, fulfillment metadata, and custom fields |
 
 The following modules are planned but are not created:
 
 | Module | Responsibility | Main dependencies |
 | --- | --- | --- |
-| Products/Catalog | products, variants, categories, catalog identifiers | Files, Search |
 | Inventory | stock levels, reservations, adjustments | Catalog |
 | Orders | carts, checkout, order lifecycle | Customers, Inventory, Discounts, Taxes, Shipping, Payments |
 | Customers | customer profiles and addresses | Authentication (identity contract) |
@@ -39,6 +39,8 @@ Every implemented module also receives a separate document under
 `docs/modules/`. Every directional dependency receives a separate contract
 under `docs/module-communication/`; update both sides whenever a cross-module
 interface changes. Themes is documented in [Themes module](modules/themes.md)
-and [Theme marketplace and Store themes](themes.md). All modules inherit the
+and [Theme marketplace and Store themes](themes.md). Catalog is documented in
+the [Catalog module](modules/catalog.md) and the complete
+[Catalog schema reference](catalog.md). All modules inherit the
 identifier, Store-language, and authorization rules from
 [application context](context.md).

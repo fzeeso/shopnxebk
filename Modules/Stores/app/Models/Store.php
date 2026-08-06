@@ -93,6 +93,11 @@ final class Store extends BaseTenant
         return $this->hasMany(StoreTheme::class);
     }
 
+    public function policies(): HasMany
+    {
+        return $this->hasMany(StorePolicy::class);
+    }
+
     public function activeTheme(): HasOne
     {
         return $this->hasOne(StoreTheme::class)->where('status', 'published');

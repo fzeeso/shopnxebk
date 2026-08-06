@@ -16,6 +16,8 @@ tags:
     description: Global SaaS language and currency configuration for the /admin/settings component.
   - name: Themes
     description: Platform marketplace/releases/licenses and Store-installed Theme copies.
+  - name: Store Policies
+    description: Platform policy-type catalog, Store-local translations/version history, and published storefront reads.
 paths:
   /api/health/live:
     get:
@@ -136,6 +138,37 @@ paths:
       responses:
         '200': {description: Logged out}
         '401': {$ref: '#/components/responses/Unauthenticated'}
+  /api/v1/auth/password:
+    patch:
+      security: [{sanctum: []}]
+      summary: Change the signed-in user's password
+      description: Available to both Platform and Store users. Verifies the current password, keeps the active browser session signed in, rotates session/remember credentials, revokes personal access tokens, and invalidates outstanding MFA challenges.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: {type: string, format: password}
+                password: {type: string, format: password, minLength: 12, description: Must contain uppercase, lowercase, a number, and a symbol and differ from current_password.}
+                password_confirmation: {type: string, format: password}
+      responses:
+        '200':
+          description: Password changed and personal API tokens revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, tokens_revoked]
+                properties:
+                  message: {type: string, example: Password changed successfully.}
+                  tokens_revoked: {type: integer, minimum: 0}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '419': {description: CSRF token mismatch or expired session}
+        '422': {$ref: '#/components/responses/ValidationError'}
+        '429': {description: Rate limited to five attempts per minute per authenticated user}
   /api/v1/auth/stores:
     get:
       security: [{sanctum: []}]
@@ -757,6 +790,212 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Language not found}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/policy-types:
+    get:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Page the Platform policy-type catalog
+      parameters: [{$ref: '#/components/parameters/Page'}, {$ref: '#/components/parameters/PerPage'}]
+      responses:
+        '200': {description: Paginated policy-type catalog}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Add a custom policy type
+      description: Requires Platform scope and manage platform settings.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreatePolicyTypeRequest'}}}
+      responses:
+        '201': {description: Custom policy type created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/policy-types/{policyType}:
+    parameters:
+      - {name: policyType, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    patch:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Update a policy type
+      description: Requires manage platform settings. A system type code is immutable.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UpdatePolicyTypeRequest'}}}
+      responses:
+        '200': {description: Policy type updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy type not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Delete a custom unreferenced policy type
+      responses:
+        '204': {description: Policy type deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy type not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/policy-types:
+    get:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: List the ordered policy-type catalog for a Store member
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200': {description: Complete policy-type catalog}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/policies:
+    get:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: List policies and translations for the selected Store
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200': {description: Store policy list}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Create a draft Store policy
+      description: Requires manage policies. A Store may have one policy per type and slug.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateStorePolicyRequest'}}}
+      responses:
+        '201': {description: Draft policy created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/policies/{storePolicy}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Read one Store policy and all translations
+      responses:
+        '200': {description: Store policy}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy not found in selected Store}
+    patch:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Update a Store policy title or slug
+      description: Requires manage policies.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UpdateStorePolicyRequest'}}}
+      responses:
+        '200': {description: Store policy updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Delete a Store policy and its translations/history
+      description: Requires manage policies.
+      responses:
+        '204': {description: Policy deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy not found in selected Store}
+  /api/v1/store/policies/{storePolicy}/publish:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Publish a policy with at least one non-empty translation
+      responses:
+        '200': {description: Policy published}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/policies/{storePolicy}/unpublish:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Return a policy to draft
+      responses:
+        '200': {description: Policy unpublished}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/policies/{storePolicy}/translations/{language}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: language, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Upsert localized policy content and append a content version
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/StorePolicyTranslationRequest'}}}
+      responses:
+        '200': {description: Translation saved}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Delete a translation
+      description: A published policy must retain at least one translation.
+      responses:
+        '204': {description: Translation deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/policies/{storePolicy}/versions:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: List immutable per-language policy versions
+      responses:
+        '200': {description: Version list}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/policies/{storePolicy}/versions/{policyVersion}/restore:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: policyVersion, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Restore version content and append a new version
+      responses:
+        '201': {description: Restored content version created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy or version not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/storefront/policies:
+    get:
+      tags: [Store Policies]
+      summary: List published policies using the best matching locale
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {name: locale, in: query, required: false, schema: {type: string, maxLength: 10}}
+      responses:
+        '200': {description: Published localized Store policies}
+        '404': {description: Store not found}
+  /api/v1/storefront/policies/{slug}:
+    get:
+      tags: [Store Policies]
+      summary: Read one published policy by Store-local slug
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {name: slug, in: path, required: true, schema: {type: string, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}}
+        - {name: locale, in: query, required: false, schema: {type: string, maxLength: 10}}
+      responses:
+        '200': {description: Published localized Store policy}
+        '404': {description: Store or published policy not found}
   /api/v1/store/languages:
     get:
       security: [{sanctum: []}]
@@ -2179,6 +2418,112 @@ components:
           maximum: 999999999999.99999999
           description: Target currency units per 1 USD; null clears a non-base rate.
         is_active: {type: boolean}
+    PolicyType:
+      type: object
+      required: [id, code, name, is_system, sort_order]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        code: {type: string, pattern: '^[a-z][a-z0-9_-]{0,79}$'}
+        name: {type: string, maxLength: 160}
+        description: {type: [string, 'null']}
+        is_system: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CreatePolicyTypeRequest:
+      type: object
+      required: [code, name]
+      properties:
+        code: {type: string, pattern: '^[a-z][a-z0-9_-]{0,79}$'}
+        name: {type: string, maxLength: 160}
+        description: {type: [string, 'null'], maxLength: 5000}
+        sort_order: {type: integer, minimum: 0}
+    UpdatePolicyTypeRequest:
+      type: object
+      minProperties: 1
+      properties:
+        code: {type: string, pattern: '^[a-z][a-z0-9_-]{0,79}$'}
+        name: {type: string, maxLength: 160}
+        description: {type: [string, 'null'], maxLength: 5000}
+        sort_order: {type: integer, minimum: 0}
+    CreateStorePolicyRequest:
+      type: object
+      required: [policy_type_id, title]
+      properties:
+        policy_type_id: {$ref: '#/components/schemas/PublicUlid'}
+        title: {type: string, maxLength: 255}
+        slug: {type: [string, 'null'], maxLength: 160, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+    UpdateStorePolicyRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title: {type: string, maxLength: 255}
+        slug: {type: string, maxLength: 160, pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$'}
+    StorePolicyTranslationRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title: {type: string, maxLength: 255}
+        content: {type: string, maxLength: 1000000, description: Markdown or previously sanitized HTML.}
+        seo_title: {type: [string, 'null'], maxLength: 255}
+        seo_description: {type: [string, 'null'], maxLength: 1000}
+    StorePolicyTranslation:
+      type: object
+      required: [id, language, title, content]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        language: {$ref: '#/components/schemas/Language'}
+        title: {type: string}
+        content: {type: string}
+        seo_title: {type: [string, 'null']}
+        seo_description: {type: [string, 'null']}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    StorePolicy:
+      type: object
+      required: [id, policy_type, title, slug, status, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        store_id: {$ref: '#/components/schemas/PublicUlid'}
+        policy_type: {$ref: '#/components/schemas/PolicyType'}
+        title: {type: string}
+        slug: {type: string}
+        status: {type: string, enum: [draft, published]}
+        published_at: {type: [string, 'null'], format: date-time}
+        created_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        updated_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        translations: {type: array, items: {$ref: '#/components/schemas/StorePolicyTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    PolicyVersion:
+      type: object
+      required: [id, language, version, content]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        language: {$ref: '#/components/schemas/Language'}
+        version: {type: integer, minimum: 1}
+        content: {type: string}
+        created_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        created_at: {type: [string, 'null'], format: date-time}
+    StorefrontPolicy:
+      type: object
+      required: [id, type, title, slug, locale, content, published_at]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        type:
+          type: object
+          required: [code, name]
+          properties:
+            code: {type: string}
+            name: {type: string}
+        title: {type: string}
+        slug: {type: string}
+        locale: {type: string}
+        content: {type: string}
+        seo_title: {type: [string, 'null']}
+        seo_description: {type: [string, 'null']}
+        published_at: {type: string, format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
     Language:
       type: object
       required: [id, name, native_name, locale, direction, is_active]
