@@ -1,7 +1,7 @@
 # Catalog schema reference
 
 This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the six migrations under
+module. The source of truth is the seven migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
@@ -20,6 +20,7 @@ registered yet.
 | 4 | `2026_08_05_000400_create_catalog_custom_field_value_tables.php` | Product/variant custom-field values, translated values, and multi-select assignments |
 | 5 | `2026_08_07_000400_add_website_url_to_brands_table.php` | Optional official Brand website URL |
 | 6 | `2026_08_07_000500_add_origin_to_brands_table.php` | Optional Brand country, region, or origin label |
+| 7 | `2026_08_08_000100_add_page_title_and_search_keywords_to_category_translations_table.php` | Optional localized category page title and search keywords |
 
 Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
 
@@ -330,6 +331,8 @@ Deleting a parent sets only `parent_id` to null. Indexes cover
 | `description` | `text` | Nullable | Localized description |
 | `seo_title` | `varchar(255)` | Nullable | Localized search title |
 | `seo_description` | `text` | Nullable | Localized search description |
+| `page_title` | `varchar(255)` | Nullable | Localized browser/page heading title |
+| `search_keywords` | `text` | Nullable | Localized search keywords or phrases |
 | `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
 
 Primary key: `(category_id, locale)`. Slug uniqueness:

@@ -1,5 +1,19 @@
 # Development log
 
+## 2026-08-08 — Category translation page metadata
+
+- Changed: Added nullable `page_title` and `search_keywords` fields to
+  `category_translations`.
+- Reason: Localized category pages need a dedicated page title and merchant
+  search-keyword metadata in addition to the existing SEO title and description.
+- Data/configuration impact: One additive Catalog migration adds
+  `page_title varchar(255)` and `search_keywords text`. Existing translations
+  remain valid without backfill.
+- Compatibility or rollout notes: Categories remain persistence-only; no
+  Category REST or GraphQL contract exists yet.
+- Verification: Added PostgreSQL-backed schema and persistence coverage, then
+  ran Catalog formatting, documentation inventory checks, and the focused test.
+
 ## 2026-08-07 — Brand website URL and origin
 
 - Changed: Added nullable `brands.website_url` and `brands.origin` persistence

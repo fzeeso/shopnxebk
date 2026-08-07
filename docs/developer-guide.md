@@ -95,7 +95,9 @@ copies, and the Theme installer used by Store provisioning.
 `Modules/Catalog/` owns Store-local brands, collections, categories, products,
 options, variants, media/fulfillment metadata, license-key pools, and typed
 custom-field persistence. Brands expose Store-scoped CRUD services and REST
-routes; the remaining Catalog areas are still persistence-only.
+routes; the remaining Catalog areas are still persistence-only. Localized
+category persistence includes SEO metadata plus optional page titles and search
+keywords.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 
