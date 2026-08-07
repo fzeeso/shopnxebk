@@ -38,12 +38,18 @@ final class CreateLanguageRequest extends FormRequest
             $normalizedLocale .= '_'.Str::upper($parts[1]);
         }
 
-        $this->merge([
+        $values = [
             'name' => trim((string) $this->input('name')),
             'native_name' => trim((string) $this->input('native_name')),
             'locale' => $normalizedLocale,
             'direction' => Str::lower(trim((string) $this->input('direction', 'ltr'))),
-        ]);
+        ];
+
+        if ($this->exists('lang_icon')) {
+            $values['lang_icon'] = trim((string) $this->input('lang_icon'));
+        }
+
+        $this->merge($values);
     }
 
     /** @return array<string, list<mixed>> */
@@ -59,6 +65,7 @@ final class CreateLanguageRequest extends FormRequest
                 'regex:/^[a-z]{2,3}(?:_[A-Z]{2})?$/',
                 Rule::unique('languages', 'locale'),
             ],
+            'lang_icon' => ['sometimes', 'required', 'string', 'max:2048', 'regex:/^(?:\/|https?:\/\/)/i'],
             'direction' => ['required', Rule::in(['ltr', 'rtl'])],
             'is_active' => ['sometimes', 'boolean'],
         ];

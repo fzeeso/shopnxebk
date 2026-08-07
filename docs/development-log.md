@@ -1,5 +1,27 @@
 # Development log
 
+## 2026-08-07 — Language country-flag icons
+
+- Changed: Added the `languages.lang_icon` asset reference, bundled SVG country
+  flags for all 24 seeded languages plus a generic fallback, platform create/edit
+  validation, and render-ready icon URLs in platform, Store-language, policy
+  translation, and policy-version resources.
+- Reason: Let storefront language switchers and admin translation workflows for
+  brands, collections, categories, products, policies, and future localized
+  entities identify each language consistently with an icon and native label.
+- Data/configuration impact: One additive Settings migration backfills existing
+  catalog rows and gives future rows the generic asset by default. Root-relative
+  asset references and HTTP(S) icon URLs are accepted; locale immutability and
+  Store language selections are unchanged.
+- Compatibility or rollout notes: Apply migrations and run the idempotent
+  application seeder. Separate frontend/admin clients should render the returned
+  `lang_icon` URL and retain visible text/alt text for accessibility. Resource
+  rendering falls back to the generic asset when a partial query omits the icon
+  attribute, but deployments must still apply the migration before icon writes.
+- Verification: Added PostgreSQL-backed catalog/API assertions for seeded icon
+  paths, public assets, fallback creation, custom updates, and unsafe-scheme
+  rejection; generated documentation, formatting, and relevant tests were run.
+
 ## 2026-08-07 — Localized Store policies and version history
 
 - Changed: Added the eight-type system policy catalog, Platform custom-type

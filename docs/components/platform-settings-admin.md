@@ -59,9 +59,11 @@ for backward compatibility.
 
 ## Language section
 
-Display name, native name, locale, direction, and active state. The create form
-accepts all fields. The edit form must render locale as read-only because the
-API prohibits changing it after creation.
+Display the country flag together with the name, native name, locale, direction,
+and active state. The create form accepts an optional `lang_icon` root-relative
+asset path or HTTP(S) URL and previews it; the generic bundled icon is used when
+the field is omitted. The edit form can replace the icon but must render locale
+as read-only because the API prohibits changing it after creation.
 
 Use an explicit active/inactive control. Deactivation changes platform
 availability without rewriting historical Store selections. Inactive entries
@@ -112,6 +114,8 @@ missing-key checks and frontend locale registration.
   navigation and cannot mutate catalogs.
 - Store users cannot mount the component or access its API.
 - Locale and currency code are immutable in edit forms.
+- Every language row and selector renders `lang_icon` with the native name as
+  accessible fallback text.
 - USD base invariants are visible and enforced.
 - No request from this component contains Store context.
 - Languages and Currencies remain sections of one extensible Settings shell.

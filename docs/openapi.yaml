@@ -2526,11 +2526,12 @@ components:
         updated_at: {type: [string, 'null'], format: date-time}
     Language:
       type: object
-      required: [id, name, native_name, locale, direction, is_active]
+      required: [id, name, native_name, lang_icon, locale, direction, is_active]
       properties:
         id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
         name: {type: string, maxLength: 100}
         native_name: {type: string, maxLength: 100}
+        lang_icon: {type: string, format: uri, description: Absolute render URL for the language country-flag icon.}
         locale: {type: string, maxLength: 10, pattern: '^[a-z]{2,3}(?:_[A-Z]{2})?$'}
         direction: {type: string, enum: [ltr, rtl]}
         is_active: {type: boolean}
@@ -2538,11 +2539,12 @@ components:
         updated_at: {type: [string, 'null'], format: date-time}
     StoreLanguageOption:
       type: object
-      required: [id, name, native_name, locale, direction, is_selected, is_default]
+      required: [id, name, native_name, lang_icon, locale, direction, is_selected, is_default]
       properties:
         id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
         name: {type: string}
         native_name: {type: string}
+        lang_icon: {type: string, format: uri, description: Absolute render URL for the language country-flag icon.}
         locale: {type: string}
         direction: {type: string, enum: [ltr, rtl]}
         is_selected: {type: boolean}
@@ -2554,6 +2556,7 @@ components:
         name: {type: string, maxLength: 100}
         native_name: {type: string, maxLength: 100}
         locale: {type: string, maxLength: 10}
+        lang_icon: {type: string, format: uri-reference, maxLength: 2048, default: /assets/languages/flags/generic.svg}
         direction: {type: string, enum: [ltr, rtl]}
         is_active: {type: boolean, default: true}
     UpdateLanguageRequest:
@@ -2562,6 +2565,7 @@ components:
       properties:
         name: {type: string, maxLength: 100}
         native_name: {type: string, maxLength: 100}
+        lang_icon: {type: string, format: uri-reference, maxLength: 2048}
         direction: {type: string, enum: [ltr, rtl]}
         is_active: {type: boolean}
     UpdateStoreLanguagesRequest:

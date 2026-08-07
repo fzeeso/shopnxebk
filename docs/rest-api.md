@@ -138,7 +138,7 @@ Platform Settings REST contracts:
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
 | `GET` | `/api/v1/platform/settings/languages` | Page the language catalog for a Platform-scoped user. |
 | `POST` | `/api/v1/platform/settings/languages` | Add a supported language; requires `manage platform settings`. |
-| `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, direction, or active state by public ULID; requires `manage platform settings`. |
+| `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, country-flag icon, direction, or active state by public ULID; requires `manage platform settings`. |
 
 Admin component request flow:
 
@@ -175,7 +175,9 @@ Store language REST contracts:
 Language and Store identifiers in request/response bodies are public ULIDs.
 `locale` accepts a language plus optional region and normalizes hyphens to an
 underscore. Store updates require at least one language and a default included
-in the selected set.
+in the selected set. Language catalog and Store option responses include a
+render-ready `lang_icon` URL for storefront/admin switchers and translation
+editors.
 
 Store policy REST contracts:
 

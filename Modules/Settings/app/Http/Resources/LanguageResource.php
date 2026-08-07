@@ -18,6 +18,7 @@ final class LanguageResource extends JsonResource
             'id' => $this->public_id,
             'name' => $this->name,
             'native_name' => $this->native_name,
+            'lang_icon' => $this->resource->langIconUrl(),
             'locale' => $this->locale,
             'direction' => $this->direction instanceof LanguageDirection
                 ? $this->direction->value

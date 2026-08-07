@@ -41,6 +41,9 @@ final class UpdateLanguageRequest extends FormRequest
         if ($this->exists('direction')) {
             $values['direction'] = Str::lower(trim((string) $this->input('direction')));
         }
+        if ($this->exists('lang_icon')) {
+            $values['lang_icon'] = trim((string) $this->input('lang_icon'));
+        }
 
         $this->merge($values);
     }
@@ -52,6 +55,7 @@ final class UpdateLanguageRequest extends FormRequest
             'name' => ['sometimes', 'required', 'string', 'max:100'],
             'native_name' => ['sometimes', 'required', 'string', 'max:100'],
             'direction' => ['sometimes', 'required', Rule::in(['ltr', 'rtl'])],
+            'lang_icon' => ['sometimes', 'required', 'string', 'max:2048', 'regex:/^(?:\/|https?:\/\/)/i'],
             'is_active' => ['sometimes', 'boolean'],
             'locale' => ['prohibited'],
         ];

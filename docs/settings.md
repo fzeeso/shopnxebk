@@ -43,9 +43,11 @@ does not invent or fetch market rates.
 ## Language catalog
 
 `languages` is the master catalog of supported languages. Each row has a public
-ULID, immutable locale code, administrative and native names, text direction,
-and active state. Deactivating a language removes it from new Store selection
-responses without rewriting existing Store history.
+ULID, immutable locale code, administrative and native names, a `lang_icon`
+asset reference, text direction, and active state. Bundled country-flag SVGs
+live in `public/assets/languages/flags`. API responses expose `lang_icon` as a
+render-ready absolute URL. Deactivating a language removes it from new Store
+selection responses without rewriting existing Store history.
 
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -54,7 +56,14 @@ responses without rewriting existing Store history.
 | `PATCH` | `/api/v1/platform/settings/languages/{language}` | Edit names, direction, or active state by public ULID. |
 
 Locale codes are immutable after creation because `stores.language_code` and
-Store language selections may already refer to them.
+Store language selections may already refer to them. Platform create/update
+requests may set `lang_icon` to a root-relative asset path or HTTP(S) URL; an
+omitted create value uses the bundled generic language icon.
+
+`GET /api/v1/store/languages` includes the same `lang_icon` URL with every
+active option. Storefront and admin clients should use that field in language
+switchers and in translation tabs for brands, collections, categories,
+products, policies, and other language-scoped content.
 
 ## Language-resource synchronization
 

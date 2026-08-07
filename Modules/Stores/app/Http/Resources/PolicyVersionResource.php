@@ -18,6 +18,7 @@ final class PolicyVersionResource extends JsonResource
             'language' => $this->whenLoaded('language', fn (): array => [
                 'id' => $this->language->public_id,
                 'name' => $this->language->name,
+                'lang_icon' => $this->language->langIconUrl(),
                 'locale' => $this->language->locale,
             ]),
             'version' => $this->version,

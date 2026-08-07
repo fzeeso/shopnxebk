@@ -56,9 +56,12 @@ one selected Store through Store-scoped routes and must not create or edit
 Platform master catalog rows. See the [admin component guides](components.md).
 
 Supported Store languages and translated admin-interface locales are separate
-capabilities. Catalog changes update `EnsureLanguageCatalog`, direction data,
-and PostgreSQL coverage; visible admin-label changes update every relevant
-frontend dictionary. See the
+capabilities. Catalog changes update `EnsureLanguageCatalog`, bundled
+country-flag assets and `lang_icon` references, direction data, and PostgreSQL
+coverage; visible admin-label changes update every relevant frontend dictionary.
+Storefront/admin selectors and localized-content tabs consume the render-ready
+icon URL from the language API instead of maintaining their own locale-to-flag
+map. See the
 [admin localization contract](components/localization.md).
 
 ## Local admin integration contract

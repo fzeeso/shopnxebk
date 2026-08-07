@@ -10,6 +10,8 @@ use Modules\Settings\Models\Language;
 
 final readonly class LanguageCatalogService
 {
+    private const DEFAULT_LANG_ICON = '/assets/languages/flags/generic.svg';
+
     public function __construct(private PlatformSettingsAccessService $access) {}
 
     /** @return LengthAwarePaginator<int, Language> */
@@ -27,6 +29,7 @@ final readonly class LanguageCatalogService
 
         return Language::query()->create([
             ...$data,
+            'lang_icon' => $data['lang_icon'] ?? self::DEFAULT_LANG_ICON,
             'is_active' => $data['is_active'] ?? true,
         ]);
     }

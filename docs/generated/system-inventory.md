@@ -198,6 +198,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_05_000400_create_catalog_custom_field_value_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
+| Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_29_000500_add_profile_and_capabilities_to_stores.php` |
