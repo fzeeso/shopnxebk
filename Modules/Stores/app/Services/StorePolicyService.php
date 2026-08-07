@@ -50,6 +50,11 @@ final readonly class StorePolicyService
         $store = $this->store($user, true);
         $policyType = PolicyType::query()->where('public_id', $data['policy_type_id'])->firstOrFail();
         $slug = Str::slug((string) ($data['slug'] ?? $data['title']));
+        if ($slug === '') {
+            throw ValidationException::withMessages([
+                'slug' => ['A Latin-letter or numeric slug is required for this title.'],
+            ]);
+        }
         $this->ensureUnique($store, $policyType, $slug);
 
         $policy = StorePolicy::query()->create([
@@ -70,6 +75,7 @@ final readonly class StorePolicyService
     {
         $store = $this->store($user, true);
         $this->ensureOwned($policy, $store);
+        $policy->loadMissing('policyType');
         $slug = isset($data['slug']) ? Str::slug((string) $data['slug']) : $policy->slug;
         $this->ensureUnique($store, $policy->policyType, $slug, $policy);
 

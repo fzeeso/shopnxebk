@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Modules\Settings\Enums\LanguageDirection;
 
-#[Fillable(['name', 'native_name', 'locale', 'lang_icon', 'direction', 'is_active'])]
+#[Fillable(['name', 'native_name', 'locale', 'lang_icon', 'lang_image', 'direction', 'is_active'])]
 final class Language extends Model
 {
     use HasPublicId;
@@ -31,6 +31,22 @@ final class Language extends Model
             $reference = '/assets/languages/flags/generic.svg';
         }
 
+        return $this->assetUrl($reference);
+    }
+
+    public function langImageUrl(): string
+    {
+        $reference = trim((string) ($this->getAttributes()['lang_image'] ?? ''));
+
+        if ($reference === '') {
+            return $this->langIconUrl();
+        }
+
+        return $this->assetUrl($reference);
+    }
+
+    private function assetUrl(string $reference): string
+    {
         if (Str::startsWith($reference, ['http://', 'https://'])) {
             return $reference;
         }

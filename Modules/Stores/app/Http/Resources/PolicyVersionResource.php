@@ -19,6 +19,7 @@ final class PolicyVersionResource extends JsonResource
                 'id' => $this->language->public_id,
                 'name' => $this->language->name,
                 'lang_icon' => $this->language->langIconUrl(),
+                'lang_image' => $this->language->langImageUrl(),
                 'locale' => $this->language->locale,
             ]),
             'version' => $this->version,

@@ -140,6 +140,11 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/platform/users/{user}` | `api.v1.platform.users.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/users/{user}` | `api.v1.platform.users.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/store` | `api.v1.store.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/brands` | `api.v1.store.brands.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/brands` | `api.v1.store.brands.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies` | `api.v1.store.policies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -196,9 +201,12 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_05_000200_create_catalog_product_tables.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_05_000300_create_catalog_variant_fulfillment_tables.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_05_000400_create_catalog_custom_field_value_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_07_000400_add_website_url_to_brands_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_07_000500_add_origin_to_brands_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |
+| Settings | `Modules/Settings/database/migrations/2026_08_07_000300_add_lang_image_to_languages_table.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_22_000100_create_tenancy_tables.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_28_000400_migrate_tenants_to_stores.php` |
 | Stores | `Modules/Stores/database/migrations/2026_07_29_000500_add_profile_and_capabilities_to_stores.php` |

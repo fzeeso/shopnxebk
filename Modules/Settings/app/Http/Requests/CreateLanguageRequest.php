@@ -48,6 +48,9 @@ final class CreateLanguageRequest extends FormRequest
         if ($this->exists('lang_icon')) {
             $values['lang_icon'] = trim((string) $this->input('lang_icon'));
         }
+        if ($this->exists('lang_image')) {
+            $values['lang_image'] = trim((string) $this->input('lang_image'));
+        }
 
         $this->merge($values);
     }
@@ -66,6 +69,7 @@ final class CreateLanguageRequest extends FormRequest
                 Rule::unique('languages', 'locale'),
             ],
             'lang_icon' => ['sometimes', 'required', 'string', 'max:2048', 'regex:/^(?:\/|https?:\/\/)/i'],
+            'lang_image' => ['sometimes', 'required', 'string', 'max:2048', 'regex:/^(?:\/|https?:\/\/)/i'],
             'direction' => ['required', Rule::in(['ltr', 'rtl'])],
             'is_active' => ['sometimes', 'boolean'],
         ];

@@ -20,12 +20,19 @@ final class LanguageIconFeatureTest extends TestCase
         app(EnsureLanguageCatalog::class)->ensure();
 
         $this->assertDatabaseCount('languages', 24);
+        $this->assertDatabaseHas('languages', [
+            'locale' => 'en',
+            'lang_image' => '/assets/languages/images/gb.webp',
+        ]);
 
         Language::query()->each(function (Language $language): void {
             $langIcon = (string) $language->getAttribute('lang_icon');
+            $langImage = (string) $language->getAttribute('lang_image');
 
             self::assertStringStartsWith('/assets/languages/flags/', $langIcon);
             self::assertFileExists(public_path(ltrim($langIcon, '/')));
+            self::assertStringStartsWith('/assets/languages/', $langImage);
+            self::assertFileExists(public_path(ltrim($langImage, '/')));
         });
     }
 
@@ -37,6 +44,10 @@ final class LanguageIconFeatureTest extends TestCase
         self::assertSame(
             url('/assets/languages/flags/generic.svg'),
             $language->langIconUrl(),
+        );
+        self::assertSame(
+            url('/assets/languages/flags/generic.svg'),
+            $language->langImageUrl(),
         );
     }
 
@@ -54,14 +65,17 @@ final class LanguageIconFeatureTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('data.lang_icon', url('/assets/languages/flags/generic.svg'))
+            ->assertJsonPath('data.lang_image', url('/assets/languages/flags/generic.svg'))
             ->json('data.id');
 
         $this->actingAs($admin, 'web')
             ->patchJson("/api/v1/platform/settings/languages/{$languageId}", [
                 'lang_icon' => 'https://cdn.example.test/flags/tl.svg',
+                'lang_image' => 'https://cdn.example.test/languages/tl.webp',
             ])
             ->assertOk()
-            ->assertJsonPath('data.lang_icon', 'https://cdn.example.test/flags/tl.svg');
+            ->assertJsonPath('data.lang_icon', 'https://cdn.example.test/flags/tl.svg')
+            ->assertJsonPath('data.lang_image', 'https://cdn.example.test/languages/tl.webp');
 
         $this->actingAs($admin, 'web')
             ->patchJson("/api/v1/platform/settings/languages/{$languageId}", [
@@ -69,5 +83,12 @@ final class LanguageIconFeatureTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('lang_icon');
+
+        $this->actingAs($admin, 'web')
+            ->patchJson("/api/v1/platform/settings/languages/{$languageId}", [
+                'lang_image' => 'javascript:alert(1)',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('lang_image');
     }
 }

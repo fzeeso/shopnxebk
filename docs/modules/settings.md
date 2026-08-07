@@ -9,7 +9,7 @@
 - canonical `/api/v1/platform/settings/*` routes and legacy platform aliases;
 - Platform read access and `manage platform settings` mutation enforcement;
 - the permission-filtered `Settings` navigation hint at `/admin/settings`;
-- language creation and editing, including country-flag icon and active-state management;
+- language creation and editing, including country-flag icon/image and active-state management;
 - currency creation, formatting, active-state, and USD-relative rate management.
 
 The module is designed to receive future global SaaS settings. It does not own
@@ -35,11 +35,13 @@ catalog. `EnsureCurrencyCatalog` maintains the common currency catalog while
 preserving administrator-entered non-USD rates. Store default backfilling is a
 separate Stores action and runs after the language catalog exists.
 
-Each language stores a `lang_icon` reference. The initial catalog points to
-bundled SVG country flags in `public/assets/languages/flags`, while custom rows
-may use a root-relative asset path or HTTP(S) URL. Settings and Stores resources
-return an absolute render URL so separate admin and storefront clients can use
-the icon directly.
+Each language stores `lang_icon` and `lang_image` references. The initial catalog
+keeps SVG country flags in `public/assets/languages/flags` and uses matching
+circular WebPs from `public/assets/languages/images` where the supplied sprite
+contains the country. Custom rows may use root-relative asset paths or HTTP(S)
+URLs. Settings and Stores resources return absolute render URLs so separate admin
+and storefront clients can display `lang_image` directly and retain `lang_icon`
+as fallback.
 
 Language catalog rows do not act as admin UI dictionaries. Component labels
 are synchronized through the separate frontend using the

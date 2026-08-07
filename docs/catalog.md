@@ -1,13 +1,14 @@
 # Catalog schema reference
 
 This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the four migrations under
+module. The source of truth is the six migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
-The current delivery is persistence-only. It does not register Catalog models,
-REST routes, GraphQL fields, upload/download handlers, search projections, or
-administration screens.
+The Brand slice now includes Store-scoped models and REST CRUD services. Other
+Catalog entities remain persistence-only; no Catalog GraphQL fields,
+upload/download handlers, search projections, or administration screens are
+registered yet.
 
 ## 1. Migration order
 
@@ -17,6 +18,8 @@ administration screens.
 | 2 | `2026_08_05_000200_create_catalog_product_tables.php` | Products, translations, taxonomy/collection/tag assignments, and product options/values |
 | 3 | `2026_08_05_000300_create_catalog_variant_fulfillment_tables.php` | Variants, variant selections, images, digital assets, and software license keys |
 | 4 | `2026_08_05_000400_create_catalog_custom_field_value_tables.php` | Product/variant custom-field values, translated values, and multi-select assignments |
+| 5 | `2026_08_07_000400_add_website_url_to_brands_table.php` | Optional official Brand website URL |
+| 6 | `2026_08_07_000500_add_origin_to_brands_table.php` | Optional Brand country, region, or origin label |
 
 Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
 
@@ -166,10 +169,19 @@ columns plus:
 | Column | Type | Null/default | Meaning |
 | --- | --- | --- | --- |
 | `logo_url` | `varchar(500)` | Nullable | Brand logo locator |
+| `website_url` | `varchar(2048)` | Nullable | Official brand website URL |
+| `origin` | `varchar(120)` | Nullable | Brand country, region, or free-form origin label |
 | `is_active` | `boolean` | Default `true` | Whether the brand is selectable/visible |
 | `sort_order` | `integer` | Default `0` | Merchant-controlled brand ordering |
 
 Query index: `(store_id, is_active, sort_order)`.
+
+Store Brand REST operations use `/api/v1/store/brands`. Requests require
+Store scope, `X-Store-ID`, and active membership. Any active member may page or
+view Brands; create, update, and delete additionally require `manage products`.
+Create requires at least one translation. Update upserts supplied locales while
+preserving omitted locales. Public ULIDs identify Brands, localized slugs stay
+unique within each Store/locale, and `website_url` accepts HTTP(S) only.
 
 ### `brand_translations`
 
@@ -840,8 +852,9 @@ container and option to share `definition_id` and `store_id`.
 ## 19. Application-layer responsibilities
 
 PostgreSQL protects identity, Store/product/definition consistency, important
-uniqueness, enum membership, and selected numeric rules. Future Catalog
-services must additionally enforce:
+uniqueness, enum membership, and selected numeric rules. `BrandService`
+currently enforces the Brand-specific subset below; future Catalog services
+must additionally enforce the remaining rules:
 
 - authenticated Store context and `manage products` authorization;
 - ULID-only public contracts and no bigint leakage;

@@ -1,9 +1,10 @@
 # Catalog module
 
 `Modules/Catalog` owns the Store-local merchandising and product persistence
-foundation. It currently exposes migrations and PostgreSQL invariants only;
-models, write services, REST/GraphQL operations, search projection, and admin
-screens are intentionally separate follow-up work.
+foundation. Brands now expose Store-scoped models, services, resources, and
+REST CRUD operations. Other Catalog areas currently expose migrations and
+PostgreSQL invariants only; their models, APIs, search projections, and admin
+screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
@@ -30,6 +31,9 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Brand, collection, category, and product slugs are unique by
   `(store_id, locale, slug)`. Locale fields accept up to 35 characters for
   BCP 47-style values.
+- Brand reads require active Store membership. Brand writes require
+  `manage products`; they accept localized identity/SEO data plus optional
+  logo, official website, origin, active state, and sort order.
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.

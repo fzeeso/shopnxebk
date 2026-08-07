@@ -138,7 +138,7 @@ Platform Settings REST contracts:
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | Update display options, active state, or USD-relative rate by public ULID; requires `manage platform settings`. |
 | `GET` | `/api/v1/platform/settings/languages` | Page the language catalog for a Platform-scoped user. |
 | `POST` | `/api/v1/platform/settings/languages` | Add a supported language; requires `manage platform settings`. |
-| `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, country-flag icon, direction, or active state by public ULID; requires `manage platform settings`. |
+| `PATCH` | `/api/v1/platform/settings/languages/{language}` | Update names, country-flag icon/image, direction, or active state by public ULID; requires `manage platform settings`. |
 
 Admin component request flow:
 
@@ -176,8 +176,8 @@ Language and Store identifiers in request/response bodies are public ULIDs.
 `locale` accepts a language plus optional region and normalizes hyphens to an
 underscore. Store updates require at least one language and a default included
 in the selected set. Language catalog and Store option responses include a
-render-ready `lang_icon` URL for storefront/admin switchers and translation
-editors.
+render-ready `lang_image` and `lang_icon` URLs for storefront/admin switchers
+and translation editors.
 
 Store policy REST contracts:
 
@@ -197,3 +197,15 @@ Store policy REST contracts:
 
 All entity and language parameters use public ULIDs except the public policy
 slug. See [Store policies](store-policies.md).
+
+Store Brand REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/brands` | Page Store Brands or create one with at least one translation. |
+| `GET/PATCH/DELETE` | `/api/v1/store/brands/{brand}` | Read, update, or delete a Store Brand by public ULID. |
+
+All Brand routes require Store scope, `X-Store-ID`, and active membership.
+Writes additionally require `manage products`. Brand responses include
+`logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort state, and
+localized name/slug/description/SEO records. See [Catalog](catalog.md).

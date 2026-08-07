@@ -20,6 +20,7 @@ final class StorePolicyTranslationResource extends JsonResource
                 'name' => $this->language->name,
                 'native_name' => $this->language->native_name,
                 'lang_icon' => $this->language->langIconUrl(),
+                'lang_image' => $this->language->langImageUrl(),
                 'locale' => $this->language->locale,
             ]),
             'title' => $this->title,

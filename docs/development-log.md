@@ -1,25 +1,46 @@
 # Development log
 
-## 2026-08-07 — Language country-flag icons
+## 2026-08-07 — Brand website URL and origin
 
-- Changed: Added the `languages.lang_icon` asset reference, bundled SVG country
-  flags for all 24 seeded languages plus a generic fallback, platform create/edit
-  validation, and render-ready icon URLs in platform, Store-language, policy
-  translation, and policy-version resources.
+- Changed: Added nullable `brands.website_url` and `brands.origin` persistence
+  with PostgreSQL schema/value coverage. Added Store-scoped Brand models,
+  validation, translations, resources, CRUD services, and five REST routes.
+- Reason: Store catalogs need to retain an official external website for each
+  brand plus its country, region, or free-form origin independently from
+  localized name, description, and SEO content.
+- Data/configuration impact: Two additive Catalog migrations add nullable
+  `website_url varchar(2048)` and `origin varchar(120)` columns. Existing brand
+  rows remain valid without backfill.
+- Compatibility or rollout notes: Brand reads require active Store membership;
+  writes require `manage products`. Website values accept HTTP(S), while logo
+  locators may be root-relative or HTTP(S). Other Catalog areas remain
+  persistence-only.
+- Verification: Catalog PostgreSQL tests cover column registration, null
+  compatibility, URL/origin persistence, Brand CRUD, translations, validation,
+  pagination, authorization, and cross-Store isolation.
+
+## 2026-08-07 — Language country-flag icons and selector images
+
+- Changed: Added `languages.lang_icon` and `languages.lang_image` asset references,
+  bundled SVG country flags, 25 circular 256×256 WebP selector images derived
+  from the supplied flag sprite, platform create/edit validation, and render-ready
+  asset URLs in platform, Store-language, policy-translation, and policy-version
+  resources.
 - Reason: Let storefront language switchers and admin translation workflows for
   brands, collections, categories, products, policies, and future localized
   entities identify each language consistently with an icon and native label.
-- Data/configuration impact: One additive Settings migration backfills existing
-  catalog rows and gives future rows the generic asset by default. Root-relative
+- Data/configuration impact: Two additive Settings migrations backfill existing
+  icon/image references and give future rows the generic asset by default. Root-relative
   asset references and HTTP(S) icon URLs are accepted; locale immutability and
   Store language selections are unchanged.
 - Compatibility or rollout notes: Apply migrations and run the idempotent
   application seeder. Separate frontend/admin clients should render the returned
-  `lang_icon` URL and retain visible text/alt text for accessibility. Resource
-  rendering falls back to the generic asset when a partial query omits the icon
-  attribute, but deployments must still apply the migration before icon writes.
+  `lang_image` URL, retain `lang_icon` as fallback, and keep visible text/alt text
+  for accessibility. Resource rendering falls back through image, icon, and the
+  generic asset when a partial query omits attributes, but deployments must still
+  apply the migrations before asset writes.
 - Verification: Added PostgreSQL-backed catalog/API assertions for seeded icon
-  paths, public assets, fallback creation, custom updates, and unsafe-scheme
+  and image paths, public assets, fallback creation, custom updates, and unsafe-scheme
   rejection; generated documentation, formatting, and relevant tests were run.
 
 ## 2026-08-07 — Localized Store policies and version history

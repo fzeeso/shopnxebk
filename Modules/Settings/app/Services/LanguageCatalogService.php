@@ -12,6 +12,8 @@ final readonly class LanguageCatalogService
 {
     private const DEFAULT_LANG_ICON = '/assets/languages/flags/generic.svg';
 
+    private const DEFAULT_LANG_IMAGE = '/assets/languages/flags/generic.svg';
+
     public function __construct(private PlatformSettingsAccessService $access) {}
 
     /** @return LengthAwarePaginator<int, Language> */
@@ -30,6 +32,7 @@ final readonly class LanguageCatalogService
         return Language::query()->create([
             ...$data,
             'lang_icon' => $data['lang_icon'] ?? self::DEFAULT_LANG_ICON,
+            'lang_image' => $data['lang_image'] ?? self::DEFAULT_LANG_IMAGE,
             'is_active' => $data['is_active'] ?? true,
         ]);
     }

@@ -8,6 +8,36 @@ use Modules\Settings\Models\Language;
 
 final class EnsureLanguageCatalog
 {
+    private const DEFAULT_IMAGE = '/assets/languages/flags/generic.svg';
+
+    /** @var array<string, string> */
+    private const IMAGES_BY_LOCALE = [
+        'en' => '/assets/languages/images/gb.webp',
+        'ar' => '/assets/languages/images/sa.webp',
+        'zh_CN' => '/assets/languages/images/cn.webp',
+        'zh_TW' => '/assets/languages/flags/tw.svg',
+        'cs' => '/assets/languages/flags/cz.svg',
+        'da' => '/assets/languages/images/dk.webp',
+        'nl' => '/assets/languages/images/nl.webp',
+        'fi' => '/assets/languages/images/fi.webp',
+        'fr' => '/assets/languages/images/fr.webp',
+        'de' => '/assets/languages/images/de.webp',
+        'hi' => '/assets/languages/images/in.webp',
+        'it' => '/assets/languages/images/it.webp',
+        'ja' => '/assets/languages/images/jp.webp',
+        'ko' => '/assets/languages/images/kr.webp',
+        'nb' => '/assets/languages/flags/no.svg',
+        'fa' => '/assets/languages/flags/ir.svg',
+        'pl' => '/assets/languages/flags/pl.svg',
+        'pt_BR' => '/assets/languages/images/br.webp',
+        'pt_PT' => '/assets/languages/images/pt.webp',
+        'es' => '/assets/languages/images/es.webp',
+        'sv' => '/assets/languages/images/se.webp',
+        'th' => '/assets/languages/flags/th.svg',
+        'tr' => '/assets/languages/images/tr.webp',
+        'ur' => '/assets/languages/flags/pk.svg',
+    ];
+
     /** @var list<array{name: string, native_name: string, locale: string, lang_icon: string, direction: string}> */
     private const LANGUAGES = [
         ['name' => 'English', 'native_name' => 'English', 'locale' => 'en', 'lang_icon' => '/assets/languages/flags/gb.svg', 'direction' => 'ltr'],
@@ -41,7 +71,11 @@ final class EnsureLanguageCatalog
         foreach (self::LANGUAGES as $language) {
             Language::query()->updateOrCreate(
                 ['locale' => $language['locale']],
-                [...$language, 'is_active' => true],
+                [
+                    ...$language,
+                    'lang_image' => self::IMAGES_BY_LOCALE[$language['locale']] ?? self::DEFAULT_IMAGE,
+                    'is_active' => true,
+                ],
             );
         }
     }

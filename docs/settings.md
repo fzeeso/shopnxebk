@@ -43,10 +43,11 @@ does not invent or fetch market rates.
 ## Language catalog
 
 `languages` is the master catalog of supported languages. Each row has a public
-ULID, immutable locale code, administrative and native names, a `lang_icon`
-asset reference, text direction, and active state. Bundled country-flag SVGs
-live in `public/assets/languages/flags`. API responses expose `lang_icon` as a
-render-ready absolute URL. Deactivating a language removes it from new Store
+ULID, immutable locale code, administrative and native names, `lang_icon` and
+`lang_image` asset references, text direction, and active state. Bundled
+country-flag SVGs live in `public/assets/languages/flags`; circular WebP selector
+images live in `public/assets/languages/images`. API responses expose both fields
+as render-ready absolute URLs. Deactivating a language removes it from new Store
 selection responses without rewriting existing Store history.
 
 | Method | Route | Purpose |
@@ -57,13 +58,14 @@ selection responses without rewriting existing Store history.
 
 Locale codes are immutable after creation because `stores.language_code` and
 Store language selections may already refer to them. Platform create/update
-requests may set `lang_icon` to a root-relative asset path or HTTP(S) URL; an
-omitted create value uses the bundled generic language icon.
+requests may set `lang_icon` or `lang_image` to a root-relative asset path or
+HTTP(S) URL; omitted create values use the bundled generic language icon.
 
-`GET /api/v1/store/languages` includes the same `lang_icon` URL with every
-active option. Storefront and admin clients should use that field in language
+`GET /api/v1/store/languages` includes `lang_image` and `lang_icon` URLs with
+every active option. Storefront and admin clients should display `lang_image` in language
 switchers and in translation tabs for brands, collections, categories,
-products, policies, and other language-scoped content.
+products, policies, and other language-scoped content, using `lang_icon` only
+as a compatibility fallback.
 
 ## Language-resource synchronization
 

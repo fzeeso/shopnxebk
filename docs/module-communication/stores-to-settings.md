@@ -6,7 +6,8 @@ languages enabled for one Store.
 - `StoreLanguageService` queries active `Modules\Settings\Models\Language`
   records by public ULID.
 - Store language and localized-policy resources expose the Settings-owned
-  `lang_icon` as a render-ready URL for selectors and translation tabs.
+  `lang_image` and `lang_icon` as render-ready URLs for selectors and translation
+  tabs.
 - `store_languages` remains Stores-owned and uses internal bigint foreign keys.
 - `EnsureStoreLanguageDefaults` runs after `EnsureLanguageCatalog` and
   backfills a Store from `stores.language_code`, falling back to English.

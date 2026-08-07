@@ -4,8 +4,8 @@ The supported-language catalog and the admin interface dictionaries are related
 but are not the same thing.
 
 - `Modules/Settings/app/Actions/EnsureLanguageCatalog.php` is the backend source
-  for language names, native names, locale codes, country-flag asset references,
-  direction, and availability.
+  for language names, native names, locale codes, `lang_icon`/`lang_image` asset
+  references, direction, and availability.
 - The separate frontend owns translated component labels and messages.
 - This API repository currently has no runtime `lang/`, locale JSON, or
   frontend dictionary files. Do not add unused backend dictionaries merely to
@@ -36,7 +36,7 @@ admin.settings.errors.forbidden
 
 Field labels should follow the API names documented in the
 [Platform Settings component guide](platform-settings-admin.md): language
-name/native name/locale/language icon/direction/active state and currency
+name/native name/locale/language icon/language image/direction/active state and currency
 name/code/symbol/symbol position/decimal places/USD rate/base/active state.
 
 ## Platform Stores keys
@@ -82,7 +82,7 @@ direction from translated text or the browser.
 When adding or changing a supported language:
 
 1. Update `EnsureLanguageCatalog` with the administrative name, native name,
-   normalized locale, bundled `lang_icon` asset, and direction.
+   normalized locale, bundled `lang_icon`/`lang_image` assets, and direction.
 2. Update Settings PostgreSQL coverage for the catalog row, count, icon file,
    direction, and idempotency.
 3. Update the frontend locale registry and every relevant component dictionary.

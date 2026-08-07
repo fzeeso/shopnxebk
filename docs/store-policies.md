@@ -27,7 +27,7 @@ may contain Markdown or HTML that was sanitized before persistence. This
 backend does not render or sanitize markup; consumers must use the platform's
 approved content pipeline before accepting or displaying HTML.
 Translation and version resources include the Settings-owned language
-`lang_icon` URL so admin clients can label language tabs consistently.
+`lang_image` and `lang_icon` URLs so admin clients can label language tabs consistently.
 
 `policy_versions` is an immutable content history. A version belongs to one
 policy and one language, has a monotonically increasing positive integer, and

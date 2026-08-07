@@ -94,8 +94,8 @@ copies, and the Theme installer used by Store provisioning.
 
 `Modules/Catalog/` owns Store-local brands, collections, categories, products,
 options, variants, media/fulfillment metadata, license-key pools, and typed
-custom-field persistence. Its first delivery is schema-only; no Catalog API is
-registered yet.
+custom-field persistence. Brands expose Store-scoped CRUD services and REST
+routes; the remaining Catalog areas are still persistence-only.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 
@@ -265,11 +265,11 @@ daylight-saving changes; neither is a manually persisted switch.
 
 ### Language catalog and Store language selection
 
-`languages` is the Settings-owned platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, an immutable unique locale, a `lang_icon` asset reference, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 24-language catalog and its country-flag references, including Hindi (`hi`, LTR), Urdu (`ur`, RTL), and Persian (`fa`, RTL). Bundled SVGs live under `public/assets/languages/flags`; API resources resolve root-relative references to absolute URLs and preserve administrator-supplied HTTP(S) URLs. A deliberately partial model query that omits `lang_icon` renders the generic bundled asset instead of raising a missing-attribute exception. The separate Stores action `EnsureStoreLanguageDefaults` gives an existing Store one default selection matching `stores.language_code`, falling back to English.
+`languages` is the Settings-owned platform-wide catalog. It uses an internal bigint key and public ULID, stores the administrative and native names, an immutable unique locale, `lang_icon` and `lang_image` asset references, `ltr`/`rtl` direction, and active state. `EnsureLanguageCatalog` idempotently maintains the initial 24-language catalog and its country-flag references, including Hindi (`hi`, LTR), Urdu (`ur`, RTL), and Persian (`fa`, RTL). Bundled SVGs live under `public/assets/languages/flags`; the circular 256×256 WebP selector images derived from the supplied flag sprite live under `public/assets/languages/images`. Seventeen current languages use a matching WebP, while languages absent from the sprite use their existing SVG flag as `lang_image`. API resources resolve root-relative references to absolute URLs and preserve administrator-supplied HTTP(S) URLs. A deliberately partial model query falls back through `lang_image`, `lang_icon`, and finally the generic bundled asset instead of raising a missing-attribute exception. The separate Stores action `EnsureStoreLanguageDefaults` gives an existing Store one default selection matching `stores.language_code`, falling back to English.
 
 `store_languages` joins an internal Store ID to an internal language ID. The Store/language pair is unique, and a PostgreSQL partial unique index permits only one `is_default = true` row per Store. Deleting a Store cascades its selections; deleting a language is restricted while Stores reference it.
 
-Platform users call `GET /api/v1/platform/settings/languages`. Creating another catalog entry through `POST /api/v1/platform/settings/languages` or editing its names, icon, direction, or active state through `PATCH /api/v1/platform/settings/languages/{language}` requires `manage platform settings`, initially assigned only to `Super Admin`. Omitted create icons use the bundled generic language asset; accepted custom references are root-relative paths or HTTP(S) URLs. Locale is immutable after creation. The former `/api/v1/platform/languages` routes remain compatibility aliases. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; each option includes the render-ready `lang_icon` URL for storefront/admin language selectors and translation tabs. Updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
+Platform users call `GET /api/v1/platform/settings/languages`. Creating another catalog entry through `POST /api/v1/platform/settings/languages` or editing its names, icon/image references, direction, or active state through `PATCH /api/v1/platform/settings/languages/{language}` requires `manage platform settings`, initially assigned only to `Super Admin`. Omitted create assets use the bundled generic language asset; accepted custom `lang_icon` and `lang_image` references are root-relative paths or HTTP(S) URLs. Locale is immutable after creation. The former `/api/v1/platform/languages` routes remain compatibility aliases. Store users call `GET /api/v1/store/languages` with `X-Store-ID`; each option includes render-ready `lang_image` and `lang_icon` URLs for storefront/admin language selectors and translation tabs. Clients should display `lang_image` and retain `lang_icon` as compatibility fallback. Updating the selected/default set through `PUT /api/v1/store/languages` requires `manage store`. The update runs transactionally, removes deselected rows, sets one default, and synchronizes the compatibility `stores.language_code` field.
 
 ### Currency catalog and USD exchange rates
 
@@ -289,14 +289,20 @@ indexed Store IDs, and timezone timestamps. Translations and relationship rows
 carry Store IDs for composite foreign keys even when their primary key is a
 natural pair.
 
+Brand identity keeps optional `website_url` and `origin` values alongside its
+logo reference; localized name, slug, description, and SEO fields remain in
+`brand_translations`.
+
 PostgreSQL makes localized slugs unique per Store and locale, permits one
 primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
-three-letter currency code. The schema does not yet expose routes, GraphQL,
-models, upload/download behavior, or search indexing. Those application
-contracts require Store context, `manage products`, public ULIDs, and the
-service/event boundaries described in the [Catalog module](modules/catalog.md).
+three-letter currency code. Brand models/services now expose REST CRUD under
+`/api/v1/store/brands`; all other Catalog entities still lack routes, GraphQL,
+models, upload/download behavior, or search indexing. Catalog application
+contracts require Store context, `manage products` for writes, public ULIDs,
+and the service/event boundaries described in the
+[Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.
 
