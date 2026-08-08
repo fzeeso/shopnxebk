@@ -1661,6 +1661,7 @@ components:
         description: {type: [string, 'null']}
         seo_title: {type: [string, 'null'], maxLength: 255}
         seo_description: {type: [string, 'null']}
+        lock_it: {type: boolean, default: false, description: Prevent automated translation writers from overwriting this merchant-authored record.}
     CreateBrandRequest:
       type: object
       required: [translations]
@@ -2587,9 +2588,10 @@ components:
         content: {type: string, maxLength: 1000000, description: Markdown or previously sanitized HTML.}
         seo_title: {type: [string, 'null'], maxLength: 255}
         seo_description: {type: [string, 'null'], maxLength: 1000}
+        lock_it: {type: boolean, default: false, description: Prevent automated translation writers from overwriting this merchant-authored record.}
     StorePolicyTranslation:
       type: object
-      required: [id, language, title, content]
+      required: [id, language, title, content, lock_it]
       properties:
         id: {$ref: '#/components/schemas/PublicUlid'}
         language: {$ref: '#/components/schemas/Language'}
@@ -2597,6 +2599,7 @@ components:
         content: {type: string}
         seo_title: {type: [string, 'null']}
         seo_description: {type: [string, 'null']}
+        lock_it: {type: boolean}
         created_at: {type: [string, 'null'], format: date-time}
         updated_at: {type: [string, 'null'], format: date-time}
     StorePolicy:

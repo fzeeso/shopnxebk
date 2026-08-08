@@ -21,6 +21,7 @@ final class UpsertStorePolicyTranslationRequest extends FormRequest
             'content' => ['required', 'string', 'max:1000000'],
             'seo_title' => ['nullable', 'string', 'max:255'],
             'seo_description' => ['nullable', 'string', 'max:1000'],
+            'lock_it' => ['sometimes', 'boolean'],
         ];
     }
 }

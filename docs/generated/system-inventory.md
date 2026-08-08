@@ -206,6 +206,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000100_add_page_title_and_search_keywords_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000200_add_category_template_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000300_add_banner_url_to_category_translations_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |
@@ -220,6 +221,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Stores | `Modules/Stores/database/migrations/2026_08_02_001100_normalize_store_users_database_object_names.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_03_000100_create_store_locale_settings_table.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_07_000100_create_store_policy_tables.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_09_000200_add_lock_it_to_store_policy_translations_table.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001200_create_theme_marketplace_catalog.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001210_create_theme_review_licensing_and_installations.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001220_backfill_default_theme_for_existing_stores.php` |

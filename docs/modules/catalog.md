@@ -28,12 +28,15 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Translation and relationship tables are not public resources. They use
   composite keys and retain `store_id` so composite foreign keys reject
   cross-Store parents, assignments, variants, options, and custom values.
+- Every translation table has non-null `lock_it = false`. Merchant editors may
+  lock their content; system-generated translation jobs must use
+  `AutomatedTranslationWriter` and skip locked rows.
 - Brand, collection, category, and product slugs are unique by
   `(store_id, locale, slug)`. Locale fields accept up to 35 characters for
   BCP 47-style values.
 - Brand reads require active Store membership. Brand writes require
   `manage products`; they accept localized identity/SEO data plus optional
-  logo, official website, origin, active state, and sort order.
+  translation locks, logo, official website, origin, active state, and sort order.
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.

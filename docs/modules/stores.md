@@ -14,6 +14,8 @@
 - request-scoped `StoreContext`;
 - active-membership and token/store enforcement;
 - Store-scoped model, cache, queue, media, and search helpers;
+- localized Store policies whose `lock_it` flag protects merchant-authored
+  translations from automated overwrite;
 - the `activeStore` GraphQL field.
 - Platform Store catalog/merchant provisioning and selected-Store user management APIs.
 

@@ -296,6 +296,15 @@ Brand identity keeps optional `website_url` and `origin` values alongside its
 logo reference; localized name, slug, description, and SEO fields remain in
 `brand_translations`.
 
+Every table whose name ends in `_translations` must define a non-null boolean
+`lock_it` column with default `false`, using `TranslationSchema::addLock()` in
+new migrations. User-facing editors may set or clear the flag. Background,
+AI, import, and machine-translation code must write through
+`AutomatedTranslationWriter`; it row-locks the target and skips merchant-locked
+translations without changing their lock state. The PostgreSQL feature test
+discovers translation tables dynamically so future tables missing this contract
+fail verification.
+
 PostgreSQL makes localized slugs unique per Store and locale, permits one
 primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the

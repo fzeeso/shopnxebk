@@ -11,6 +11,15 @@ but are not the same thing.
   frontend dictionary files. Do not add unused backend dictionaries merely to
   mirror the catalog.
 
+## Merchant content translation locks
+
+Every backend `*_translations` row exposes or persists a non-null `lock_it`
+boolean with default `false`. Translation editors for implemented APIs should
+offer an explicit “protect from automatic translation” control and preserve the
+current value when the field is not changed. Background imports, AI translation,
+and machine-generated refreshes must use `AutomatedTranslationWriter`; locked
+merchant content is skipped until a user clears the flag.
+
 ## Platform Settings keys
 
 Every frontend locale that supports the Platform admin interface should define

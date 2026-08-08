@@ -190,7 +190,7 @@ Store policy REST contracts:
 | `GET/PATCH/DELETE` | `/api/v1/store/policies/{storePolicy}` | Read, edit, or delete one Store-owned policy. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/publish` | Publish a policy containing at least one translation. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/unpublish` | Return a published policy to draft. |
-| `PUT/DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | Upsert or delete localized title/content/SEO fields. |
+| `PUT/DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | Upsert or delete localized title/content/SEO fields and the automated-overwrite lock. |
 | `GET` | `/api/v1/store/policies/{storePolicy}/versions` | List immutable per-language content versions. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/versions/{policyVersion}/restore` | Restore content and append a new version. |
 | `GET` | `/api/v1/storefront/policies[/{slug}]` | Publicly read published policies for `X-Store-ID`, optionally selecting `locale`. |
@@ -208,4 +208,4 @@ Store Brand REST contracts:
 All Brand routes require Store scope, `X-Store-ID`, and active membership.
 Writes additionally require `manage products`. Brand responses include
 `logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort state, and
-localized name/slug/description/SEO records. See [Catalog](catalog.md).
+localized name/slug/description/SEO records with `lock_it`. See [Catalog](catalog.md).

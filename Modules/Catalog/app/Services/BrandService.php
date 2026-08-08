@@ -104,6 +104,12 @@ final readonly class BrandService
         $now = now();
         $rows = [];
         $locales = [];
+        $existingLocks = DB::table('brand_translations')
+            ->where('brand_id', $brand->getKey())
+            ->get(['locale', 'lock_it'])
+            ->mapWithKeys(static fn (object $row): array => [
+                Str::lower((string) $row->locale) => (bool) $row->lock_it,
+            ]);
 
         foreach ($translations as $translation) {
             $locale = str_replace('-', '_', trim((string) $translation['locale']));
@@ -140,6 +146,9 @@ final readonly class BrandService
                 'description' => $translation['description'] ?? null,
                 'seo_title' => $translation['seo_title'] ?? null,
                 'seo_description' => $translation['seo_description'] ?? null,
+                'lock_it' => array_key_exists('lock_it', $translation)
+                    ? (bool) $translation['lock_it']
+                    : $existingLocks->get($localeKey, false),
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
@@ -148,7 +157,7 @@ final readonly class BrandService
         DB::table('brand_translations')->upsert(
             $rows,
             ['brand_id', 'locale'],
-            ['name', 'slug', 'description', 'seo_title', 'seo_description', 'updated_at'],
+            ['name', 'slug', 'description', 'seo_title', 'seo_description', 'lock_it', 'updated_at'],
         );
     }
 }

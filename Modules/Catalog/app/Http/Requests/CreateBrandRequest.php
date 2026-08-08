@@ -29,6 +29,7 @@ final class CreateBrandRequest extends FormRequest
             'translations.*.description' => ['nullable', 'string'],
             'translations.*.seo_title' => ['nullable', 'string', 'max:255'],
             'translations.*.seo_description' => ['nullable', 'string'],
+            'translations.*.lock_it' => ['sometimes', 'boolean'],
         ];
     }
 }

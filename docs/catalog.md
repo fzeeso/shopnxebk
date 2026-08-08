@@ -1,7 +1,7 @@
 # Catalog schema reference
 
 This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the nine migrations under
+module. The source of truth is the ten migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
@@ -23,6 +23,7 @@ registered yet.
 | 7 | `2026_08_08_000100_add_page_title_and_search_keywords_to_category_translations_table.php` | Optional localized category page title and search keywords |
 | 8 | `2026_08_08_000200_add_category_template_to_category_translations_table.php` | Optional localized category template name |
 | 9 | `2026_08_08_000300_add_banner_url_to_category_translations_table.php` | Optional localized category banner image locator |
+| 10 | `2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` | Non-null overwrite lock for every Catalog translation table |
 
 Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
 
@@ -75,13 +76,16 @@ Every translation table contains:
 | `store_id` | `bigint` | Required | Cascading Store foreign key and part of the composite parent constraint |
 | Parent key | `bigint` | Required | Identifies the translated parent entity |
 | `locale` | `varchar(35)` | Required | BCP 47-style locale such as `en`, `ur`, or `en-GB` |
+| `lock_it` | `boolean` | Default `false` | Prevents automated translation writers from overwriting merchant-authored content |
 | `created_at` | `timestamptz` | Nullable | Laravel creation audit time |
 | `updated_at` | `timestamptz` | Nullable | Laravel update audit time |
 
 The primary key is always `(parent_key, locale)`: one translation per entity
 and locale. Deleting the parent or Store cascades translations. The schema does
 not implement locale fallback; future reads must request the selected locale
-and explicitly fall back to the Store default.
+and explicitly fall back to the Store default. Manual editors may set or clear
+`lock_it`; automated writes must use `AutomatedTranslationWriter`, which skips
+locked rows and never changes the flag.
 
 ### Money
 

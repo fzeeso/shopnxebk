@@ -25,7 +25,9 @@ and updater audit references. PostgreSQL requires published rows to have
 per `(store_policy_id, language_id)`. Content is stored as PostgreSQL text and
 may contain Markdown or HTML that was sanitized before persistence. This
 backend does not render or sanitize markup; consumers must use the platform's
-approved content pipeline before accepting or displaying HTML.
+approved content pipeline before accepting or displaying HTML. Its non-null
+`lock_it` flag defaults to false; merchant editors may enable it to prevent
+future automated translation jobs from replacing their content.
 Translation and version resources include the Settings-owned language
 `lang_image` and `lang_icon` URLs so admin clients can label language tabs consistently.
 

@@ -157,8 +157,14 @@ non-null indexed Store IDs, and timezone timestamps. Translation and
 relationship rows retain Store IDs so composite foreign keys reject cross-Store
 associations at the database boundary.
 
-Translated slugs are unique per Store and locale. Categories are the strict
-navigation taxonomy; collections are manual, rule-based, or AI-generated
+Translated slugs are unique per Store and locale. Every `*_translations` table
+has non-null `lock_it = false`; manual editors control it, while automated,
+import, and AI writers must skip locked rows through
+`AutomatedTranslationWriter`. The dynamic PostgreSQL contract test enforces the
+flag on translation tables added later.
+
+Categories are the strict navigation taxonomy; collections are manual,
+rule-based, or AI-generated
 merchandising groups. Variant prices use non-negative integer minor units plus
 an uppercase three-letter currency code. The initial Catalog module provides
 persistence only: future API/model/search/file behavior must preserve Store

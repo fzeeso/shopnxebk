@@ -1,5 +1,23 @@
 # Development log
 
+## 2026-08-09 — Translation overwrite locks
+
+- Changed: Added non-null `lock_it = false` to all 13 existing translation
+  tables, exposed the flag in Brand and Store-policy translation APIs, and added
+  a shared automated translation writer that skips locked rows.
+- Reason: Merchant-authored translations must survive imports, AI translation,
+  catalog refreshes, and other system-generated updates until the merchant
+  explicitly unlocks them.
+- Data/configuration impact: Two additive migrations cover the 12 Catalog
+  translation tables and `store_policy_translations`; existing records remain
+  unlocked. New translation migrations use `TranslationSchema::addLock()`.
+- Compatibility or rollout notes: Manual API writes may set or clear `lock_it`.
+  Automated writers must use `AutomatedTranslationWriter`; locked content is
+  skipped, while unlocked and new rows retain the normal update behavior.
+- Verification: Added dynamic PostgreSQL coverage for every current and future
+  `*_translations` table plus locked/unlocked automated-update behavior, and ran
+  formatting, static analysis, documentation checks, and focused tests.
+
 ## 2026-08-08 — Category translation presentation metadata
 
 - Changed: Added nullable `banner_url`, `page_title`, `search_keywords`, and
