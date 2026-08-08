@@ -1,7 +1,7 @@
 # Catalog schema reference
 
 This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the seven migrations under
+module. The source of truth is the nine migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
@@ -21,6 +21,8 @@ registered yet.
 | 5 | `2026_08_07_000400_add_website_url_to_brands_table.php` | Optional official Brand website URL |
 | 6 | `2026_08_07_000500_add_origin_to_brands_table.php` | Optional Brand country, region, or origin label |
 | 7 | `2026_08_08_000100_add_page_title_and_search_keywords_to_category_translations_table.php` | Optional localized category page title and search keywords |
+| 8 | `2026_08_08_000200_add_category_template_to_category_translations_table.php` | Optional localized category template name |
+| 9 | `2026_08_08_000300_add_banner_url_to_category_translations_table.php` | Optional localized category banner image locator |
 
 Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
 
@@ -329,10 +331,12 @@ Deleting a parent sets only `parent_id` to null. Indexes cover
 | `title` | `varchar(255)` | Required | Localized category title |
 | `slug` | `varchar(255)` | Required | Localized URL segment |
 | `description` | `text` | Nullable | Localized description |
+| `banner_url` | `varchar(500)` | Nullable | Localized category banner image locator |
 | `seo_title` | `varchar(255)` | Nullable | Localized search title |
 | `seo_description` | `text` | Nullable | Localized search description |
 | `page_title` | `varchar(255)` | Nullable | Localized browser/page heading title |
 | `search_keywords` | `text` | Nullable | Localized search keywords or phrases |
+| `category_template` | `varchar(120)` | Nullable | Template name used to render this localized category |
 | `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
 
 Primary key: `(category_id, locale)`. Slug uniqueness:

@@ -15,11 +15,13 @@ final class CategoryTranslationDatabaseTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_category_translations_store_page_title_and_search_keywords(): void
+    public function test_category_translations_store_banner_page_search_and_template_metadata(): void
     {
         self::assertTrue(Schema::hasColumns('category_translations', [
             'page_title',
             'search_keywords',
+            'category_template',
+            'banner_url',
         ]));
 
         $store = Store::factory()->create();
@@ -38,9 +40,12 @@ final class CategoryTranslationDatabaseTest extends TestCase
             'locale' => 'en',
             'title' => 'Running Shoes',
             'slug' => 'running-shoes',
+            'description' => 'Shoes designed for running.',
+            'banner_url' => '/assets/categories/running-shoes-banner.webp',
             'seo_description' => 'Shop running shoes.',
             'page_title' => 'Running Shoes for Every Runner',
             'search_keywords' => 'running shoes, trainers, athletic footwear',
+            'category_template' => 'category-running',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -48,8 +53,10 @@ final class CategoryTranslationDatabaseTest extends TestCase
         $this->assertDatabaseHas('category_translations', [
             'category_id' => $categoryId,
             'locale' => 'en',
+            'banner_url' => '/assets/categories/running-shoes-banner.webp',
             'page_title' => 'Running Shoes for Every Runner',
             'search_keywords' => 'running shoes, trainers, athletic footwear',
+            'category_template' => 'category-running',
         ]);
     }
 }

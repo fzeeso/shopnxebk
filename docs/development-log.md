@@ -1,14 +1,16 @@
 # Development log
 
-## 2026-08-08 — Category translation page metadata
+## 2026-08-08 — Category translation presentation metadata
 
-- Changed: Added nullable `page_title` and `search_keywords` fields to
-  `category_translations`.
+- Changed: Added nullable `banner_url`, `page_title`, `search_keywords`, and
+  `category_template` fields to `category_translations`.
 - Reason: Localized category pages need a dedicated page title and merchant
-  search-keyword metadata in addition to the existing SEO title and description.
-- Data/configuration impact: One additive Catalog migration adds
-  `page_title varchar(255)` and `search_keywords text`. Existing translations
-  remain valid without backfill.
+  search-keyword metadata in addition to the existing SEO title and description,
+  and each translation may select its own banner image and rendering template.
+- Data/configuration impact: Additive Catalog migrations provide
+  nullable `banner_url varchar(500)`, `page_title varchar(255)`,
+  `search_keywords text`, and `category_template varchar(120)`. Existing
+  translations remain valid without backfill.
 - Compatibility or rollout notes: Categories remain persistence-only; no
   Category REST or GraphQL contract exists yet.
 - Verification: Added PostgreSQL-backed schema and persistence coverage, then

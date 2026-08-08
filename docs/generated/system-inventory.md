@@ -204,6 +204,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_07_000400_add_website_url_to_brands_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_07_000500_add_origin_to_brands_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000100_add_page_title_and_search_keywords_to_category_translations_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_08_000200_add_category_template_to_category_translations_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_08_000300_add_banner_url_to_category_translations_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |
