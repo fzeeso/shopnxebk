@@ -806,7 +806,7 @@ paths:
       tags: [Store Policies]
       security: [{sanctum: []}]
       summary: Add a custom policy type
-      description: Requires Platform scope and manage platform settings.
+      description: Requires Platform scope and manage platform settings. The type is provisioned as a disabled policy for every existing Store.
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '#/components/schemas/CreatePolicyTypeRequest'}}}
@@ -860,14 +860,14 @@ paths:
     post:
       tags: [Store Policies]
       security: [{sanctum: []}]
-      summary: Create a draft Store policy
+      summary: Create a disabled Store policy
       description: Requires manage policies. A Store may have one policy per type and slug.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '#/components/schemas/CreateStorePolicyRequest'}}}
       responses:
-        '201': {description: Draft policy created}
+        '201': {description: Disabled policy created}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/store/policies/{storePolicy}:
@@ -898,10 +898,34 @@ paths:
     delete:
       tags: [Store Policies]
       security: [{sanctum: []}]
-      summary: Delete a Store policy and its translations/history
-      description: Requires manage policies.
+      summary: Disable a Store policy without deleting content or history
+      description: Requires manage policies. This compatibility endpoint clears publication state and preserves the policy row, translations, and versions.
       responses:
-        '204': {description: Policy deleted}
+        '204': {description: Policy disabled}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy not found in selected Store}
+  /api/v1/store/policies/{storePolicy}/enable:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Enable a disabled policy as a draft
+      responses:
+        '200': {description: Policy enabled as draft}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Policy not found in selected Store}
+  /api/v1/store/policies/{storePolicy}/disable:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: storePolicy, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Policies]
+      security: [{sanctum: []}]
+      summary: Disable and hide a policy without deleting it
+      responses:
+        '200': {description: Policy disabled}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Policy not found in selected Store}
   /api/v1/store/policies/{storePolicy}/publish:
@@ -911,7 +935,7 @@ paths:
     post:
       tags: [Store Policies]
       security: [{sanctum: []}]
-      summary: Publish a policy with at least one non-empty translation
+      summary: Publish an enabled draft policy with at least one non-empty translation
       responses:
         '200': {description: Policy published}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1081,7 +1105,7 @@ paths:
   /api/v1/store/settings:
     get:
       security: [{sanctum: []}]
-      summary: View Store locale, preferences, and read-only capabilities
+      summary: View Store locale, opt-in flags, preferences, and read-only capabilities
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       responses:
         '200':
@@ -1092,8 +1116,8 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
     patch:
       security: [{sanctum: []}]
-      summary: Merge validated Store locale and preferences
-      description: Currency and language must exist as active Platform catalog entries.
+      summary: Merge validated Store locale, opt-in flags, and preferences
+      description: Currency and language must exist as active Platform catalog entries. Translation and Platform-search flags persist intent but do not execute background work.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
@@ -1558,12 +1582,14 @@ paths:
     post:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
-      summary: Create a Brand with localized identity
-      description: Requires manage products and at least one translation.
+      summary: Create a Brand with managed imagery and localized identity
+      description: Requires manage products and at least one active Store-locale translation. Missing active locales inherit the submitted default-locale or first translation.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/CreateBrandRequest'}}}
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateBrandRequest'}}
+          multipart/form-data: {schema: {$ref: '#/components/schemas/CreateBrandRequest'}}
       responses:
         '201': {description: Brand created}
         '401': {$ref: '#/components/responses/Unauthenticated'}
@@ -1584,11 +1610,13 @@ paths:
     patch:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
-      summary: Update Brand identity or upsert supplied translations
-      description: Requires manage products. Omitted translation locales are preserved.
+      summary: Update Brand identity, managed imagery, or Store-language translations
+      description: Requires manage products. A translation-bearing update refreshes every active Store locale while preserving locked rows.
       requestBody:
         required: true
-        content: {application/json: {schema: {$ref: '#/components/schemas/UpdateBrandRequest'}}}
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateBrandRequest'}}
+          multipart/form-data: {schema: {$ref: '#/components/schemas/UpdateBrandRequest'}}
       responses:
         '200': {description: Brand updated}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1598,7 +1626,7 @@ paths:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
       summary: Delete a Brand
-      description: Requires manage products. Translations cascade and product brand references become null.
+      description: Requires manage products. Translations and managed media are removed; product brand references become null.
       responses:
         '204': {description: Brand deleted}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1666,7 +1694,9 @@ components:
       type: object
       required: [translations]
       properties:
-        logo_url: {type: [string, 'null'], maxLength: 2048, description: Root-relative or HTTP(S) logo locator.}
+        image: {type: [string, 'null'], format: binary, description: Managed JPEG, PNG, WebP, or AVIF Brand image up to 5 MiB; null clears it.}
+        banner: {type: [string, 'null'], format: binary, description: Managed JPEG, PNG, WebP, or AVIF Brand banner up to 10 MiB; null clears it.}
+        logo_url: {type: [string, 'null'], maxLength: 2048, description: Legacy root-relative or HTTP(S) logo locator.}
         website_url: {type: [string, 'null'], format: uri, maxLength: 2048, description: HTTP(S) official website.}
         origin: {type: [string, 'null'], maxLength: 120}
         is_active: {type: boolean, default: true}
@@ -1679,6 +1709,8 @@ components:
       type: object
       minProperties: 1
       properties:
+        image: {type: [string, 'null'], format: binary}
+        banner: {type: [string, 'null'], format: binary}
         logo_url: {type: [string, 'null'], maxLength: 2048}
         website_url: {type: [string, 'null'], format: uri, maxLength: 2048}
         origin: {type: [string, 'null'], maxLength: 120}
@@ -1695,12 +1727,29 @@ components:
           properties:
             created_at: {type: [string, 'null'], format: date-time}
             updated_at: {type: [string, 'null'], format: date-time}
+    BrandMedia:
+      type: object
+      required: [id, url, file_name, mime_type, size]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        url: {type: string}
+        file_name: {type: string}
+        mime_type: {type: [string, 'null']}
+        size: {type: integer, minimum: 0}
     Brand:
       type: object
-      required: [id, store_id, logo_url, website_url, origin, is_active, sort_order, translations]
+      required: [id, store_id, image, banner, logo_url, website_url, origin, is_active, sort_order, translations]
       properties:
         id: {$ref: '#/components/schemas/PublicUlid'}
         store_id: {$ref: '#/components/schemas/PublicUlid'}
+        image:
+          oneOf:
+            - {$ref: '#/components/schemas/BrandMedia'}
+            - {type: 'null'}
+        banner:
+          oneOf:
+            - {$ref: '#/components/schemas/BrandMedia'}
+            - {type: 'null'}
         logo_url: {type: [string, 'null']}
         website_url: {type: [string, 'null'], format: uri}
         origin: {type: [string, 'null']}
@@ -2102,6 +2151,8 @@ components:
         store_zip: {type: [string, 'null'], maxLength: 32}
         store_address_1: {type: [string, 'null'], maxLength: 255}
         store_address_2: {type: [string, 'null'], maxLength: 255}
+        auto_store_translation_flag: {type: boolean, description: Opt in to future automatic Store-content translation}
+        is_searchable_on_platform_flag: {type: boolean, description: Opt in to future Platform discovery/search inclusion}
         preferences: {$ref: '#/components/schemas/StorePreferences'}
     UpdateStoreProfileRequest:
       type: object
@@ -2136,7 +2187,7 @@ components:
         preferences: {$ref: '#/components/schemas/StorePreferences'}
     StoreSettings:
       type: object
-      required: [store_id, currency_code, language_code, timezone, preferences, capabilities]
+      required: [store_id, currency_code, language_code, timezone, auto_store_translation_flag, is_searchable_on_platform_flag, preferences, capabilities]
       properties:
         store_id: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
         currency_code: {type: string, minLength: 3, maxLength: 3}
@@ -2151,6 +2202,8 @@ components:
         store_zip: {type: [string, 'null']}
         store_address_1: {type: [string, 'null']}
         store_address_2: {type: [string, 'null']}
+        auto_store_translation_flag: {type: boolean}
+        is_searchable_on_platform_flag: {type: boolean}
         preferences: {$ref: '#/components/schemas/StorePreferences'}
         capabilities:
           type: object
@@ -2611,7 +2664,7 @@ components:
         policy_type: {$ref: '#/components/schemas/PolicyType'}
         title: {type: string}
         slug: {type: string}
-        status: {type: string, enum: [draft, published]}
+        status: {type: string, enum: [disabled, draft, published]}
         published_at: {type: [string, 'null'], format: date-time}
         created_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
         updated_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}

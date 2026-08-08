@@ -12,10 +12,10 @@ Viewing requires membership. Profile, settings, and language changes additionall
 
 | Service | Responsibility |
 | --- | --- |
-| `CreateStoreService` | Transactionally provisions a draft Store, normalized settings, platform/custom domains, selected Theme license/published installed copy through `ThemeInstaller`, active membership, Owner role, initial profile, locale, and preferences. |
+| `CreateStoreService` | Transactionally provisions a draft Store, normalized settings, platform/custom domains, selected Theme license/published installed copy through `ThemeInstaller`, active membership, Owner role, a complete disabled Store-policy catalog, initial profile, locale, and preferences. |
 | `ViewStoreService` | Returns one Store only after Store-scope and active-membership checks. |
 | `UpdateStoreProfileService` | Updates merchant-owned identity, contact, branding, and classification fields after `manage store`. |
-| `StoreSettingsService` | Views locale, normalized contact/address data, and preferences for any active member and merges settings updates for Store managers. |
+| `StoreController` settings flow | Views locale, normalized contact/address data, opt-in flags, and preferences for any active member and transactionally merges settings updates for Store managers. |
 | `StoreAccessService` | Centralizes Store scope, active membership, and `manage store` enforcement for services. |
 | `PlatformMerchantService` | Lets Platform staff with `manage stores` list/view merchants or atomically provision a Store-scoped owner, Store, membership, and roles. |
 | `PlatformStoreAdminService` | Lets Platform staff with `manage stores` search/filter/page, create, view, and edit Store rows without entering Store context. |
@@ -47,10 +47,13 @@ Merchant creation requests may send `theme_template_key`; omission uses the
 configured default. Successful registration, additional-Store creation, and
 Platform merchant creation responses include `dashboard_url`. It points to
 `STORE_ADMIN_DASHBOARD_URL` with `store=<public-ulid>`, never an internal key.
+Each Store creation path also creates one editable `disabled` policy per
+master policy type; policy content can be completed and enabled later.
 
 The direct Platform Store API is intentionally different from merchant
 provisioning: it creates normalized locale/settings/domain records but no
-owner, membership, Store role, plan, or subscription. Its list combines
+owner, membership, Store role, plan, or subscription. It still creates the
+required disabled Store-policy catalog. Its list combines
 case-insensitive Store and member search with exact status,
 classification, locale/country, verification/capability, and creation-date
 filters. The list defaults to 10 rows, returns the earliest membership user's

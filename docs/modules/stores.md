@@ -14,8 +14,9 @@
 - request-scoped `StoreContext`;
 - active-membership and token/store enforcement;
 - Store-scoped model, cache, queue, media, and search helpers;
-- localized Store policies whose `lock_it` flag protects merchant-authored
-  translations from automated overwrite;
+- automatic disabled Store-policy catalogs, localized policy content whose
+  `lock_it` flag protects merchant-authored translations from automated
+  overwrite, and immutable policy versions;
 - the `activeStore` GraphQL field.
 - Platform Store catalog/merchant provisioning and selected-Store user management APIs.
 
@@ -56,7 +57,7 @@ Only `users.scope = store` accounts may appear in `store_users`, receive Store r
 | Table | Purpose and invariants |
 | --- | --- |
 | `store_domains` | Stores a globally unique domain, extensible `domain_type`, verification/SSL states, and verification time. A PostgreSQL partial unique index permits at most one `is_primary = true` row per Store. |
-| `store_settings` | Stores one contact, postal address (`store_country_code`, state, city, ZIP, and two address lines), storefront/password/order/branding/settings record per Store. `logo_media_id` and `favicon_media_id` are nullable bigint foreign keys to `media.id` and become null if that media row is deleted. `password_hash` is automatically hashed on model assignment and hidden from serialization. |
+| `store_settings` | Stores one contact, postal address (`store_country_code`, state, city, ZIP, and two address lines), storefront/password/order/branding/settings record per Store, plus the opt-in `auto_store_translation_flag` and `is_searchable_on_platform_flag` switches. Both flags default to `false`. `logo_media_id` and `favicon_media_id` are nullable bigint foreign keys to `media.id` and become null if that media row is deleted. `password_hash` is automatically hashed on model assignment and hidden from serialization. |
 | `store_locale_settings` | Stores one date/time/week, number-format, weight, and dimension preference row per Store. Currency, language, country, and IANA timezone stay on `stores`; UTF-8 and automatic timezone daylight-saving behavior are managed standards rather than columns. |
 
 Deleting a Store cascades its domains/settings and the Themes-owned licenses and
@@ -70,12 +71,12 @@ Theme marketplace/install/customize/publish routes are implemented by Themes.
 2. `ProvisionStore` creates a `draft` Store, its one-to-one settings, the
    configured platform domain, then calls `ThemeInstaller` to issue the
    selected Theme license and create one published installation before adding
-   the active Owner membership/role.
+   the active Owner membership/role and one disabled policy per master type.
 3. A submitted custom domain is recorded as the pending primary domain while the verified platform domain remains available as a non-primary domain.
 4. Creation returns `dashboard_url=<STORE_ADMIN_DASHBOARD_URL>?store=<store-public-ulid>`; the frontend accepts only an ID present in the authenticated Store-access profile.
 5. Existing Store routes resolve `X-Store-ID` and require an active membership.
 6. `GET /api/v1/store` and `GET /api/v1/store/settings` allow active members to view their own Store.
-7. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; `PATCH /api/v1/store/settings` calls `StoreSettingsService` and persists contact/address values in `store_settings`.
+7. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; the transactional `PATCH /api/v1/store/settings` controller flow persists contact/address and opt-in flag values in `store_settings`.
 8. Both write paths require `manage store`, use a transaction, and return public-safe resources.
 9. Merchant validation prohibits Platform-owned lifecycle, Billing, verification, capability, and raw JSON fields.
 10. `/api/v1/platform/stores*` separately gives Platform staff with `manage
@@ -105,8 +106,10 @@ transaction, which safely nests inside registration, additional-Store,
 Platform merchant, and local-fixture transactions. It validates the configured
 root domain and Theme key, creates every required Store record, calls the
 Themes-owned `ThemeInstaller`, delegates validated `Owner` assignment to
-`ScopedRoleAssignmentService`, and dispatches `StoreCreated` only after the
-outermost transaction commits.
+`ScopedRoleAssignmentService`, idempotently provisions the complete disabled
+Store-policy catalog, and dispatches `StoreCreated` only after the outermost
+transaction commits. Direct Platform Store creation uses the same policy
+catalog action even though it intentionally creates no membership.
 
 `PlatformMerchantService` is the Platform-admin composition root for a merchant: it requires `manage stores`, creates the Authentication-owned Store identity, calls `StoreProvisioner`, applies merchant profile fields, synchronizes Store roles, and queues registration/verification behavior after the transaction commits. `StoreUserAdminService` separately creates Store staff under an already selected Store and requires both member and role management permissions. Neither flow can assign Platform roles.
 

@@ -1,10 +1,12 @@
 # Catalog module
 
 `Modules/Catalog` owns the Store-local merchandising and product persistence
-foundation. Brands now expose Store-scoped models, services, resources, and
-REST CRUD operations. Other Catalog areas currently expose migrations and
-PostgreSQL invariants only; their models, APIs, search projections, and admin
-screens remain follow-up work.
+foundation plus the Brand routes and authorization boundary. The shared
+application layer supplies the Brand HTTP controller, write validation,
+Store-scoped models, media resource, and transactional workflow consumed by
+those routes. Other Catalog areas currently expose migrations and PostgreSQL
+invariants only; their models, APIs, search projections, and admin screens
+remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
@@ -36,7 +38,9 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
   BCP 47-style values.
 - Brand reads require active Store membership. Brand writes require
   `manage products`; they accept localized identity/SEO data plus optional
-  translation locks, logo, official website, origin, active state, and sort order.
+  translation locks, managed image/banner uploads, a legacy logo locator,
+  official website, origin, active state, and sort order. Brand translation
+  writes synchronize all active Store locales and skip locked rows.
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
@@ -62,7 +66,9 @@ there is no Orders foreign key until that module owns a stable contract.
 Application write paths must encrypt sensitive license material before storing
 `key_code`. They must treat digital `file_url` values as protected storage
 locators and issue authorized temporary downloads instead of returning the
-stored value directly. Catalog never uploads, scans, signs, or serves files.
+stored value directly. Brand image/banner writes are the current exception:
+Catalog delegates those uploads to the shared image service and Media Library.
+Product files still have no upload, scan, signing, or delivery workflow.
 
 ## Integration boundaries
 

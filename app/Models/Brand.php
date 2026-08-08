@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Catalog\Models;
+namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -11,11 +11,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Stores\Models\Concerns\StoreScoped;
 use Modules\Stores\Models\Store;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
 #[Fillable(['store_id', 'logo_url', 'website_url', 'origin', 'is_active', 'sort_order'])]
-final class Brand extends Model
+final class Brand extends Model implements HasMedia
 {
-    use HasPublicId, StoreScoped;
+    use HasPublicId, InteractsWithMedia, StoreScoped;
+
+    public const MEDIA_IMAGE = 'image';
+
+    public const MEDIA_BANNER = 'banner';
 
     public function store(): BelongsTo
     {
@@ -24,7 +30,16 @@ final class Brand extends Model
 
     public function translations(): HasMany
     {
-        return $this->hasMany(BrandTranslation::class);
+        return $this->hasMany(BrandTranslation::class)->orderBy('locale');
+    }
+
+    public function registerMediaCollections(): void
+    {
+        foreach ([self::MEDIA_IMAGE, self::MEDIA_BANNER] as $collection) {
+            $this->addMediaCollection($collection)
+                ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
+                ->singleFile();
+        }
     }
 
     protected function casts(): array

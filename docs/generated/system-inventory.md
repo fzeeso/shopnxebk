@@ -152,6 +152,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `DELETE` | `/api/v1/store/policies/{storePolicy}` | `api.v1.store.policies.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies/{storePolicy}` | `api.v1.store.policies.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/policies/{storePolicy}` | `api.v1.store.policies.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/policies/{storePolicy}/disable` | `api.v1.store.policies.disable` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/policies/{storePolicy}/enable` | `api.v1.store.policies.enable` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/policies/{storePolicy}/publish` | `api.v1.store.policies.publish` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | `api.v1.store.policies.translations.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | `api.v1.store.policies.translations.upsert` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -222,6 +224,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Stores | `Modules/Stores/database/migrations/2026_08_03_000100_create_store_locale_settings_table.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_07_000100_create_store_policy_tables.php` |
 | Stores | `Modules/Stores/database/migrations/2026_08_09_000200_add_lock_it_to_store_policy_translations_table.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_09_000300_add_disabled_store_policy_lifecycle_and_backfill.php` |
+| Stores | `Modules/Stores/database/migrations/2026_08_09_000400_add_translation_and_platform_search_flags_to_store_settings.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001200_create_theme_marketplace_catalog.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001210_create_theme_review_licensing_and_installations.php` |
 | Themes | `Modules/Themes/database/migrations/2026_08_02_001220_backfill_default_theme_for_existing_stores.php` |

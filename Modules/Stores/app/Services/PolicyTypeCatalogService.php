@@ -6,9 +6,11 @@ namespace Modules\Stores\Services;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Settings\Services\PlatformSettingsAccessService;
+use Modules\Stores\Actions\EnsureStorePolicyCatalog;
 use Modules\Stores\Models\PolicyType;
 use Modules\Stores\Models\Store;
 
@@ -17,6 +19,7 @@ final readonly class PolicyTypeCatalogService
     public function __construct(
         private PlatformSettingsAccessService $platformAccess,
         private StoreAccessService $storeAccess,
+        private EnsureStorePolicyCatalog $storePolicies,
     ) {}
 
     /** @return LengthAwarePaginator<int, PolicyType> */
@@ -40,11 +43,17 @@ final readonly class PolicyTypeCatalogService
     {
         $this->platformAccess->ensureCanManage($user);
 
-        return PolicyType::query()->create([
-            ...$data,
-            'is_system' => false,
-            'sort_order' => $data['sort_order'] ?? 0,
-        ]);
+        return DB::transaction(function () use ($data): PolicyType {
+            $policyType = PolicyType::query()->create([
+                ...$data,
+                'is_system' => false,
+                'sort_order' => $data['sort_order'] ?? 0,
+            ]);
+
+            $this->storePolicies->ensureTypeForAllStores($policyType);
+
+            return $policyType;
+        });
     }
 
     /** @param array<string, mixed> $data */

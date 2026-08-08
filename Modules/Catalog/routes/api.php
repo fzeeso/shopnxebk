@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\BrandController;
 use Illuminate\Support\Facades\Route;
-use Modules\Catalog\Http\Controllers\Api\V1\BrandController;
 
 Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member'])
     ->prefix('api/v1/store')

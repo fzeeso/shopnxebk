@@ -14,7 +14,7 @@ use Modules\Stores\Models\PolicyType;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Models\StorePolicy;
 
-final readonly class StorePolicyService
+final readonly class StorePolicyManager
 {
     public function __construct(
         private StoreContext $context,
@@ -62,7 +62,7 @@ final readonly class StorePolicyService
             'policy_type_id' => $policyType->getKey(),
             'title' => $data['title'],
             'slug' => $slug,
-            'status' => StorePolicyStatus::Draft,
+            'status' => StorePolicyStatus::Disabled,
             'created_by' => $user->getKey(),
             'updated_by' => $user->getKey(),
         ]);
@@ -93,6 +93,12 @@ final readonly class StorePolicyService
         $store = $this->store($user, true);
         $this->ensureOwned($policy, $store);
 
+        if ($policy->statusValue() === StorePolicyStatus::Disabled->value) {
+            throw ValidationException::withMessages([
+                'status' => ['Enable this policy before publishing it.'],
+            ]);
+        }
+
         if (! $policy->translations()->whereRaw("BTRIM(content) <> ''")->exists()) {
             throw ValidationException::withMessages([
                 'translations' => ['At least one non-empty translation is required before publishing.'],
@@ -108,12 +114,28 @@ final readonly class StorePolicyService
         return $this->load($policy->refresh());
     }
 
-    public function unpublish(User $user, StorePolicy $policy): StorePolicy
+    public function enable(User $user, StorePolicy $policy): StorePolicy
+    {
+        $store = $this->store($user, true);
+        $this->ensureOwned($policy, $store);
+
+        if ($policy->statusValue() === StorePolicyStatus::Disabled->value) {
+            $policy->forceFill([
+                'status' => StorePolicyStatus::Draft,
+                'published_at' => null,
+                'updated_by' => $user->getKey(),
+            ])->save();
+        }
+
+        return $this->load($policy->refresh());
+    }
+
+    public function disable(User $user, StorePolicy $policy): StorePolicy
     {
         $store = $this->store($user, true);
         $this->ensureOwned($policy, $store);
         $policy->forceFill([
-            'status' => StorePolicyStatus::Draft,
+            'status' => StorePolicyStatus::Disabled,
             'published_at' => null,
             'updated_by' => $user->getKey(),
         ])->save();
@@ -121,11 +143,25 @@ final readonly class StorePolicyService
         return $this->load($policy->refresh());
     }
 
-    public function delete(User $user, StorePolicy $policy): void
+    public function unpublish(User $user, StorePolicy $policy): StorePolicy
     {
         $store = $this->store($user, true);
         $this->ensureOwned($policy, $store);
-        $policy->delete();
+
+        if ($policy->statusValue() === StorePolicyStatus::Published->value) {
+            $policy->forceFill([
+                'status' => StorePolicyStatus::Draft,
+                'published_at' => null,
+                'updated_by' => $user->getKey(),
+            ])->save();
+        }
+
+        return $this->load($policy->refresh());
+    }
+
+    public function delete(User $user, StorePolicy $policy): void
+    {
+        $this->disable($user, $policy);
     }
 
     private function store(User $user, bool $manage): Store

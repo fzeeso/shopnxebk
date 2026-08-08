@@ -173,7 +173,7 @@ Pure relationship/package tables and protocol identifiers follow the documented 
 
 Registration sets `legal_name` from `store_name`; database defaults provide `USD`, `en`, `UTC`, and disabled flags. `Store` casts business type/status to enums, flags to booleans, and lifecycle values to immutable datetimes. `StoreResource` and the GraphQL `Store` type serialize the public-safe values. Numeric `plan_id` and `subscription_id` remain internal Billing integration keys and never cross the API boundary.
 
-Branding columns contain storage references only. `CreateStoreService`, `ViewStoreService`, `UpdateStoreProfileService`, and `StoreSettingsService` now own Store creation/read/profile/settings writes. Existing-Store operations require `X-Store-ID` and active membership; writes additionally require `manage store`. Merchant validation prohibits lifecycle, Billing, verification, capability, trial, and raw JSON fields. See [Store management](store-management.md).
+Branding columns contain storage references only. `CreateStoreService`, `ViewStoreService`, `UpdateStoreProfileService`, and the transactional `StoreController` settings flow own Store creation/read/profile/settings writes. Existing-Store operations require `X-Store-ID` and active membership; writes additionally require `manage store`. Merchant validation prohibits lifecycle, Billing, verification, capability, trial, and raw JSON fields. See [Store management](store-management.md).
 
 Platform Store catalog routes are `/api/v1/platform/stores*`. They require a
 Platform account with `manage stores` and never use Store context.
@@ -219,7 +219,11 @@ Store legal/customer-information pages use the normalized policy architecture
 documented in [Store policies](store-policies.md). Platform-maintained
 `policy_types` provide stable codes, Store-local policies are unique by type
 and slug, translations reference the Settings language catalog, and immutable
-versions are scoped by policy and language. Merchant writes require
+versions are scoped by policy and language. Store provisioning creates one
+editable `disabled` policy for every master type, migrations backfill the same
+catalog for existing Stores, and custom type creation propagates a disabled row
+to every Store. Enabling moves a policy to draft; disabling or DELETE preserves
+its content/history and clears publication state. Merchant writes require
 `manage policies`; anonymous storefront reads return published content only.
 
 ### Normalized Store settings and address flow
@@ -236,6 +240,8 @@ address columns are:
 | `store_zip` | Nullable postal/ZIP value, maximum 32 characters. |
 | `store_address_1` | Nullable primary street/address line, maximum 255 characters. |
 | `store_address_2` | Nullable secondary address line, maximum 255 characters. |
+| `auto_store_translation_flag` | Boolean opt-in for future automatic Store-content translation; defaults to `false`. |
+| `is_searchable_on_platform_flag` | Boolean opt-in for future Platform discovery/search inclusion; defaults to `false`. |
 
 Registration, `CreateStoreService`, and `PlatformMerchantService` pass these
 fields into `StoreProvisioner`, so the initial `store_settings` row is created
@@ -243,8 +249,11 @@ inside the same transaction as the draft Store, domains, theme, Owner
 relationship, and Owner role. `GET /api/v1/store/settings` loads the one-to-one
 record. `PATCH /api/v1/store/settings` requires `manage store`, updates contact
 and address columns, and keeps `support_email`, `weight_unit`, and
-`order_prefix` synchronized with their normalized columns. Profile email/phone
-updates also synchronize contact settings. Platform merchant create/detail/edit
+`order_prefix` synchronized with their normalized columns. The two opt-in flags
+are returned by the settings resource and may be changed through the same
+Store-authorized PATCH operation; this persistence change does not itself run
+translation jobs or alter Platform search indexes. Profile email/phone updates
+also synchronize contact settings. Platform merchant create/detail/edit
 responses include `store_settings`; Platform merchant edits update it in the
 same transaction as owner and Store-profile changes.
 
@@ -293,8 +302,20 @@ carry Store IDs for composite foreign keys even when their primary key is a
 natural pair.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
-logo reference; localized name, slug, description, and SEO fields remain in
+legacy logo reference. The Brand model now owns single-file `image` and
+`banner` Media Library collections, and Brand create/update delegates validated
+JPEG, PNG, WebP, or AVIF uploads to the shared image service. List/detail
+resources expose media public IDs and metadata. Replacing an upload removes the
+former object; deleting a Brand removes both managed media collections.
+Localized name, slug, description, and SEO fields remain in
 `brand_translations`.
+
+Brand create accepts one or more active Store-locale translations and fills
+every other active Store language from the submitted default-locale source (or
+the first submitted locale). Translation-bearing updates repeat the fan-out
+through `AutomatedTranslationWriter`. Locked locale rows are skipped; an
+explicit `lock_it = false` unlocks that locale before the refresh, while an
+explicit `lock_it = true` protects the newly written content.
 
 Every table whose name ends in `_translations` must define a non-null boolean
 `lock_it` column with default `false`, using `TranslationSchema::addLock()` in
@@ -309,11 +330,14 @@ PostgreSQL makes localized slugs unique per Store and locale, permits one
 primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
-three-letter currency code. Brand models/services now expose REST CRUD under
-`/api/v1/store/brands`; all other Catalog entities still lack routes, GraphQL,
-models, upload/download behavior, or search indexing. Catalog application
-contracts require Store context, `manage products` for writes, public ULIDs,
-and the service/event boundaries described in the
+three-letter currency code. Catalog registers REST CRUD under
+`/api/v1/store/brands`; shared application classes own the Brand controller,
+request validation, Store-scoped model/resource, image integration, and
+transactional service while reusing Catalog's authorization boundary. All
+other Catalog entities still lack routes, GraphQL, models, upload/download
+behavior, or search indexing. Catalog application contracts require Store
+context, `manage products` for writes, public ULIDs, and the service/media
+boundaries described in the
 [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.
@@ -443,6 +467,7 @@ sequenceDiagram
     Provision->>DB: Create contact/address settings and platform/custom domains
     Provision->>DB: Issue Theme license and create published Store copy
     Provision->>DB: Create active membership and assign Owner
+    Provision->>DB: Create disabled policies for every master type
     Register->>DB: Commit
     Register-->>Queue: Events and verification after commit
     Register-->>Controller: User and provisioned Store
@@ -454,7 +479,9 @@ Store creation, Platform merchant creation, and local fixture creation all use
 the same invariant. The Store starts as `draft`; settings, its
 `<slug>.<STOREFRONT_ROOT_DOMAIN>` platform domain, the Theme license, and the
 published installed Store copy exist before the Owner membership is returned.
-External side effects run after
+The complete disabled policy catalog is created in the same transaction so
+merchants can add translations and enable selected policies later. External
+side effects run after
 the outermost commit. Password hashes and plain passwords never appear in
 resources. Creation responses build `dashboard_url` from
 `STORE_ADMIN_DASHBOARD_URL` and the Store public ULID.

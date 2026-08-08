@@ -175,7 +175,7 @@ columns plus:
 
 | Column | Type | Null/default | Meaning |
 | --- | --- | --- | --- |
-| `logo_url` | `varchar(500)` | Nullable | Brand logo locator |
+| `logo_url` | `varchar(500)` | Nullable | Legacy external Brand logo locator |
 | `website_url` | `varchar(2048)` | Nullable | Official brand website URL |
 | `origin` | `varchar(120)` | Nullable | Brand country, region, or free-form origin label |
 | `is_active` | `boolean` | Default `true` | Whether the brand is selectable/visible |
@@ -186,9 +186,23 @@ Query index: `(store_id, is_active, sort_order)`.
 Store Brand REST operations use `/api/v1/store/brands`. Requests require
 Store scope, `X-Store-ID`, and active membership. Any active member may page or
 view Brands; create, update, and delete additionally require `manage products`.
-Create requires at least one translation. Update upserts supplied locales while
-preserving omitted locales. Public ULIDs identify Brands, localized slugs stay
-unique within each Store/locale, and `website_url` accepts HTTP(S) only.
+Create requires at least one translation in an active Store locale. The service
+uses the submitted default-locale translation, or the first submitted
+translation, as the source for every other active Store language that was not
+submitted explicitly. Update repeats that synchronization whenever
+`translations` is present. Existing rows with `lock_it = true` are preserved;
+an explicitly submitted `lock_it = false` unlocks that locale before the
+refresh. Public ULIDs identify Brands, localized slugs stay unique within each
+Store/locale, and `website_url` accepts HTTP(S) only.
+
+`image` (maximum 5 MiB) and `banner` (maximum 10 MiB) accept JPEG, PNG, WebP,
+or AVIF multipart uploads. They are single-file Media Library collections
+written through the shared image service, so a later upload replaces the
+former asset and an explicit null clears it. Brand list/detail responses expose
+the media public ID, configured storage URL, file name, MIME type, and size.
+Deleting a Brand removes both media records and their physical objects along
+with the database-cascaded translations. `logo_url` remains a compatibility
+field for older clients; new uploads use the managed `image` collection.
 
 ### `brand_translations`
 
@@ -202,6 +216,7 @@ unique within each Store/locale, and `website_url` accepts HTTP(S) only.
 | `description` | `text` | Nullable | Localized brand description |
 | `seo_title` | `varchar(255)` | Nullable | Localized search title |
 | `seo_description` | `text` | Nullable | Localized search description |
+| `lock_it` | `boolean` | Default `false` | Prevent automatic Brand refreshes from overwriting the locale |
 | `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
 
 Primary key: `(brand_id, locale)`. Slug uniqueness:

@@ -22,6 +22,7 @@ final readonly class ProvisionStore implements StoreProvisioner
     public function __construct(
         private ScopedRoleAssignmentService $roleAssignments,
         private ThemeInstaller $themeInstaller,
+        private EnsureStorePolicyCatalog $storePolicies,
     ) {}
 
     /**
@@ -113,6 +114,7 @@ final readonly class ProvisionStore implements StoreProvisioner
                 'joined_at' => now(),
             ]);
             $this->roleAssignments->assignStoreRole($owner, $store, 'Owner');
+            $this->storePolicies->ensureForStore($store, $owner);
 
             DB::afterCommit(fn () => StoreCreated::dispatch($store->getKey(), $owner->getKey()));
 

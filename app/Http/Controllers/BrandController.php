@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\Catalog\Http\Controllers\Api\V1;
+namespace App\Http\Controllers;
 
 use App\Http\Requests\BrandWriteRequest;
 use App\Http\Requests\PaginatedIndexRequest;
@@ -11,7 +11,6 @@ use App\Support\Media\BrandResource;
 use App\Support\Media\BrandService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
 use Modules\Authentication\Models\User;
 
 final class BrandController extends Controller

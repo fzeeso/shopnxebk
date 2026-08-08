@@ -36,6 +36,8 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
             Route::patch('policies/{storePolicy}', [StorePolicyController::class, 'update'])->name('policies.update');
             Route::post('policies/{storePolicy}/publish', [StorePolicyController::class, 'publish'])->name('policies.publish');
             Route::post('policies/{storePolicy}/unpublish', [StorePolicyController::class, 'unpublish'])->name('policies.unpublish');
+            Route::post('policies/{storePolicy}/enable', [StorePolicyController::class, 'enable'])->name('policies.enable');
+            Route::post('policies/{storePolicy}/disable', [StorePolicyController::class, 'disable'])->name('policies.disable');
             Route::put('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'upsert'])->name('policies.translations.upsert');
             Route::delete('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'destroy'])->name('policies.translations.destroy');
             Route::get('policies/{storePolicy}/versions', [PolicyVersionController::class, 'index'])->name('policies.versions.index');

@@ -13,13 +13,20 @@ sort order, and timezone-aware timestamps. The idempotent
 `EnsurePolicyTypeCatalog` action maintains these system types: `privacy`,
 `refund`, `shipping`, `terms`, `contact`, `cookie`, `billing`, and
 `cancellation`. Platform administrators may add custom types; system types and
-their codes are protected.
+their codes are protected. Creating a custom type also creates its disabled
+policy row for every existing Store.
 
 `store_policies` contains at most one row for a `(store_id, policy_type_id)`
 pair. Slugs are also unique per Store. It keeps the default administrative
-title, `draft`/`published` lifecycle, publication time, and nullable creator
-and updater audit references. PostgreSQL requires published rows to have
-`published_at` and draft rows not to have it.
+title, `disabled`/`draft`/`published` lifecycle, publication time, and nullable
+creator and updater audit references. PostgreSQL requires published rows to
+have `published_at` and disabled/draft rows not to have it.
+
+`EnsureStorePolicyCatalog` creates one disabled policy for every master type
+during Store provisioning. It is idempotent, so migrations can safely backfill
+existing Stores and direct Platform Store creation uses the same invariant.
+The initial title and slug come from the policy type; merchants may edit them
+later without enabling or publishing the policy.
 
 `store_policy_translations` contains one localized title/content/SEO record
 per `(store_policy_id, language_id)`. Content is stored as PostgreSQL text and
@@ -51,9 +58,14 @@ from the authorization catalog. Any active member may list policy types,
 policies, and version history; mutation services always re-check Store
 ownership and `manage policies`.
 
-A policy starts as `draft`. It cannot be published until at least one non-empty
-translation exists. A published policy may not lose its last translation.
-Unpublishing clears `published_at`; republishing assigns a new publication time.
+A policy starts as `disabled` and remains editable. Enabling moves it to
+`draft`; publishing requires at least one non-empty translation. A published
+policy may not lose its last translation, and a disabled policy cannot bypass
+the explicit enable step. Unpublishing returns a published policy to draft,
+while disabling clears `published_at` and hides it without deleting its
+translations or version history. The DELETE compatibility endpoint performs
+this same non-destructive disable operation. Republishing assigns a new
+publication time.
 The Storefront endpoints require Store context but no authenticated user and
 return only published policies. Locale selection uses the requested `locale`,
 then `stores.language_code`, then the first available translation.
@@ -62,15 +74,18 @@ then `stores.language_code`, then the first available translation.
 
 Platform policy-type administration uses `/api/v1/platform/policy-types`.
 Listing is available to Platform accounts; create/update/delete requires
-`manage platform settings`.
+`manage platform settings`. A newly created custom type is provisioned as a
+disabled policy for all existing Stores.
 
 Selected-Store management uses:
 
 | Method | Route | Purpose |
 | --- | --- | --- |
 | `GET` | `/api/v1/store/policy-types` | List the complete ordered master catalog. |
-| `GET/POST` | `/api/v1/store/policies` | List Store policies or create a draft. |
-| `GET/PATCH/DELETE` | `/api/v1/store/policies/{policy}` | Read, edit, or delete by public ULID. |
+| `GET/POST` | `/api/v1/store/policies` | List Store policies or create a disabled policy for a missing type. |
+| `GET/PATCH/DELETE` | `/api/v1/store/policies/{policy}` | Read, edit, or non-destructively disable by public ULID. |
+| `POST` | `/api/v1/store/policies/{policy}/enable` | Move a disabled policy to draft. |
+| `POST` | `/api/v1/store/policies/{policy}/disable` | Hide a policy and clear its publication time while preserving content/history. |
 | `POST` | `/api/v1/store/policies/{policy}/publish` | Publish after content validation. |
 | `POST` | `/api/v1/store/policies/{policy}/unpublish` | Return a policy to draft. |
 | `PUT/DELETE` | `/api/v1/store/policies/{policy}/translations/{language}` | Upsert or remove localized content using public ULIDs. |

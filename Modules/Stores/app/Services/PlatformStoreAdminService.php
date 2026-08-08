@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Modules\Authentication\Models\User;
+use Modules\Stores\Actions\EnsureStorePolicyCatalog;
 use Modules\Stores\Enums\StoreStatus;
 use Modules\Stores\Models\Store;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -36,6 +37,7 @@ final readonly class PlatformStoreAdminService
     public function __construct(
         private PlatformStoreAccessService $access,
         private StoreDomainManager $domains,
+        private EnsureStorePolicyCatalog $storePolicies,
     ) {}
 
     /**
@@ -97,7 +99,7 @@ final readonly class PlatformStoreAdminService
     {
         $this->access->ensureCanManageStores($actor);
 
-        return DB::transaction(function () use ($data): Store {
+        return DB::transaction(function () use ($actor, $data): Store {
             $attributes = Arr::only($data, self::WRITABLE_FIELDS);
             $localeSettings = is_array($data['locale_settings'] ?? null)
                 ? Arr::only($data['locale_settings'], self::LOCALE_SETTING_FIELDS)
@@ -125,6 +127,7 @@ final readonly class PlatformStoreAdminService
                 'extra_settings' => [],
             ]);
             $this->domains->initialize($store, is_string($primaryDomain) ? $primaryDomain : null);
+            $this->storePolicies->ensureForStore($store, $actor);
 
             return $store->refresh();
         });

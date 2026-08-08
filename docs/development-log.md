@@ -1,5 +1,60 @@
 # Development log
 
+## 2026-08-09 — Automatic disabled Store policy catalog
+
+- Changed: Store provisioning and direct Platform Store creation now create one
+  editable `disabled` Store policy for every master policy type. New custom
+  types propagate to existing Stores, existing Stores are backfilled, and the
+  Store policy API adds explicit enable/disable actions. DELETE now disables
+  non-destructively instead of removing translations and version history.
+- Reason: Every Store needs a complete, predictable policy catalog at creation
+  while allowing merchants to complete and publish only the policies they use.
+- Data/configuration impact: The Stores migration expands the PostgreSQL status
+  constraint to `disabled`, `draft`, and `published`, enforces null publication
+  time outside `published`, and backfills missing Store/type pairs as disabled.
+- Compatibility or rollout notes: Existing list, update, translation, publish,
+  unpublish, version, and storefront routes remain available. Clients should
+  use the new enable/disable routes; DELETE returns 204 but preserves the row.
+- Verification: Applied the migration and ran focused PostgreSQL lifecycle/API
+  coverage, Pint, PHPStan, route inspection, generated documentation update and
+  freshness checks.
+
+## 2026-08-09 - Store translation and Platform-search flags
+
+- Changed: Added `auto_store_translation_flag` and
+  `is_searchable_on_platform_flag` to `store_settings`, with model casts,
+  provisioning defaults, Store settings API reads/writes, OpenAPI coverage, and
+  PostgreSQL-backed feature coverage.
+- Reason: Stores need explicit opt-ins for future automatic content translation
+  and Platform discovery without placing stable switches in JSON settings.
+- Data/configuration impact: An additive migration creates two non-null boolean
+  columns defaulting to `false`, so existing and new Stores remain opted out.
+- Compatibility or rollout notes: The flags persist merchant intent only; this
+  change does not start translation jobs or change Platform search indexing.
+- Verification: Run the focused Store settings feature test, Pint, generated
+  documentation checks, and the relevant PostgreSQL-backed suite.
+
+## 2026-08-09 - Brand media and Store-language synchronization
+
+- Changed: Extended Store Brand create, update, list, detail, and delete with
+  managed single-file image/banner uploads plus automatic translation rows for
+  every active Store language. Translation refreshes use the shared automated
+  writer and preserve locked locales.
+- Reason: Merchants need complete localized Brand records without manually
+  repeating every locale, and Brand imagery must be owned and cleaned up by the
+  media layer instead of relying only on external URL strings.
+- Data/configuration impact: No new Brand columns are required. Uploads use the
+  existing Store-scoped `media` table and configured Media Library disk in the
+  `image` and `banner` collections. The existing `logo_url` remains compatible.
+- Compatibility or rollout notes: Send JPEG, PNG, WebP, or AVIF files as
+  multipart `image`/`banner` fields. Missing active locales inherit the submitted
+  default-locale (or first) content. Set `lock_it` to protect a locale; submit
+  `lock_it = false` to unlock it before a refresh. Brand deletion now also
+  removes its managed media objects.
+- Verification: Ran focused PostgreSQL-backed API coverage for create,
+  replacement, listing, automatic locale fan-out, lock preservation, cascade
+  deletion, and physical media cleanup.
+
 ## 2026-08-09 — Translation overwrite locks
 
 - Changed: Added non-null `lock_it = false` to all 13 existing translation

@@ -37,11 +37,15 @@ can evolve without replacing a database enum.
 `store_settings` is a one-to-one dependent record keyed by `store_id`; it is
 not independently addressable and therefore intentionally has no `id` or
 `public_id`. It stores contact details, weight unit, storefront/password
-switches, an automatically hashed and serialization-hidden password value,
-order prefix, nullable Media Library bigint
+switches, opt-in automatic-translation and Platform-search flags, an
+automatically hashed and serialization-hidden password value, order prefix,
+nullable Media Library bigint
 references, and JSON social/extra settings.
 The normalized postal address is stored as `store_country_code`, `store_state`,
 `store_city`, `store_zip`, `store_address_1`, and `store_address_2`.
+`auto_store_translation_flag` and `is_searchable_on_platform_flag` are
+non-null booleans that default to `false`; they record intent but do not by
+themselves execute translation or search-index work.
 
 `store_locale_settings` is a second one-to-one dependent record keyed by
 `store_id`. It normalizes date/time/week, general number presentation, weight,
@@ -74,7 +78,9 @@ Merchant onboarding accepts an optional `theme_template_key`, defaulting to
 6. calls `ThemeInstaller` to resolve a published version, issue the license,
    and create the selected Theme as the Store's published copy;
 7. creates the active Owner membership and role; and
-8. returns `dashboard_url`, containing the Store public ULID as the `store`
+8. creates one disabled, editable Store policy for every master policy type;
+   and
+9. returns `dashboard_url`, containing the Store public ULID as the `store`
    query parameter.
 
 A constraint or authorization failure at any stage rolls back every inserted
@@ -115,7 +121,11 @@ Stores owns the Platform policy-type catalog and Store-local policy records.
 `store_policies` is unique by Store/type and Store/slug; localized content and
 SEO fields live in `store_policy_translations`. Immutable `policy_versions`
 are language-scoped, are appended automatically when content changes, and
-support rollback without rewriting history. Store policy writes require the
-`manage policies` permission, while public storefront reads expose published
-content only. See [Store policies](store-policies.md) for the complete schema,
-lifecycle, authorization, and REST contract.
+support rollback without rewriting history. Provisioning and backfill create
+one `disabled` row for every master type; adding a custom type does the same
+for all existing Stores. Merchants may edit disabled rows, enable them as
+drafts, publish after adding localized content, or disable them again without
+losing content/history. Store policy writes require the `manage policies`
+permission, while public storefront reads expose published content only. See
+[Store policies](store-policies.md) for the complete schema, lifecycle,
+authorization, and REST contract.

@@ -40,6 +40,8 @@ final class StoreSettingsResource extends JsonResource
             'store_zip' => $settings?->store_zip,
             'store_address_1' => $settings?->store_address_1,
             'store_address_2' => $settings?->store_address_2,
+            'auto_store_translation_flag' => (bool) ($settings?->auto_store_translation_flag ?? false),
+            'is_searchable_on_platform_flag' => (bool) ($settings?->is_searchable_on_platform_flag ?? false),
             'preferences' => $preferences,
             'capabilities' => [
                 'ai' => $this->is_ai_enabled,

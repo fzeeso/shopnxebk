@@ -64,8 +64,8 @@ Store management REST contracts:
 | `POST` | `/api/v1/stores` | Create another Store for the authenticated Store account and assign Owner. |
 | `GET` | `/api/v1/store` | View the active member's selected `X-Store-ID`. |
 | `PATCH` | `/api/v1/store/profile` | Update merchant-owned profile fields; requires `manage store`. |
-| `GET` | `/api/v1/store/settings` | View selected Store locale, normalized contact/address values, preferences, and read-only capabilities. |
-| `PATCH` | `/api/v1/store/settings` | Update normalized contact/address values and merge validated locale/preferences; currency and language must be active Platform catalog entries; requires `manage store`. |
+| `GET` | `/api/v1/store/settings` | View selected Store locale, normalized contact/address values, translation/Platform-search opt-ins, preferences, and read-only capabilities. |
+| `PATCH` | `/api/v1/store/settings` | Update normalized contact/address values and boolean translation/Platform-search opt-ins, and merge validated locale/preferences; currency and language must be active Platform catalog entries; requires `manage store`. |
 
 Merchant-facing Store creation accepts optional `theme_template_key` and
 defaults it from `STORE_DEFAULT_THEME_KEY`. The generated platform domain is
@@ -183,12 +183,14 @@ Store policy REST contracts:
 
 | Method | Route | Scope and purpose |
 | --- | --- | --- |
-| `GET/POST` | `/api/v1/platform/policy-types` | Page or create master policy types; writes require `manage platform settings`. |
+| `GET/POST` | `/api/v1/platform/policy-types` | Page or create master policy types; creation provisions a disabled policy for every existing Store and writes require `manage platform settings`. |
 | `PATCH/DELETE` | `/api/v1/platform/policy-types/{policyType}` | Edit or remove a custom unreferenced type; system types are protected. |
 | `GET` | `/api/v1/store/policy-types` | List the ordered policy-type catalog for an active Store member. |
-| `GET/POST` | `/api/v1/store/policies` | List Store policies or create one draft; writes require `manage policies`. |
-| `GET/PATCH/DELETE` | `/api/v1/store/policies/{storePolicy}` | Read, edit, or delete one Store-owned policy. |
-| `POST` | `/api/v1/store/policies/{storePolicy}/publish` | Publish a policy containing at least one translation. |
+| `GET/POST` | `/api/v1/store/policies` | List Store policies or create one disabled policy for a missing type; writes require `manage policies`. |
+| `GET/PATCH/DELETE` | `/api/v1/store/policies/{storePolicy}` | Read, edit, or non-destructively disable one Store-owned policy. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/enable` | Move a disabled policy to draft. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/disable` | Hide a policy without deleting its translations or versions. |
+| `POST` | `/api/v1/store/policies/{storePolicy}/publish` | Publish an enabled draft policy containing at least one translation. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/unpublish` | Return a published policy to draft. |
 | `PUT/DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | Upsert or delete localized title/content/SEO fields and the automated-overwrite lock. |
 | `GET` | `/api/v1/store/policies/{storePolicy}/versions` | List immutable per-language content versions. |
@@ -196,16 +198,20 @@ Store policy REST contracts:
 | `GET` | `/api/v1/storefront/policies[/{slug}]` | Publicly read published policies for `X-Store-ID`, optionally selecting `locale`. |
 
 All entity and language parameters use public ULIDs except the public policy
-slug. See [Store policies](store-policies.md).
+slug. Every Store creation path automatically creates one disabled policy for
+each master policy type. See [Store policies](store-policies.md).
 
 Store Brand REST contracts:
 
 | Method | Route | Scope and purpose |
 | --- | --- | --- |
-| `GET/POST` | `/api/v1/store/brands` | Page Store Brands or create one with at least one translation. |
-| `GET/PATCH/DELETE` | `/api/v1/store/brands/{brand}` | Read, update, or delete a Store Brand by public ULID. |
+| `GET/POST` | `/api/v1/store/brands` | Page Store Brands or create one with managed `image`/`banner` uploads and at least one translation. |
+| `GET/PATCH/DELETE` | `/api/v1/store/brands/{brand}` | Read, update, or delete a Store Brand, its translations, and managed media by public ULID. |
 
 All Brand routes require Store scope, `X-Store-ID`, and active membership.
-Writes additionally require `manage products`. Brand responses include
-`logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort state, and
-localized name/slug/description/SEO records with `lock_it`. See [Catalog](catalog.md).
+Writes additionally require `manage products`. Image writes use multipart
+`image` and `banner` fields; responses include their media metadata alongside
+the legacy `logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort
+state, and localized name/slug/description/SEO records with `lock_it`. A create
+or translation-bearing update refreshes every active Store language from the
+submitted source while preserving locked rows. See [Catalog](catalog.md).

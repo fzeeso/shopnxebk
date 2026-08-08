@@ -55,6 +55,8 @@ final class UpdateStoreSettingsRequest extends FormRequest
             'store_zip' => ['sometimes', 'nullable', 'string', 'max:32'],
             'store_address_1' => ['sometimes', 'nullable', 'string', 'max:255'],
             'store_address_2' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'auto_store_translation_flag' => ['sometimes', 'boolean'],
+            'is_searchable_on_platform_flag' => ['sometimes', 'boolean'],
             'preferences' => ['sometimes', 'array:order_prefix,date_format,time_format,weight_unit,dimension_unit,inventory_tracking,guest_checkout,tax_inclusive_pricing,low_stock_threshold,support_email'],
             'preferences.order_prefix' => ['sometimes', 'string', 'max:12', 'regex:/^[A-Za-z0-9_-]+$/'],
             'preferences.date_format' => ['sometimes', Rule::in(['Y-m-d', 'd/m/Y', 'm/d/Y'])],
