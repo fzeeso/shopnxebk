@@ -960,6 +960,7 @@ paths:
       tags: [Store Policies]
       security: [{sanctum: []}]
       summary: Upsert localized policy content and append a content version
+      description: Saving the Store's default language generates every other unlocked active Store language through the shared server-side OpenAI provider and appends versions for changed generated content. Saving a non-default language does not cascade. Translation failures return 422 and roll back the write.
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '#/components/schemas/StorePolicyTranslationRequest'}}}
@@ -1583,7 +1584,7 @@ paths:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
       summary: Create a Brand with managed imagery and localized identity
-      description: Requires manage products and at least one active Store-locale translation. Missing active locales inherit the submitted default-locale or first translation.
+      description: Requires manage products and at least one active Store-locale translation. Missing active locales are generated from the submitted default-locale or first translation through the shared server-side OpenAI provider; locked records are preserved and translation failures return 422.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
@@ -1611,7 +1612,7 @@ paths:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
       summary: Update Brand identity, managed imagery, or Store-language translations
-      description: Requires manage products. A translation-bearing update refreshes every active Store locale while preserving locked rows.
+      description: Requires manage products. A translation-bearing update regenerates every unlocked active Store locale through the server-side OpenAI integration while preserving locked rows. Translation failures return 422 and roll back the write.
       requestBody:
         required: true
         content:
@@ -1631,6 +1632,28 @@ paths:
         '204': {description: Brand deleted}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Brand not found in selected Store}
+  /api/v1/store/brands/{brand}/media/{collection}:
+    get:
+      tags: [Catalog Brands]
+      summary: Stream Brand media from private storage
+      description: Uses the short-lived relative `expires` and `signature` query values emitted in authenticated Brand responses. Only the `image` and `banner` collections are addressable.
+      parameters:
+        - {name: brand, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: collection, in: path, required: true, schema: {type: string, enum: [image, banner]}}
+        - {name: expires, in: query, required: true, schema: {type: integer}}
+        - {name: signature, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Brand media bytes
+          headers:
+            Cache-Control: {schema: {type: string}, description: Private short-lived browser cache directive.}
+          content:
+            image/avif: {schema: {type: string, contentEncoding: binary}}
+            image/jpeg: {schema: {type: string, contentEncoding: binary}}
+            image/png: {schema: {type: string, contentEncoding: binary}}
+            image/webp: {schema: {type: string, contentEncoding: binary}}
+        '403': {description: Signed URL is missing, modified, or expired}
+        '404': {description: Brand or requested media does not exist}
   /graphql:
     post:
       summary: Lighthouse GraphQL endpoint

@@ -22,6 +22,12 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'translation_model' => env('OPENAI_TRANSLATION_MODEL', 'gpt-5-mini'),
+        'translation_timeout' => (int) env('OPENAI_TRANSLATION_TIMEOUT', 30),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

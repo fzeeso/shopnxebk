@@ -225,6 +225,11 @@ catalog for existing Stores, and custom type creation propagates a disabled row
 to every Store. Enabling moves a policy to draft; disabling or DELETE preserves
 its content/history and clears publication state. Merchant writes require
 `manage policies`; anonymous storefront reads return published content only.
+Saving the default-language policy translation generates title, content, and
+SEO values for every other active Store language through the shared translation
+provider. Generated policy content receives the same immutable language-scoped
+version history as a manual edit. A target with `lock_it = true` is excluded;
+saving another non-default language is a manual edit and does not cascade.
 
 ### Normalized Store settings and address flow
 
@@ -310,12 +315,42 @@ former object; deleting a Brand removes both managed media collections.
 Localized name, slug, description, and SEO fields remain in
 `brand_translations`.
 
-Brand create accepts one or more active Store-locale translations and fills
-every other active Store language from the submitted default-locale source (or
-the first submitted locale). Translation-bearing updates repeat the fan-out
-through `AutomatedTranslationWriter`. Locked locale rows are skipped; an
-explicit `lock_it = false` unlocks that locale before the refresh, while an
-explicit `lock_it = true` protects the newly written content.
+`BrandResponseResource` is co-located with the active Brand controller so route
+resolution cannot depend on a separately autoloaded response class. It
+serializes the Store public ID, both media slots, Brand metadata, localized
+content, timestamps, and each translation's `lock_it` flag. Each media slot
+exposes a 15-minute relative signed URL for the Brand-only media endpoint. The
+endpoint streams only the `image` or `banner` object from its configured Media
+Library disk, allowing edit previews while the disk remains private; expired or
+modified URLs are rejected by `signed:relative`.
+The root API route file registers Brand CRUD and signed media routes against
+the retained module controller. `AppServiceProvider` keeps Catalog config and
+migration discovery active after removal of the standalone Catalog provider
+and route include.
+
+`TranslationProvider` is the application-wide contract for automatic content
+translation. `AppServiceProvider` binds it to the field-agnostic
+`OpenAiTranslationService`, so Brand, Store-policy, and future module services
+share one server-side integration instead of creating feature-specific clients.
+`OPENAI_API_KEY` remains server-only; `OPENAI_TRANSLATION_MODEL` defaults to
+`gpt-5-mini`, and `OPENAI_TRANSLATION_TIMEOUT` defaults to 30 seconds. Requests
+use the OpenAI Responses API with strict JSON Schema output, disable response
+storage, preserve HTML, placeholders, URLs, numbers, names, and null fields, and
+do not log the API key or merchant content on failure.
+
+Brand create accepts one or more active Store-locale translations and uses the
+saved default-locale source (or the first submitted locale on initial creation)
+to generate every other active Store language through that shared provider.
+
+Translation-bearing Brand updates regenerate every unlocked non-source locale.
+An explicit `lock_it = true` is a manual write that both saves the submitted
+custom content and protects it from later automated refreshes. An explicit
+`lock_it = false` unlocks the locale before regeneration. Metadata- or
+media-only edits call OpenAI only when an active Store locale is missing; the
+missing rows are translated from the saved source without rewriting other
+existing locales. OpenAI or structured-output failures roll back the Brand
+transaction and return a translation validation error instead of silently
+copying source-language text.
 
 Every table whose name ends in `_translations` must define a non-null boolean
 `lock_it` column with default `false`, using `TranslationSchema::addLock()` in
@@ -392,7 +427,7 @@ themes](themes.md) and [Themes module](modules/themes.md).
 8. `BillingServiceProvider` loads Platform plan/feature routes and catalog migrations.
 9. `ThemesServiceProvider` loads Theme routes/migrations, media relationships,
    and binds the Store-provisioning `ThemeInstaller`.
-10. `CatalogServiceProvider` loads the Store-local Catalog migrations.
+10. `AppServiceProvider` loads the Store-local Catalog migrations.
 11. `AppServiceProvider` configures Sanctum, Eloquent strict mode, rate limits, super-admin behavior, dashboards, reset URLs, and Octane cleanup.
 12. Laravel accepts the request and runs the middleware pipeline.
 

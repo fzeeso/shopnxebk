@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Support\InternalDashboardAccess;
+use App\Support\Translations\OpenAiTranslationService;
+use App\Support\Translations\TranslationProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +29,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(TranslationProvider::class, OpenAiTranslationService::class);
+
+        $this->mergeConfigFrom(base_path('Modules/Catalog/config/config.php'), 'catalog');
+
         Fortify::ignoreRoutes();
 
         if (! (bool) config('observability.internal_dashboards_enabled')) {
@@ -44,6 +50,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
+
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {
             $token = $request->bearerToken();

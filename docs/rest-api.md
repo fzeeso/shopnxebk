@@ -199,19 +199,39 @@ Store policy REST contracts:
 
 All entity and language parameters use public ULIDs except the public policy
 slug. Every Store creation path automatically creates one disabled policy for
-each master policy type. See [Store policies](store-policies.md).
+each master policy type. Saving a policy translation in the Store's default
+language automatically generates every unlocked active Store language through
+the server-side translation provider and appends versions for generated content.
+Saving a non-default language remains a manual, non-cascading write. Provider
+failures return 422 and roll back the translation write. See [Store policies](store-policies.md).
 
 Store Brand REST contracts:
 
-| Method | Route | Scope and purpose |
+Base API URL: `/api/v1/store/brands`
+
+| Method | URL | Scope and purpose |
 | --- | --- | --- |
-| `GET/POST` | `/api/v1/store/brands` | Page Store Brands or create one with managed `image`/`banner` uploads and at least one translation. |
-| `GET/PATCH/DELETE` | `/api/v1/store/brands/{brand}` | Read, update, or delete a Store Brand, its translations, and managed media by public ULID. |
+| `GET` | `/api/v1/store/brands` | List paginated Brands for the selected Store. |
+| `POST` | `/api/v1/store/brands` | Create a Brand with at least one translation and optional multipart `image`/`banner` uploads. |
+| `GET` | `/api/v1/store/brands/{brand}` | Read one Brand by public ULID. |
+| `PATCH` | `/api/v1/store/brands/{brand}` | Update Brand fields, translations, or replace/clear managed media. |
+| `DELETE` | `/api/v1/store/brands/{brand}` | Delete the Brand, all translations, and its managed image/banner objects. |
+| `GET` | `/api/v1/store/brands/{brand}/media/{collection}?expires=...&signature=...` | Stream the `image` or `banner` from private storage using the short-lived signed URL returned in Brand media metadata. |
 
 All Brand routes require Store scope, `X-Store-ID`, and active membership.
 Writes additionally require `manage products`. Image writes use multipart
 `image` and `banner` fields; responses include their media metadata alongside
 the legacy `logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort
 state, and localized name/slug/description/SEO records with `lock_it`. A create
-or translation-bearing update refreshes every active Store language from the
-submitted source while preserving locked rows. See [Catalog](catalog.md).
+or translation-bearing update generates every unlocked active Store language
+from the default-language source through the shared server-side OpenAI provider.
+Locked rows remain merchant-controlled; clearing `lock_it` opts that locale
+back into automatic refresh. Translation failures return 422 and roll back the
+Brand write rather than persisting copied source text. See [Catalog](catalog.md).
+
+Brand CRUD URLs require `Authorization: Bearer <token>` and the public Store
+ULID in `X-Store-ID`. The media URL instead requires its unexpired, unmodified
+query signature and does not accept a client-selected storage path. Use
+`multipart/form-data` when sending `image` or `banner`; JSON is accepted for
+metadata-only requests. The complete request/response schemas are published in
+[OpenAPI](openapi.yaml).

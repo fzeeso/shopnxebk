@@ -38,6 +38,14 @@ future automated translation jobs from replacing their content.
 Translation and version resources include the Settings-owned language
 `lang_image` and `lang_icon` URLs so admin clients can label language tabs consistently.
 
+Saving the active Store's default-language translation uses the shared
+server-side OpenAI translation provider to generate the title, content, and SEO
+fields for every other active Store language. Generated writes flow through
+`AutomatedTranslationWriter`, so a target with `lock_it = true` is never
+overwritten. Saving a non-default language is a manual edit and does not
+cascade. Provider or structured-output failure returns a validation error and
+rolls back the source write instead of leaving a partially translated policy.
+
 `policy_versions` is an immutable content history. A version belongs to one
 policy and one language, has a monotonically increasing positive integer, and
 records the author and creation time. Language identity is deliberately added
@@ -45,6 +53,8 @@ to the proposed base structure so rollback cannot copy one locale into
 another. Translation content changes create versions automatically. A restore
 updates the live translation and appends a new version instead of changing
 history.
+Automatically generated content also appends a version whenever its content
+differs from the previous unlocked translation.
 
 Store deletion cascades policies, translations, and versions. Language and
 policy-type deletion is restricted while referenced. User deletion nulls
@@ -72,7 +82,18 @@ then `stores.language_code`, then the first available translation.
 
 ## REST contracts
 
-Platform policy-type administration uses `/api/v1/platform/policy-types`.
+All URLs below are relative to the configured application base URL. Platform
+and selected-Store management endpoints require Sanctum authentication.
+Selected-Store and storefront endpoints also require
+`X-Store-ID: <store-public-ulid>`; storefront reads do not require a user.
+
+Platform policy-type administration uses:
+
+| Method | URL | Purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/policy-types` | Page the master catalog or create a custom type. |
+| `PATCH/DELETE` | `/api/v1/platform/policy-types/{policyType}` | Update or delete an eligible custom type by public ULID. |
+
 Listing is available to Platform accounts; create/update/delete requires
 `manage platform settings`. A newly created custom type is provisioned as a
 disabled policy for all existing Stores.
@@ -92,6 +113,12 @@ Selected-Store management uses:
 | `GET` | `/api/v1/store/policies/{policy}/versions` | List immutable language-scoped versions. |
 | `POST` | `/api/v1/store/policies/{policy}/versions/{version}/restore` | Restore content and append a new version. |
 
-Public reads use `GET /api/v1/storefront/policies` and
-`GET /api/v1/storefront/policies/{slug}` with `X-Store-ID`; an optional
-`locale` query parameter chooses localized content.
+Public Storefront URLs are:
+
+| Method | URL | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/storefront/policies` | List published localized policies. |
+| `GET` | `/api/v1/storefront/policies/{slug}` | Read one published localized policy. |
+
+Both use `X-Store-ID`; an optional `locale` query parameter chooses localized
+content.

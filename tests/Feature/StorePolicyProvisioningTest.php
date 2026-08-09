@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Modules\Authentication\Models\User;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
@@ -142,6 +145,92 @@ final class StorePolicyProvisioningTest extends TestCase
         ]);
     }
 
+    public function test_default_policy_translation_updates_only_unlocked_store_languages(): void
+    {
+        app(EnsureLanguageCatalog::class)->ensure();
+        $owner = User::factory()->create();
+        $store = $this->provisionStore($owner, 'Translated Policy Store', 'translated-policy-store');
+        $this->enableLanguages($store, ['de', 'ar']);
+        $policy = StorePolicy::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $store->getKey())
+            ->whereHas('policyType', fn ($query) => $query->where('code', 'privacy'))
+            ->firstOrFail();
+        $english = Language::query()->where('locale', 'en')->firstOrFail();
+        $german = Language::query()->where('locale', 'de')->firstOrFail();
+        config(['services.openai.api_key' => 'test-api-key']);
+
+        Http::preventStrayRequests();
+        Http::fake(function (Request $request) {
+            $input = json_decode((string) $request->data()['input'][1]['content'], true, 512, JSON_THROW_ON_ERROR);
+            $translations = [];
+            foreach ($input['target_locales'] as $locale) {
+                $translations[] = [
+                    'locale' => $locale,
+                    'title' => "{$locale}: {$input['source']['title']}",
+                    'content' => "{$locale}: {$input['source']['content']}",
+                    'seo_title' => $input['source']['seo_title'],
+                    'seo_description' => $input['source']['seo_description'],
+                ];
+            }
+
+            return Http::response([
+                'output_text' => json_encode(['translations' => $translations], JSON_THROW_ON_ERROR),
+            ]);
+        });
+
+        $headers = ['X-Store-ID' => (string) $store->public_id];
+        $this->actingAs($owner, 'web')->withHeaders($headers)
+            ->putJson("/api/v1/store/policies/{$policy->public_id}/translations/{$english->public_id}", [
+                'title' => 'Privacy Policy',
+                'content' => 'Initial policy content.',
+                'seo_title' => null,
+                'seo_description' => null,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('store_policy_translations', [
+            'store_policy_id' => $policy->getKey(),
+            'language_id' => $german->getKey(),
+            'content' => 'de: Initial policy content.',
+            'lock_it' => false,
+        ]);
+
+        $this->actingAs($owner, 'web')->withHeaders($headers)
+            ->putJson("/api/v1/store/policies/{$policy->public_id}/translations/{$german->public_id}", [
+                'title' => 'Custom German policy',
+                'content' => 'Merchant-authored German policy.',
+                'seo_title' => null,
+                'seo_description' => null,
+                'lock_it' => true,
+            ])
+            ->assertOk();
+
+        $this->actingAs($owner, 'web')->withHeaders($headers)
+            ->putJson("/api/v1/store/policies/{$policy->public_id}/translations/{$english->public_id}", [
+                'title' => 'Updated Privacy Policy',
+                'content' => 'Updated policy content.',
+                'seo_title' => null,
+                'seo_description' => null,
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('store_policy_translations', [
+            'store_policy_id' => $policy->getKey(),
+            'language_id' => $german->getKey(),
+            'content' => 'Merchant-authored German policy.',
+            'lock_it' => true,
+        ]);
+        $arabic = Language::query()->where('locale', 'ar')->firstOrFail();
+        $this->assertDatabaseHas('store_policy_translations', [
+            'store_policy_id' => $policy->getKey(),
+            'language_id' => $arabic->getKey(),
+            'content' => 'ar: Updated policy content.',
+            'lock_it' => false,
+        ]);
+        Http::assertSentCount(2);
+    }
+
     public function test_direct_platform_store_creation_also_creates_disabled_policies(): void
     {
         config(['stores.platform_domain' => 'stores.example.test']);
@@ -180,5 +269,18 @@ final class StorePolicyProvisioningTest extends TestCase
             $slug,
             ['theme_template_key' => 'default'],
         );
+    }
+
+    /** @param list<string> $locales */
+    private function enableLanguages(Store $store, array $locales): void
+    {
+        $now = now();
+        foreach ($locales as $locale) {
+            $language = Language::query()->where('locale', $locale)->firstOrFail();
+            DB::table('store_languages')->updateOrInsert(
+                ['store_id' => $store->getKey(), 'language_id' => $language->getKey()],
+                ['is_default' => false, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now],
+            );
+        }
     }
 }

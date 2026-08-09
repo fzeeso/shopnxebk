@@ -1,5 +1,90 @@
 # Development log
 
+## 2026-08-10 - Shared OpenAI translation provider for Brand and policies
+
+- Changed: Added one field-agnostic `TranslationProvider`, backed by the OpenAI
+  Responses API with strict structured output, for every automatic translation
+  workflow. Brand create and translation-bearing edits translate the source
+  name, description, and SEO fields; default-language Store-policy saves
+  translate title, content, and SEO fields. Metadata-only Brand edits translate
+  only newly missing locale rows. Generated Brand slugs remain Store/locale
+  unique, and generated policy content appends language-scoped versions.
+- Reason: The earlier locale fan-out created rows but copied the source text, so
+  merchants saw English content under Arabic, German, and other language flags.
+- Data/configuration impact: Added server-only `OPENAI_API_KEY`, optional
+  `OPENAI_TRANSLATION_MODEL` (default `gpt-5-mini`), and optional
+  `OPENAI_TRANSLATION_TIMEOUT` (default 30 seconds). No database migration is
+  required.
+- Compatibility or rollout notes: `lock_it = true` saves merchant-authored
+  content directly and excludes that locale from OpenAI refreshes. Sending
+  `lock_it = false` opts it back into a later automatic refresh. Non-default
+  policy-language saves do not cascade. API failures roll back the source write
+  with a validation error; API keys and merchant content are not logged.
+- Verification: PHP syntax and focused Pint checks pass. A live generic OpenAI
+  smoke request succeeded with strict JSON output. Laravel unit/feature tests
+  remain blocked because the concurrently deleted `routes/api.php` prevents the
+  application from booting; restoring API route loading is required before
+  handoff.
+
+## 2026-08-09 — Brand translation generation on create and edit
+
+- Changed: Brand create explicitly persists every active Store locale, and all
+  Brand edits backfill any missing locale rows from the saved default-language
+  source. Existing locale rows remain untouched by metadata-only backfills;
+  translation-bearing updates continue through `AutomatedTranslationWriter`.
+- Reason: A Brand could be created or later opened for editing without visible
+  values for languages that did not have an explicit custom form entry.
+- Data/configuration impact: Existing Brands gain missing translation rows the
+  next time they are edited. No migration or configuration change is required.
+- Compatibility or rollout notes: Custom rows with `lock_it = true` remain
+  protected. Unlocked translations explicitly submitted by the merchant keep
+  the established update behavior.
+- Verification: PHP syntax, focused static analysis, frontend documentation,
+  typecheck, lint, production build, and a PostgreSQL-backed missing-locale
+  edit scenario are required before handoff.
+
+## 2026-08-09 — Signed private Brand media previews
+
+- Changed: Brand response media slots now contain 15-minute relative signed
+  URLs, and a signature-protected Brand endpoint streams only the existing
+  `image` or `banner` object from its configured Media Library disk. Brand
+  routes now register from the root API route file after removal of the
+  module's separate provider and route include. `AppServiceProvider` retains
+  Catalog config/migration discovery, and the active module controller
+  co-locates its response resource after removal of the standalone response
+  file.
+- Reason: Brand edit already consumed the saved logo/banner URLs, but private
+  disk objects were represented by `/storage/...` URLs that target Laravel's
+  public-storage symlink and therefore could not render.
+- Data/configuration impact: None. Existing media rows and files remain on
+  their current disks; no global private-storage serving surface is enabled.
+- Compatibility or rollout notes: Clients must treat `image.url` and
+  `banner.url` as ephemeral and use them before expiry. Brand CRUD remains
+  authenticated and Store-scoped; the media read itself is authorized by its
+  unmodified signature and is limited to the two Brand media collections.
+- Verification: PHP syntax, route registration, Pint, generated documentation
+  freshness, a `200 image/png` response for an existing private logo, a `403`
+  response without the signature, and a `404` response for a correctly signed
+  but absent banner all passed. No dedicated Brand feature test currently
+  exists in the backend suite.
+
+## 2026-08-09 — Restore Brand API response resource
+
+- Changed: Restored the shared `App\Support\Media\BrandResource` required by
+  both Brand controllers, including image/banner metadata and translation
+  `lock_it` serialization.
+- Reason: Brand list, detail, create, and update requests failed during
+  controller resolution with `Class "App\Support\Media\BrandResource" not
+  found` after the response resource was removed while its imports remained.
+- Data/configuration impact: None. The restored class serializes the existing
+  Brand, translation, and Media Library models without changing persistence.
+- Compatibility or rollout notes: The established Store Brand response shape
+  is restored; no client payload or endpoint changes are required.
+- Verification: Confirmed PHP syntax and Composer autoload resolution, then ran
+  Brand route inspection, Pint, and generated documentation update/freshness.
+  The focused PostgreSQL-backed regression could not start because the local
+  `shopnxe_test` credentials were rejected by PostgreSQL.
+
 ## 2026-08-09 — Automatic disabled Store policy catalog
 
 - Changed: Store provisioning and direct Platform Store creation now create one

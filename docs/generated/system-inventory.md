@@ -145,6 +145,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `DELETE` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/brands/{brand}/media/{collection}` | `api.v1.store.brands.media` | api, signed:relative |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies` | `api.v1.store.policies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
