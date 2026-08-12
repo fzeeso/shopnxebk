@@ -12,24 +12,31 @@ final class EnsureStoreLanguageDefaults
 {
     public function ensure(): void
     {
-        $fallback = Language::query()->where('locale', 'en')->firstOrFail();
-
         Store::query()
             ->select(['id', 'language_code'])
-            ->eachById(function (Store $store) use ($fallback): void {
-                if (StoreLanguage::query()->where('store_id', $store->getKey())->exists()) {
-                    return;
-                }
+            ->eachById($this->ensureForStore(...));
+    }
 
-                $locale = str_replace('-', '_', (string) $store->language_code);
-                $language = Language::query()->where('locale', $locale)->first() ?? $fallback;
+    public function ensureForStore(Store $store): void
+    {
+        if (StoreLanguage::query()->where('store_id', $store->getKey())->exists()) {
+            return;
+        }
 
-                StoreLanguage::query()->create([
-                    'store_id' => $store->getKey(),
-                    'language_id' => $language->getKey(),
-                    'is_default' => true,
-                    'is_active' => true,
-                ]);
-            });
+        $fallback = Language::query()->where('locale', 'en')->first()
+            ?? Language::query()->where('is_active', true)->orderBy('id')->first();
+        if (! $fallback instanceof Language) {
+            return;
+        }
+
+        $locale = str_replace('-', '_', (string) $store->language_code);
+        $language = Language::query()->where('locale', $locale)->first() ?? $fallback;
+
+        StoreLanguage::query()->create([
+            'store_id' => $store->getKey(),
+            'language_id' => $language->getKey(),
+            'is_default' => true,
+            'is_active' => true,
+        ]);
     }
 }

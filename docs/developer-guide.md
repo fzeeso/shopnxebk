@@ -323,10 +323,11 @@ exposes a 15-minute relative signed URL for the Brand-only media endpoint. The
 endpoint streams only the `image` or `banner` object from its configured Media
 Library disk, allowing edit previews while the disk remains private; expired or
 modified URLs are rejected by `signed:relative`.
-The root API route file registers Brand CRUD and signed media routes against
-the retained module controller. `AppServiceProvider` keeps Catalog config and
-migration discovery active after removal of the standalone Catalog provider
-and route include.
+The dedicated `routes/brand-api.php` file registers Brand CRUD and signed media
+routes against the retained module controller. `AppServiceProvider` loads that
+route file and keeps Catalog config and migration discovery active after
+removal of the standalone Catalog provider and route include. The root
+`routes/api.php` remains limited to application health routes.
 
 `TranslationProvider` is the application-wide contract for automatic content
 translation. `AppServiceProvider` binds it to the field-agnostic
@@ -338,19 +339,38 @@ use the OpenAI Responses API with strict JSON Schema output, disable response
 storage, preserve HTML, placeholders, URLs, numbers, names, and null fields, and
 do not log the API key or merchant content on failure.
 
-Brand create accepts one or more active Store-locale translations and uses the
-saved default-locale source (or the first submitted locale on initial creation)
-to generate every other active Store language through that shared provider.
+`TranslationCoordinator` is the only HTTP write-path entry point for automatic
+translation. A Brand or default-language Store-policy transaction saves the
+source and a deduplicated, Store-scoped `translation_requests` row. Its
+`DB::afterCommit` callback dispatches `TranslateContentJob` with only the
+request bigint. Consequently, a slow or unavailable provider never holds the
+HTTP transaction, database locks, or an application connection, and provider
+failure never rolls back merchant source content.
 
-Translation-bearing Brand updates regenerate every unlocked non-source locale.
-An explicit `lock_it = true` is a manual write that both saves the submitted
-custom content and protects it from later automated refreshes. An explicit
-`lock_it = false` unlocks the locale before regeneration. Metadata- or
-media-only edits call OpenAI only when an active Store locale is missing; the
-missing rows are translated from the saved source without rewriting other
-existing locales. OpenAI or structured-output failures roll back the Brand
-transaction and return a translation validation error instead of silently
-copying source-language text.
+`TranslationContentRegistry` resolves tagged `TranslationContentHandler`
+implementations. Brand and Store policy are the first handlers. A handler
+selects the source and active/unlocked targets, supplies the field contract,
+and applies structured output. Snapshot hashes include source data and target
+revisions. Workers check the hash before and after the provider call, mark
+changed work `superseded`, mark deleted content `cancelled`, and apply output in
+a short transaction. `failed` requests retain a safe status message and can be
+retried by saving the source again. The minute scheduler redispatches stranded
+pending work and reclaims processing rows older than the configured recovery
+window.
+
+The policy controller's co-located `StorePolicyTranslationWorkflow` owns the
+synchronous source/version write and hands eligible default-language work to
+the coordinator. It replaces the former provider-calling policy translation
+service.
+
+Brand create queues every unlocked non-source Store locale. Translation-bearing
+updates queue all unlocked targets; metadata/media-only edits queue only
+missing locales. An explicit `lock_it = true` preserves manual content, while
+`lock_it = false` opts the locale back into later automation. Default-language
+policy saves use the same pipeline and generated policy changes still append
+language-specific versions. Production clients receive a nullable
+`translation_request` object on these write responses and poll
+`GET /api/v1/store/translation-requests/{public-ulid}` when one is queued.
 
 Every table whose name ends in `_translations` must define a non-null boolean
 `lock_it` column with default `false`, using `TranslationSchema::addLock()` in
@@ -366,9 +386,10 @@ primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
 three-letter currency code. Catalog registers REST CRUD under
-`/api/v1/store/brands`; shared application classes own the Brand controller,
-request validation, Store-scoped model/resource, image integration, and
-transactional service while reusing Catalog's authorization boundary. All
+`/api/v1/store/brands`; shared application classes own request validation, the
+Store-scoped model/resource, and image integration. Catalog owns the active
+Brand controller and `BrandManagementService`, which reuse Catalog's
+authorization boundary. All
 other Catalog entities still lack routes, GraphQL, models, upload/download
 behavior, or search indexing. Catalog application contracts require Store
 context, `manage products` for writes, public ULIDs, and the service/media
@@ -736,11 +757,50 @@ sequenceDiagram
     Horizon->>Store: Clear after success or exception
 ```
 
-Use named queues such as `notifications`, `webhooks`, `exports`, `media`, `search`, and `billing`. Store-aware jobs inherit the active Spatie store. Global jobs use the global-job marker. Jobs need explicit retries/timeouts, idempotency, small serialized payloads, and no dependence on previous worker state.
+Use named queues such as `notifications`, `webhooks`, `exports`, `media`,
+`search`, `billing`, and `translations`. Horizon runs separate critical,
+default, translation, and heavy supervisors so AI latency cannot starve payment,
+webhook, or ordinary Store work. Store-aware jobs inherit the active Spatie
+store. Global jobs use the global-job marker. Jobs need explicit
+retries/timeouts, idempotency, small serialized payloads, and no dependence on
+previous worker state.
+
+For a new translatable content type:
+
+1. Save and validate user source content in the feature transaction.
+2. Implement `TranslationContentHandler` with a stable content type, snapshot,
+   required fields, target selection, and locked-row-safe apply method.
+3. Tag the handler in the service container and call `TranslationCoordinator`
+   before the transaction returns.
+4. Include `translation_request` in the write resource and reuse the generic
+   Store status endpoint.
+5. Never call `TranslationProvider` directly from the HTTP transaction and
+   never put full merchant content in a serialized queue payload.
+
+Translation operations are configured with `TRANSLATION_QUEUE_CONNECTION`,
+`TRANSLATION_QUEUE`, `TRANSLATION_MAX_ATTEMPTS`,
+`TRANSLATION_RECOVERY_BATCH_SIZE`, and
+`TRANSLATION_RECOVERY_AFTER_MINUTES`. Production supervisor sizes use
+`HORIZON_CRITICAL_MAX_PROCESSES`, `HORIZON_MAX_PROCESSES`,
+`HORIZON_TRANSLATION_MAX_PROCESSES`, and
+`HORIZON_HEAVY_MAX_PROCESSES`.
 
 ```powershell
 & "C:\xampp\php\php.exe" artisan horizon
 ```
+
+Horizon requires `pcntl` and therefore does not stay running under native
+Windows PHP. For local XAMPP development, run the translation consumer and
+scheduler in separate terminals:
+
+```powershell
+& "C:\xampp\php\php.exe" artisan queue:work redis --queue=translations --sleep=1 --tries=3 --timeout=90
+& "C:\xampp\php\php.exe" artisan schedule:work
+```
+
+Linux staging/production uses Horizon with the supervisor groups in
+`config/horizon.php` and a process manager. The scheduler must also run once
+per minute so durable dispatch recovery is active.
 
 ## 10. Cache, search, storage, and real-time flow
 

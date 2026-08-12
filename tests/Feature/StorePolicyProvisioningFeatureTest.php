@@ -19,7 +19,7 @@ use Modules\Stores\Models\StorePolicy;
 use Modules\Stores\Services\PlatformStoreAdminService;
 use Tests\TestCase;
 
-final class StorePolicyProvisioningTest extends TestCase
+final class StorePolicyProvisioningFeatureTest extends TestCase
 {
     use RefreshDatabase;
 

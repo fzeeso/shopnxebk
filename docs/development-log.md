@@ -1,5 +1,42 @@
 # Development log
 
+## 2026-08-13 - Durable after-commit automatic translations
+
+- Changed: Brand and default-language Store-policy writes now commit source
+  content plus a deduplicated `translation_requests` ledger row before
+  dispatching `TranslateContentJob`. Registered Brand and policy content
+  handlers snapshot active/unlocked targets, invoke OpenAI outside database
+  transactions, revalidate hashes, and apply results in short transactions.
+  Added a tenant-scoped status endpoint and nullable `translation_request`
+  response objects. The policy controller's co-located translation workflow
+  now owns source/version writes before handing eligible work to the shared
+  coordinator. Restored the Stores-owned `StoreSetting` model, including the
+  translation/search opt-in casts, because provisioning referenced the missing
+  class and could not create Stores. New Store provisioning now immediately
+  selects its configured/default language when the language catalog exists, so
+  source content is valid for Brand and policy translation from the first edit.
+- Reason: External AI latency must not hold PostgreSQL locks/connections or
+  slow unrelated Store actions, and provider failure must not discard a valid
+  merchant source edit.
+- Data/configuration impact: Added `translation_requests`, the dedicated
+  `translations` queue, translation retry/recovery settings, and isolated
+  Horizon supervisors for critical, default, translation, and heavy jobs. A
+  minute scheduler recovers stranded pending and stale processing requests.
+- Compatibility or rollout notes: In Redis-backed environments translations
+  are eventually consistent; clients may poll
+  `/api/v1/store/translation-requests/{public-ulid}`. The `sync` test queue
+  preserves immediate test behavior. Locked rows remain protected. Changed
+  source/target snapshots are superseded rather than overwritten. Native
+  Windows uses `queue:work` because Horizon requires `pcntl`; Linux deployment
+  keeps the isolated Horizon supervisors.
+- Verification: Development migrations, route/scheduler discovery, Pint,
+  generated-doc update/check, OpenAI provider unit tests, and the focused
+  PostgreSQL Brand/policy/translation tests pass after synchronizing the local
+  test database password. Full PHPStan reaches only two pre-existing
+  missing-model errors in Catalog and Stores; native-Windows Larastan also
+  deletes explicitly targeted source files during Testbench cleanup, so final
+  restored endpoint verification uses PHP syntax, container, and route checks.
+
 ## 2026-08-10 - Shared OpenAI translation provider for Brand and policies
 
 - Changed: Added one field-agnostic `TranslationProvider`, backed by the OpenAI
@@ -8,7 +45,10 @@
   name, description, and SEO fields; default-language Store-policy saves
   translate title, content, and SEO fields. Metadata-only Brand edits translate
   only newly missing locale rows. Generated Brand slugs remain Store/locale
-  unique, and generated policy content appends language-scoped versions.
+  unique, and generated policy content appends language-scoped versions. The
+  active Brand transaction service now lives at
+  `Modules\Catalog\Services\BrandManagementService` with its controller after
+  the former application-support service path became unavailable.
 - Reason: The earlier locale fan-out created rows but copied the source text, so
   merchants saw English content under Arabic, German, and other language flags.
 - Data/configuration impact: Added server-only `OPENAI_API_KEY`, optional
@@ -21,10 +61,13 @@
   policy-language saves do not cascade. API failures roll back the source write
   with a validation error; API keys and merchant content are not logged.
 - Verification: PHP syntax and focused Pint checks pass. A live generic OpenAI
-  smoke request succeeded with strict JSON output. Laravel unit/feature tests
-  remain blocked because the concurrently deleted `routes/api.php` prevents the
-  application from booting; restoring API route loading is required before
-  handoff.
+  smoke request succeeded with strict JSON output. The root `routes/api.php`
+  was restored, Laravel caches clear successfully, health and authentication
+  routes boot, direct plus frontend-proxied health checks return HTTP 200, and
+  the OpenAI translation unit tests pass. PostgreSQL feature tests remain
+  blocked because the configured `shopnxe_test` password is rejected. Generated
+  documentation checks remain blocked because
+  `scripts/update-developer-guide.php` is absent from the current checkout.
 
 ## 2026-08-09 — Brand translation generation on create and edit
 
@@ -48,11 +91,11 @@
 - Changed: Brand response media slots now contain 15-minute relative signed
   URLs, and a signature-protected Brand endpoint streams only the existing
   `image` or `banner` object from its configured Media Library disk. Brand
-  routes now register from the root API route file after removal of the
-  module's separate provider and route include. `AppServiceProvider` retains
-  Catalog config/migration discovery, and the active module controller
-  co-locates its response resource after removal of the standalone response
-  file.
+  routes now register from `routes/brand-api.php`, loaded by
+  `AppServiceProvider`, after removal of the module's separate provider and
+  route include. The provider retains Catalog config/migration discovery, and
+  the active module controller co-locates its response resource after removal
+  of the standalone response file.
 - Reason: Brand edit already consumed the saved logo/banner URLs, but private
   disk objects were represented by `/storage/...` URLs that target Laravel's
   public-storage symlink and therefore could not render.

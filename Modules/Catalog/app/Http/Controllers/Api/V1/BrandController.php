@@ -6,9 +6,9 @@ namespace Modules\Catalog\Http\Controllers\Api\V1;
 
 use App\Http\Requests\BrandWriteRequest;
 use App\Http\Requests\PaginatedIndexRequest;
+use App\Http\Resources\TranslationRequestResource;
 use App\Models\Brand;
 use App\Models\BrandTranslation;
-use App\Support\Media\BrandManagementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -16,6 +16,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Modules\Authentication\Models\User;
+use Modules\Catalog\Services\BrandManagementService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -117,6 +118,12 @@ final class BrandResponseResource extends JsonResource
                     'updated_at' => $translation->updated_at?->toIso8601String(),
                 ])
                 ->values()),
+            'translation_request' => $this->when(
+                $this->resource->relationLoaded('translationRequest'),
+                fn () => $this->resource->getRelation('translationRequest') === null
+                    ? null
+                    : new TranslationRequestResource($this->resource->getRelation('translationRequest')),
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

@@ -16,7 +16,8 @@
 - Store-scoped model, cache, queue, media, and search helpers;
 - automatic disabled Store-policy catalogs, localized policy content whose
   `lock_it` flag protects merchant-authored translations from automated
-  overwrite, and immutable policy versions;
+  overwrite, immutable policy versions, and the Store-policy adapter for the
+  shared after-commit translation queue;
 - the `activeStore` GraphQL field.
 - Platform Store catalog/merchant provisioning and selected-Store user management APIs.
 
@@ -69,6 +70,7 @@ Theme marketplace/install/customize/publish routes are implemented by Themes.
 
 1. Registration, `POST /api/v1/stores`, and Platform merchant creation call `StoreProvisioner` inside their owning transaction.
 2. `ProvisionStore` creates a `draft` Store, its one-to-one settings, the
+   default Store-language selection when the Settings catalog exists, the
    configured platform domain, then calls `ThemeInstaller` to issue the
    selected Theme license and create one published installation before adding
    the active Owner membership/role and one disabled policy per master type.
@@ -132,6 +134,14 @@ IDs and raw JSON.
 5. `StoreLanguageService` resolves Settings-owned public IDs, updates the Store-local join
    rows in one transaction, preserves the one-default database constraint, and
    synchronizes `stores.language_code`.
+
+Default-language policy edits persist immediately and call the shared
+`TranslationCoordinator` inside the same transaction. The coordinator records
+the durable request and dispatches only after commit. The Store-policy handler
+resolves Settings-owned active languages, excludes `lock_it = true` rows,
+applies generated text in a short worker transaction, and appends a version for
+each generated content change. Provider latency and failures never hold or
+undo the merchant's source edit.
 
 ## Outbound communication
 

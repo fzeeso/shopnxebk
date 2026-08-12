@@ -43,7 +43,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | --- | --- | ---: | --- | --- |
 | Authentication | yes | 20 | REST authentication and account security. | `Modules\Authentication\Providers\AuthenticationServiceProvider` |
 | Billing | yes | 5 | Platform plan, pricing, reusable feature, and plan-feature administration. | `Modules\Billing\Providers\BillingServiceProvider` |
-| Catalog | yes | 20 | Store-owned brands, collections, categories, products, variants, fulfillment assets, and custom fields. | `Modules\Catalog\Providers\CatalogServiceProvider` |
+| Catalog | yes | 20 | Store-owned brands, collections, categories, products, variants, fulfillment assets, and custom fields. | `` |
 | Settings | yes | 15 | Platform-admin settings and global language and currency catalogs. | `Modules\Settings\Providers\SettingsServiceProvider` |
 | Stores | yes | 10 | Shared-schema store context, memberships, and store lifecycle. | `Modules\Stores\Providers\StoresServiceProvider` |
 | Themes | yes | 20 | Theme marketplace catalog, immutable versions, review, licensing, and Store installations. | `Modules\Themes\Providers\ThemesServiceProvider` |
@@ -144,8 +144,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/store/brands` | `api.v1.store.brands.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
-| `PATCH` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
-| `GET\|HEAD` | `/api/v1/store/brands/{brand}/media/{collection}` | `api.v1.store.brands.media` | api, signed:relative |
+| `PUT\|PATCH` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/brands/{brand}/media/{collection}` | `api.v1.store.brands.media` | signed:relative |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies` | `api.v1.store.policies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -173,6 +173,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `PATCH` | `/api/v1/store/themes/{storeTheme}` | `api.v1.store.themes.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/themes/{storeTheme}/duplicate` | `api.v1.store.themes.duplicate` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/themes/{storeTheme}/publish` | `api.v1.store.themes.publish` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/translation-requests/{translationRequest}` | `api.v1.store.translation-requests.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/users` | `api.v1.store.users.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/users` | `api.v1.store.users.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/storefront/policies` | `api.v1.storefront.policies.index` | api, store |
@@ -236,6 +237,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Application foundation | `database/migrations/2026_07_22_000300_create_media_table.php` |
 | Application foundation | `database/migrations/2026_07_22_000400_create_pulse_tables.php` |
 | Application foundation | `database/migrations/2026_07_22_000500_create_telescope_entries_table.php` |
+| Application foundation | `database/migrations/2026_08_13_000100_create_translation_requests_table.php` |
 
 ## Composer commands
 
@@ -263,11 +265,11 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 
 | Area | Variables |
 | --- | --- |
-| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `STORE_ADMIN_DASHBOARD_URL`, `STOREFRONT_ROOT_DOMAIN`, `STORE_DEFAULT_THEME_KEY`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW`, `LOCAL_MERCHANT_NAME`, `LOCAL_MERCHANT_EMAIL`, `LOCAL_MERCHANT_PASSWORD`, `LOCAL_MERCHANT_STORE_NAME`, `LOCAL_MERCHANT_STORE_SLUG` |
+| Application and frontend | `APP_NAME`, `APP_ENV`, `APP_KEY`, `APP_DEBUG`, `APP_URL`, `APP_TIMEZONE`, `FRONTEND_URL`, `STORE_ADMIN_DASHBOARD_URL`, `STOREFRONT_ROOT_DOMAIN`, `STORE_DEFAULT_THEME_KEY`, `FRONTEND_RESET_PASSWORD_URL`, `FRONTEND_EMAIL_VERIFIED_URL`, `CORS_ALLOWED_ORIGINS`, `SANCTUM_STATEFUL_DOMAINS`, `SANCTUM_TOKEN_PREFIX`, `AUTH_TOKEN_TTL_MINUTES`, `AUTH_MFA_CHALLENGE_TTL_SECONDS`, `AUTH_MFA_CHALLENGE_ATTEMPTS`, `AUTH_MFA_TOTP_WINDOW`, `OPENAI_API_KEY`, `OPENAI_TRANSLATION_MODEL`, `OPENAI_TRANSLATION_TIMEOUT`, `TRANSLATION_QUEUE_CONNECTION`, `TRANSLATION_QUEUE`, `TRANSLATION_MAX_ATTEMPTS`, `TRANSLATION_RECOVERY_BATCH_SIZE`, `TRANSLATION_RECOVERY_AFTER_MINUTES`, `LOCAL_MERCHANT_NAME`, `LOCAL_MERCHANT_EMAIL`, `LOCAL_MERCHANT_PASSWORD`, `LOCAL_MERCHANT_STORE_NAME`, `LOCAL_MERCHANT_STORE_SLUG` |
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |
 | Files and media | `FILESYSTEM_DISK`, `MEDIA_DISK`, `MEDIA_CONVERSIONS_DISK`, `MEDIA_QUEUE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_URL` |
 | Reverb and Octane | `BROADCAST_CONNECTION`, `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, `REVERB_SERVER_HOST`, `REVERB_SERVER_PORT`, `OCTANE_SERVER`, `OCTANE_HTTPS` |
-| Observability and GraphQL | `HORIZON_MAX_PROCESSES`, `PULSE_ENABLED`, `PULSE_STORAGE_KEEP`, `INTERNAL_DASHBOARDS_ENABLED`, `INTERNAL_DASHBOARD_IP_ALLOW_LIST`, `TELESCOPE_ENABLED`, `GRAPHQL_INTROSPECTION_ENABLED`, `GRAPHQL_MAX_DEPTH`, `GRAPHQL_MAX_COMPLEXITY`, `LIGHTHOUSE_DEBUG` |
+| Observability and GraphQL | `HORIZON_CRITICAL_MAX_PROCESSES`, `HORIZON_MAX_PROCESSES`, `HORIZON_TRANSLATION_MAX_PROCESSES`, `HORIZON_HEAVY_MAX_PROCESSES`, `PULSE_ENABLED`, `PULSE_STORAGE_KEEP`, `INTERNAL_DASHBOARDS_ENABLED`, `INTERNAL_DASHBOARD_IP_ALLOW_LIST`, `TELESCOPE_ENABLED`, `GRAPHQL_INTROSPECTION_ENABLED`, `GRAPHQL_MAX_DEPTH`, `GRAPHQL_MAX_COMPLEXITY`, `LIGHTHOUSE_DEBUG` |
 | Logging, mail, and local administration | `LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `PLATFORM_ADMIN_NAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` |

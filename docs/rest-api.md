@@ -193,6 +193,7 @@ Store policy REST contracts:
 | `POST` | `/api/v1/store/policies/{storePolicy}/publish` | Publish an enabled draft policy containing at least one translation. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/unpublish` | Return a published policy to draft. |
 | `PUT/DELETE` | `/api/v1/store/policies/{storePolicy}/translations/{language}` | Upsert or delete localized title/content/SEO fields and the automated-overwrite lock. |
+| `GET` | `/api/v1/store/translation-requests/{translationRequest}` | Read the selected Store's asynchronous translation status by public ULID. |
 | `GET` | `/api/v1/store/policies/{storePolicy}/versions` | List immutable per-language content versions. |
 | `POST` | `/api/v1/store/policies/{storePolicy}/versions/{policyVersion}/restore` | Restore content and append a new version. |
 | `GET` | `/api/v1/storefront/policies[/{slug}]` | Publicly read published policies for `X-Store-ID`, optionally selecting `locale`. |
@@ -201,9 +202,12 @@ All entity and language parameters use public ULIDs except the public policy
 slug. Every Store creation path automatically creates one disabled policy for
 each master policy type. Saving a policy translation in the Store's default
 language automatically generates every unlocked active Store language through
-the server-side translation provider and appends versions for generated content.
-Saving a non-default language remains a manual, non-cascading write. Provider
-failures return 422 and roll back the translation write. See [Store policies](store-policies.md).
+the server-side translation provider and appends versions for generated
+content. The source and durable request commit first; provider work starts only
+after commit. Saving a non-default language remains a manual, non-cascading
+write. Provider failures do not roll back source content. The write response's
+nullable `translation_request` can be polled at the generic status URL. See
+[Store policies](store-policies.md).
 
 Store Brand REST contracts:
 
@@ -224,10 +228,13 @@ Writes additionally require `manage products`. Image writes use multipart
 the legacy `logo_url`, HTTP(S) `website_url`, free-form `origin`, active/sort
 state, and localized name/slug/description/SEO records with `lock_it`. A create
 or translation-bearing update generates every unlocked active Store language
-from the default-language source through the shared server-side OpenAI provider.
+from the default-language source through the shared server-side OpenAI provider
+after the source transaction commits.
 Locked rows remain merchant-controlled; clearing `lock_it` opts that locale
-back into automatic refresh. Translation failures return 422 and roll back the
-Brand write rather than persisting copied source text. See [Catalog](catalog.md).
+back into automatic refresh. Translation failures are retried independently
+and never roll back the Brand write. Create/update responses contain a nullable
+`translation_request` object with its public status URL identifier. See
+[Catalog](catalog.md).
 
 Brand CRUD URLs require `Authorization: Bearer <token>` and the public Store
 ULID in `X-Store-ID`. The media URL instead requires its unexpired, unmodified

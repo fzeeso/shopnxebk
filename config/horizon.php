@@ -98,6 +98,13 @@ return [
 
     'waits' => [
         'redis:default' => 60,
+        'redis:notifications' => 60,
+        'redis:search' => 60,
+        'redis:billing' => 30,
+        'redis:webhooks' => 30,
+        'redis:translations' => 120,
+        'redis:media' => 120,
+        'redis:exports' => 120,
     ],
 
     /*
@@ -197,9 +204,9 @@ return [
     */
 
     'defaults' => [
-        'supervisor-1' => [
+        'supervisor-critical' => [
             'connection' => 'redis',
-            'queue' => ['default', 'notifications', 'webhooks', 'exports', 'media', 'search', 'billing'],
+            'queue' => ['billing', 'webhooks'],
             'balance' => 'auto',
             'autoScalingStrategy' => 'time',
             'maxProcesses' => 1,
@@ -210,21 +217,76 @@ return [
             'timeout' => 120,
             'nice' => 0,
         ],
+        'supervisor-default' => [
+            'connection' => 'redis',
+            'queue' => ['default', 'notifications', 'search'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 120,
+            'nice' => 0,
+        ],
+        'supervisor-translations' => [
+            'connection' => 'redis',
+            'queue' => ['translations'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 128,
+            'tries' => 3,
+            'timeout' => 90,
+            'nice' => 5,
+        ],
+        'supervisor-heavy' => [
+            'connection' => 'redis',
+            'queue' => ['media', 'exports'],
+            'balance' => 'auto',
+            'autoScalingStrategy' => 'time',
+            'maxProcesses' => 1,
+            'maxTime' => 0,
+            'maxJobs' => 0,
+            'memory' => 256,
+            'tries' => 3,
+            'timeout' => 300,
+            'nice' => 10,
+        ],
     ],
 
     'environments' => [
         'production' => [
-            'supervisor-1' => [
-                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 10),
+            'supervisor-critical' => [
+                'maxProcesses' => (int) env('HORIZON_CRITICAL_MAX_PROCESSES', 3),
                 'balanceMaxShift' => 1,
                 'balanceCooldown' => 3,
+            ],
+            'supervisor-default' => [
+                'maxProcesses' => (int) env('HORIZON_MAX_PROCESSES', 5),
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 3,
+            ],
+            'supervisor-translations' => [
+                'maxProcesses' => (int) env('HORIZON_TRANSLATION_MAX_PROCESSES', 3),
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 5,
+            ],
+            'supervisor-heavy' => [
+                'maxProcesses' => (int) env('HORIZON_HEAVY_MAX_PROCESSES', 2),
+                'balanceMaxShift' => 1,
+                'balanceCooldown' => 5,
             ],
         ],
 
         'local' => [
-            'supervisor-1' => [
-                'maxProcesses' => 3,
-            ],
+            'supervisor-critical' => ['maxProcesses' => 1],
+            'supervisor-default' => ['maxProcesses' => 1],
+            'supervisor-translations' => ['maxProcesses' => 1],
+            'supervisor-heavy' => ['maxProcesses' => 1],
         ],
     ],
 

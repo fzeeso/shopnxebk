@@ -38,13 +38,21 @@ future automated translation jobs from replacing their content.
 Translation and version resources include the Settings-owned language
 `lang_image` and `lang_icon` URLs so admin clients can label language tabs consistently.
 
-Saving the active Store's default-language translation uses the shared
-server-side OpenAI translation provider to generate the title, content, and SEO
-fields for every other active Store language. Generated writes flow through
+Saving the active Store's default-language translation commits that source and
+its immutable version first, then records a durable `translation_requests` row
+and dispatches translation after commit. The Store-policy handler asks the
+shared server-side OpenAI provider for title, content, and SEO fields for every
+other active Store language. Generated writes flow through
 `AutomatedTranslationWriter`, so a target with `lock_it = true` is never
 overwritten. Saving a non-default language is a manual edit and does not
-cascade. Provider or structured-output failure returns a validation error and
-rolls back the source write instead of leaving a partially translated policy.
+cascade. Provider or structured-output failure is retried in the background;
+it does not delay or roll back the saved source.
+
+The worker rechecks source content, active language selection, target revision,
+and lock state before applying output. Stale requests become `superseded` and
+deleted content becomes `cancelled`. Write responses include a nullable
+`translation_request` status object, and an active Store member can poll it at
+`GET /api/v1/store/translation-requests/{translationRequest}`.
 
 `policy_versions` is an immutable content history. A version belongs to one
 policy and one language, has a monotonically increasing positive integer, and
@@ -110,6 +118,7 @@ Selected-Store management uses:
 | `POST` | `/api/v1/store/policies/{policy}/publish` | Publish after content validation. |
 | `POST` | `/api/v1/store/policies/{policy}/unpublish` | Return a policy to draft. |
 | `PUT/DELETE` | `/api/v1/store/policies/{policy}/translations/{language}` | Upsert or remove localized content using public ULIDs. |
+| `GET` | `/api/v1/store/translation-requests/{translationRequest}` | Read tenant-isolated pending/processing/completed/failed status. |
 | `GET` | `/api/v1/store/policies/{policy}/versions` | List immutable language-scoped versions. |
 | `POST` | `/api/v1/store/policies/{policy}/versions/{version}/restore` | Restore content and append a new version. |
 

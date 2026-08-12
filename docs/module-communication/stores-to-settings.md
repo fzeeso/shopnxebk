@@ -14,6 +14,10 @@ languages enabled for one Store.
 - Stores never creates or edits master catalog rows.
 - Settings never loads Store context, memberships, preferences, or selection
   rows.
+- `StorePolicyTranslationHandler` reads the active/default selection only when
+  creating or revalidating queued translation work. Durable requests store
+  locale strings; policy translations and versions retain their existing
+  Settings language foreign keys. A deactivated target is never written.
 
 The global catalog may therefore grow with future Platform settings without
 turning Store Management into the owner of SaaS-wide configuration.

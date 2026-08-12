@@ -163,6 +163,25 @@ import, and AI writers must skip locked rows through
 `AutomatedTranslationWriter`. The dynamic PostgreSQL contract test enforces the
 flag on translation tables added later.
 
+Automatic translation is always asynchronous in Redis-backed environments.
+Brand and Store-policy writes save the source and a Store-scoped
+`translation_requests` ledger row in one transaction. Only after commit may
+`TranslateContentJob` enter the dedicated `translations` queue. The external
+provider call runs without database locks or an open transaction; a short
+transaction revalidates the source/target snapshot and writes only unlocked
+rows. Stale work becomes `superseded`, deleted content becomes `cancelled`, and
+provider failure becomes retryable/`failed` without rolling back source data.
+The authenticated Store status URL is
+`GET /api/v1/store/translation-requests/{translationRequest}`.
+
+Every future automatically translated page or entity must implement
+`TranslationContentHandler`, register it under a stable content-type key, and
+request work through `TranslationCoordinator`. It must not call
+`TranslationProvider` from an HTTP database transaction. The ledger,
+after-commit dispatcher, snapshot hashes, `lock_it` recheck, Store-aware job,
+retry policy, and scheduled recovery are shared infrastructure rather than
+feature-specific implementations.
+
 Categories are the strict navigation taxonomy; collections are manual,
 rule-based, or AI-generated
 merchandising groups. Variant prices use non-negative integer minor units plus

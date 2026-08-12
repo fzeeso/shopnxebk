@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\TranslationRequestController;
 use Illuminate\Support\Facades\Route;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformMerchantController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreController;
@@ -13,7 +14,7 @@ use Modules\Stores\Http\Controllers\Api\V1\StoreController;
 use Modules\Stores\Http\Controllers\Api\V1\StorefrontPolicyController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreLanguageController;
 use Modules\Stores\Http\Controllers\Api\V1\StorePolicyManagementController;
-use Modules\Stores\Http\Controllers\Api\V1\StorePolicyTranslationController;
+use Modules\Stores\Http\Controllers\Api\V1\StorePolicyLocaleController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreUserController;
 
 Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
@@ -38,8 +39,9 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
             Route::post('policies/{storePolicy}/unpublish', [StorePolicyManagementController::class, 'unpublish'])->name('policies.unpublish');
             Route::post('policies/{storePolicy}/enable', [StorePolicyManagementController::class, 'enable'])->name('policies.enable');
             Route::post('policies/{storePolicy}/disable', [StorePolicyManagementController::class, 'disable'])->name('policies.disable');
-            Route::put('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'upsert'])->name('policies.translations.upsert');
-            Route::delete('policies/{storePolicy}/translations/{language}', [StorePolicyTranslationController::class, 'destroy'])->name('policies.translations.destroy');
+            Route::put('policies/{storePolicy}/translations/{language}', [StorePolicyLocaleController::class, 'upsert'])->name('policies.translations.upsert');
+            Route::delete('policies/{storePolicy}/translations/{language}', [StorePolicyLocaleController::class, 'destroy'])->name('policies.translations.destroy');
+            Route::get('translation-requests/{translationRequest}', [TranslationRequestController::class, 'show'])->name('translation-requests.show');
             Route::get('policies/{storePolicy}/versions', [PolicyVersionController::class, 'index'])->name('policies.versions.index');
             Route::post('policies/{storePolicy}/versions/{policyVersion}/restore', [PolicyVersionController::class, 'restore'])->name('policies.versions.restore');
             Route::delete('policies/{storePolicy}', [StorePolicyManagementController::class, 'destroy'])->name('policies.destroy');

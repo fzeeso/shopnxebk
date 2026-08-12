@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Support\InternalDashboardAccess;
+use App\Support\Translations\Contracts\TranslationContentHandler;
 use App\Support\Translations\OpenAiTranslationService;
+use App\Support\Translations\TranslationContentRegistry;
 use App\Support\Translations\TranslationProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -19,8 +21,10 @@ use Laravel\Octane\Events\RequestTerminated;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Sanctum\Sanctum;
 use Modules\Authentication\Models\PersonalAccessToken;
+use Modules\Catalog\Services\Translations\BrandTranslationHandler;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
+use Modules\Stores\Services\Translations\StorePolicyTranslationHandler;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -30,6 +34,16 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TranslationProvider::class, OpenAiTranslationService::class);
+        $this->app->tag([
+            BrandTranslationHandler::class,
+            StorePolicyTranslationHandler::class,
+        ], TranslationContentHandler::class);
+        $this->app->singleton(
+            TranslationContentRegistry::class,
+            fn ($app): TranslationContentRegistry => new TranslationContentRegistry(
+                $app->tagged(TranslationContentHandler::class),
+            ),
+        );
 
         $this->mergeConfigFrom(base_path('Modules/Catalog/config/config.php'), 'catalog');
 
@@ -51,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
+        $this->loadRoutesFrom(base_path('routes/brand-api.php'));
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {

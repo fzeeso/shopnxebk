@@ -40,7 +40,9 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
   `manage products`; they accept localized identity/SEO data plus optional
   translation locks, managed image/banner uploads, a legacy logo locator,
   official website, origin, active state, and sort order. Brand translation
-  writes synchronize all active Store locales and skip locked rows.
+  writes commit the submitted source first, record durable translation work,
+  and queue all eligible Store locales after commit. The Brand handler skips
+  locked rows and rejects stale snapshots before applying generated fields.
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
@@ -74,6 +76,10 @@ Product files still have no upload, scan, signing, or delivery workflow.
 
 - Catalog consumes Stores identity through internal bigint foreign keys and
   must use Stores middleware/context before future Store APIs access rows.
+- Catalog's Brand service requests automatic translation through the shared
+  `TranslationCoordinator`; `BrandTranslationHandler` owns only Brand field,
+  slug, locale, and locked-row behavior. It never performs an external AI call
+  inside the Brand write transaction.
 - Locale and currency strings follow Settings-owned catalog semantics without
   importing Settings bigint IDs into translated or historical product data.
 - Future Files and Search modules consume Catalog identifiers through contracts

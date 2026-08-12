@@ -188,12 +188,16 @@ Store scope, `X-Store-ID`, and active membership. Any active member may page or
 view Brands; create, update, and delete additionally require `manage products`.
 Create requires at least one translation in an active Store locale. The service
 uses the submitted default-locale translation, or the first submitted
-translation, as the source for every other active Store language that was not
-submitted explicitly. Update repeats that synchronization whenever
-`translations` is present. Existing rows with `lock_it = true` are preserved;
+translation, as the source for every other active Store language. The source
+and a durable request are committed before `TranslateContentJob` calls the
+provider on the dedicated queue. Updates with `translations` queue every
+unlocked target; metadata-only edits queue only missing targets. Existing rows
+with `lock_it = true` are preserved;
 an explicitly submitted `lock_it = false` unlocks that locale before the
-refresh. Public ULIDs identify Brands, localized slugs stay unique within each
-Store/locale, and `website_url` accepts HTTP(S) only.
+next refresh. The worker supersedes stale source/target snapshots and applies
+results in a short transaction, so provider latency or failure never rolls
+back the Brand source write. Public ULIDs identify Brands, localized slugs stay
+unique within each Store/locale, and `website_url` accepts HTTP(S) only.
 
 `image` (maximum 5 MiB) and `banner` (maximum 10 MiB) accept JPEG, PNG, WebP,
 or AVIF multipart uploads. They are single-file Media Library collections

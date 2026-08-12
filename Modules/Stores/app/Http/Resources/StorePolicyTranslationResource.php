@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Stores\Http\Resources;
 
+use App\Http\Resources\TranslationRequestResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Stores\Models\StorePolicyTranslation;
@@ -28,6 +29,12 @@ final class StorePolicyTranslationResource extends JsonResource
             'seo_title' => $this->seo_title,
             'seo_description' => $this->seo_description,
             'lock_it' => $this->lock_it,
+            'translation_request' => $this->when(
+                $this->resource->relationLoaded('translationRequest'),
+                fn () => $this->resource->getRelation('translationRequest') === null
+                    ? null
+                    : new TranslationRequestResource($this->resource->getRelation('translationRequest')),
+            ),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

@@ -23,6 +23,7 @@ final readonly class ProvisionStore implements StoreProvisioner
         private ScopedRoleAssignmentService $roleAssignments,
         private ThemeInstaller $themeInstaller,
         private EnsureStorePolicyCatalog $storePolicies,
+        private EnsureStoreLanguageDefaults $storeLanguages,
     ) {}
 
     /**
@@ -61,6 +62,7 @@ final readonly class ProvisionStore implements StoreProvisioner
                 'settings' => $preferences,
                 'metadata' => [],
             ]);
+            $this->storeLanguages->ensureForStore($store);
 
             $store->storeSettings()->create([
                 'contact_email' => $options['contact_email'] ?? $preferences['support_email'] ?? $owner->email,

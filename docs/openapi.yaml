@@ -20,6 +20,8 @@ tags:
     description: Platform policy-type catalog, Store-local translations/version history, and published storefront reads.
   - name: Catalog Brands
     description: Store-scoped Brand identity, localized content, official website, and origin management.
+  - name: Translations
+    description: Tenant-isolated status for durable after-commit automatic translation work.
 paths:
   /api/health/live:
     get:
@@ -960,7 +962,7 @@ paths:
       tags: [Store Policies]
       security: [{sanctum: []}]
       summary: Upsert localized policy content and append a content version
-      description: Saving the Store's default language generates every other unlocked active Store language through the shared server-side OpenAI provider and appends versions for changed generated content. Saving a non-default language does not cascade. Translation failures return 422 and roll back the write.
+      description: Saving the Store's default language commits the source and queues every other unlocked active Store language after commit. Generated content appends versions. Saving a non-default language does not cascade. Provider failures do not roll back the source.
       requestBody:
         required: true
         content: {application/json: {schema: {$ref: '#/components/schemas/StorePolicyTranslationRequest'}}}
@@ -977,6 +979,28 @@ paths:
         '204': {description: Translation deleted}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/translation-requests/{translationRequest}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: translationRequest, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Translations]
+      security: [{sanctum: []}]
+      summary: Read asynchronous translation status for the selected Store
+      description: Returns only a request owned by the active Store. It never exposes the provider error or merchant source content.
+      responses:
+        '200':
+          description: Translation request status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: '#/components/schemas/TranslationRequest'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Translation request not found in selected Store}
   /api/v1/store/policies/{storePolicy}/versions:
     parameters:
       - {$ref: '#/components/parameters/StoreId'}
@@ -1584,7 +1608,7 @@ paths:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
       summary: Create a Brand with managed imagery and localized identity
-      description: Requires manage products and at least one active Store-locale translation. Missing active locales are generated from the submitted default-locale or first translation through the shared server-side OpenAI provider; locked records are preserved and translation failures return 422.
+      description: Requires manage products and at least one active Store-locale translation. The source is committed first; missing active locales are queued after commit from the submitted default-locale or first translation. Locked records are preserved and provider failure does not roll back the Brand.
       parameters: [{$ref: '#/components/parameters/StoreId'}]
       requestBody:
         required: true
@@ -1612,7 +1636,7 @@ paths:
       tags: [Catalog Brands]
       security: [{sanctum: []}]
       summary: Update Brand identity, managed imagery, or Store-language translations
-      description: Requires manage products. A translation-bearing update regenerates every unlocked active Store locale through the server-side OpenAI integration while preserving locked rows. Translation failures return 422 and roll back the write.
+      description: Requires manage products. The edit commits first, then a translation-bearing update queues every unlocked active Store locale through the server-side OpenAI integration while preserving locked rows. Provider failures are retried without rolling back the write.
       requestBody:
         required: true
         content:
@@ -1702,6 +1726,23 @@ components:
       type: string
       pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
       description: Public ULID; the internal bigint key is never exposed.
+    TranslationRequest:
+      type: object
+      required: [id, status_url, content_type, source_locale, target_locales, status, attempts]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        status_url: {type: string, description: Relative tenant-scoped polling URL; send the same authentication and X-Store-ID header.}
+        content_type: {type: string, enum: [brand, store_policy]}
+        source_locale: {type: string, maxLength: 35}
+        target_locales: {type: array, items: {type: string, maxLength: 35}}
+        status: {type: string, enum: [pending, processing, completed, failed, superseded, cancelled]}
+        attempts: {type: integer, minimum: 0}
+        error: {type: [string, 'null'], description: Safe generic message present only after terminal provider failure.}
+        queued_at: {type: [string, 'null'], format: date-time}
+        started_at: {type: [string, 'null'], format: date-time}
+        completed_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
     BrandTranslationWrite:
       type: object
       required: [locale, name, slug]
@@ -1779,6 +1820,10 @@ components:
         is_active: {type: boolean}
         sort_order: {type: integer, minimum: 0}
         translations: {type: array, items: {$ref: '#/components/schemas/BrandTranslation'}}
+        translation_request:
+          oneOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
         created_at: {type: [string, 'null'], format: date-time}
         updated_at: {type: [string, 'null'], format: date-time}
     Health:
@@ -2676,6 +2721,10 @@ components:
         seo_title: {type: [string, 'null']}
         seo_description: {type: [string, 'null']}
         lock_it: {type: boolean}
+        translation_request:
+          oneOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
         created_at: {type: [string, 'null'], format: date-time}
         updated_at: {type: [string, 'null'], format: date-time}
     StorePolicy:
