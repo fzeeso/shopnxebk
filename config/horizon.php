@@ -240,7 +240,7 @@ return [
             'maxJobs' => 0,
             'memory' => 128,
             'tries' => 3,
-            'timeout' => 90,
+            'timeout' => 240,
             'nice' => 5,
         ],
         'supervisor-heavy' => [

@@ -19,7 +19,7 @@ final class TranslateContentJob implements ShouldBeUnique, ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 90;
+    public int $timeout = 240;
 
     public int $uniqueFor = 600;
 

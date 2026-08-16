@@ -2,18 +2,21 @@
 
 ## 2026-08-17 - Large-policy automatic translation capacity
 
-- Changed: Raised the OpenAI translation timeout default to 75 seconds and
+- Changed: Raised the OpenAI translation timeout default to 180 seconds, the
+  translation job/Horizon limit to 240 seconds, and Redis retry-after to 300
+  seconds. Also
   made the structured-response output allowance configurable, defaulting to
   16,000 tokens with the provider maximum enforced.
 - Reason: Translating an approximately 8,000-character policy into three Store
   locales exceeded the former 30-second and 4,500-token limits, producing
   connection timeouts followed by truncated invalid JSON.
 - Data/configuration impact: Added
-  `OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS=16000` and changed the tracked
-  `OPENAI_TRANSLATION_TIMEOUT` default to `75`; no schema changes are required.
-- Compatibility or rollout notes: Queue jobs retain their 90-second worker
-  limit. Deployments with explicit environment overrides keep those values,
-  subject to the provider's 16,000-token safety cap.
+  `OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS=16000`, changed the tracked
+  `OPENAI_TRANSLATION_TIMEOUT` default to `180`, and documented
+  `REDIS_QUEUE_RETRY_AFTER=300`; no schema changes are required.
+- Compatibility or rollout notes: Run native-Windows translation workers with
+  `--timeout=240`. Deployments with explicit environment overrides keep those
+  values, subject to the provider's 16,000-token safety cap.
 - Verification: OpenAI provider unit tests, formatting, generated-document
   update/check, and live Redis translation-worker processing.
 

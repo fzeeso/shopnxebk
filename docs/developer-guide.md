@@ -334,7 +334,7 @@ translation. `AppServiceProvider` binds it to the field-agnostic
 `OpenAiTranslationService`, so Brand, Store-policy, and future module services
 share one server-side integration instead of creating feature-specific clients.
 `OPENAI_API_KEY` remains server-only; `OPENAI_TRANSLATION_MODEL` defaults to
-`gpt-5-mini`, `OPENAI_TRANSLATION_TIMEOUT` defaults to 75 seconds, and
+`gpt-5-mini`, `OPENAI_TRANSLATION_TIMEOUT` defaults to 180 seconds, and
 `OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS` defaults to 16,000 so multi-locale legal
 content is not truncated before its strict JSON response closes. Requests
 use the OpenAI Responses API with strict JSON Schema output, disable response
@@ -796,9 +796,13 @@ Windows PHP. For local XAMPP development, run the translation consumer and
 scheduler in separate terminals:
 
 ```powershell
-& "C:\xampp\php\php.exe" artisan queue:work redis --queue=translations --sleep=1 --tries=3 --timeout=90
+& "C:\xampp\php\php.exe" artisan queue:work redis --queue=translations --sleep=1 --tries=3 --timeout=240
 & "C:\xampp\php\php.exe" artisan schedule:work
 ```
+
+The translation provider timeout is 180 seconds, the job and Horizon
+translation-supervisor timeout is 240 seconds, and Redis `retry_after` defaults
+to 300 seconds so long multi-locale responses finish before retry eligibility.
 
 Linux staging/production uses Horizon with the supervisor groups in
 `config/horizon.php` and a process manager. The scheduler must also run once

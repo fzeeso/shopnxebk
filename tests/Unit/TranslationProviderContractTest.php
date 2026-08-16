@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Jobs\Translations\TranslateContentJob;
 use App\Support\Translations\OpenAiTranslationException;
 use App\Support\Translations\OpenAiTranslationService;
 use Illuminate\Http\Client\Request;
@@ -12,6 +13,13 @@ use Tests\TestCase;
 
 final class TranslationProviderContractTest extends TestCase
 {
+    public function test_translation_timeouts_remain_safely_ordered(): void
+    {
+        self::assertSame(180, config('services.openai.translation_timeout'));
+        self::assertSame(240, (new TranslateContentJob(1))->timeout);
+        self::assertSame(300, config('queue.connections.redis.retry_after'));
+    }
+
     public function test_it_requests_and_validates_structured_translations_for_arbitrary_fields(): void
     {
         config([

@@ -25,7 +25,7 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'translation_model' => env('OPENAI_TRANSLATION_MODEL', 'gpt-5-mini'),
-        'translation_timeout' => (int) env('OPENAI_TRANSLATION_TIMEOUT', 75),
+        'translation_timeout' => (int) env('OPENAI_TRANSLATION_TIMEOUT', 180),
         'translation_max_output_tokens' => (int) env('OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS', 16000),
     ],
 
