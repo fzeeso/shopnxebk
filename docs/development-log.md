@@ -1,5 +1,22 @@
 # Development log
 
+## 2026-08-17 - Large-policy automatic translation capacity
+
+- Changed: Raised the OpenAI translation timeout default to 75 seconds and
+  made the structured-response output allowance configurable, defaulting to
+  16,000 tokens with the provider maximum enforced.
+- Reason: Translating an approximately 8,000-character policy into three Store
+  locales exceeded the former 30-second and 4,500-token limits, producing
+  connection timeouts followed by truncated invalid JSON.
+- Data/configuration impact: Added
+  `OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS=16000` and changed the tracked
+  `OPENAI_TRANSLATION_TIMEOUT` default to `75`; no schema changes are required.
+- Compatibility or rollout notes: Queue jobs retain their 90-second worker
+  limit. Deployments with explicit environment overrides keep those values,
+  subject to the provider's 16,000-token safety cap.
+- Verification: OpenAI provider unit tests, formatting, generated-document
+  update/check, and live Redis translation-worker processing.
+
 ## 2026-08-13 - Durable after-commit automatic translations
 
 - Changed: Brand and default-language Store-policy writes now commit source
@@ -30,9 +47,9 @@
   Windows uses `queue:work` because Horizon requires `pcntl`; Linux deployment
   keeps the isolated Horizon supervisors.
 - Verification: Development migrations, route/scheduler discovery, Pint,
-  generated-doc update/check, OpenAI provider unit tests, and the focused
-  PostgreSQL Brand/policy/translation tests pass after synchronizing the local
-  test database password. Full PHPStan reaches only two pre-existing
+  generated-doc update/check, OpenAI provider unit tests, and the complete
+  PostgreSQL-backed suite pass after synchronizing the local test database
+  password: 18 tests and 268 assertions. Full PHPStan reaches only two pre-existing
   missing-model errors in Catalog and Stores; native-Windows Larastan also
   deletes explicitly targeted source files during Testbench cleanup, so final
   restored endpoint verification uses PHP syntax, container, and route checks.

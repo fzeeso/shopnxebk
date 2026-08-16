@@ -334,7 +334,9 @@ translation. `AppServiceProvider` binds it to the field-agnostic
 `OpenAiTranslationService`, so Brand, Store-policy, and future module services
 share one server-side integration instead of creating feature-specific clients.
 `OPENAI_API_KEY` remains server-only; `OPENAI_TRANSLATION_MODEL` defaults to
-`gpt-5-mini`, and `OPENAI_TRANSLATION_TIMEOUT` defaults to 30 seconds. Requests
+`gpt-5-mini`, `OPENAI_TRANSLATION_TIMEOUT` defaults to 75 seconds, and
+`OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS` defaults to 16,000 so multi-locale legal
+content is not truncated before its strict JSON response closes. Requests
 use the OpenAI Responses API with strict JSON Schema output, disable response
 storage, preserve HTML, placeholders, URLs, numbers, names, and null fields, and
 do not log the API key or merchant content on failure.

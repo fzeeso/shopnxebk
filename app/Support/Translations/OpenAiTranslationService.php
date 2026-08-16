@@ -42,6 +42,10 @@ final class OpenAiTranslationService implements TranslationProvider
         if ($model === '') {
             $model = 'gpt-5-mini';
         }
+        $maxOutputTokens = min(
+            16000,
+            max(1000, (int) config('services.openai.translation_max_output_tokens', 16000)),
+        );
 
         try {
             $response = Http::withToken($apiKey)
@@ -52,7 +56,7 @@ final class OpenAiTranslationService implements TranslationProvider
                 ->post(self::ENDPOINT, [
                     'model' => $model,
                     'store' => false,
-                    'max_output_tokens' => min(16000, 1500 + (count($targetLocales) * 1000)),
+                    'max_output_tokens' => $maxOutputTokens,
                     'input' => [
                         [
                             'role' => 'system',
