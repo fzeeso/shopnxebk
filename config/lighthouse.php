@@ -151,7 +151,7 @@ return [
          * - opcache: store parsed queries in PHP files on the local filesystem to leverage OPcache
          * - hybrid: leverage OPcache, but use a shared cache store when local files are not found
          */
-        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'store'),
+        'mode' => env('LIGHTHOUSE_QUERY_CACHE_MODE', 'opcache'),
 
         /*
          * Specifies the path where the PHP files are stored when using opcache or hybrid mode.

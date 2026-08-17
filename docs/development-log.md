@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-08-17 - Process-safe Lighthouse query caching
+
+- Changed: Lighthouse parsed-query caching now defaults to filesystem/OPcache
+  mode instead of the shared Laravel cache store.
+- Reason: Redis/Predis returned cached GraphQL AST objects as
+  `__PHP_Incomplete_Class` in fresh PHP processes, causing Category GraphQL
+  requests to fail with an internal server error.
+- Data/configuration impact: Added
+  `LIGHTHOUSE_QUERY_CACHE_MODE=opcache`; generated query files live under
+  `bootstrap/cache`, and no database migration is required.
+- Compatibility or rollout notes: Clear the old shared query cache with
+  `php artisan lighthouse:clear-query-cache` when deploying this change.
+- Verification: Two independent Laravel processes created and reloaded the
+  same cached query as `GraphQL\\Language\\AST\\DocumentNode`; the focused
+  configuration test and documentation checks also pass.
+
 ## 2026-08-17 - Localized Category image URL
 
 - Changed: Added nullable `category_translations.image_url` ahead of

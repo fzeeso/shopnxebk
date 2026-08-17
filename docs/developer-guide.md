@@ -741,6 +741,13 @@ schema index.
 8. Lighthouse applies depth, complexity, pagination, introspection, and error policies.
 9. Resolvers call typed Actions; store-sensitive mutations never use automatic create/update/delete directives.
 
+Parsed GraphQL queries default to Lighthouse's `opcache` mode through
+`LIGHTHOUSE_QUERY_CACHE_MODE=opcache`. This writes generated PHP cache files
+under `bootstrap/cache` and avoids serializing GraphQL AST objects through the
+shared Redis store, which is not compatible with this stack across fresh PHP
+processes. After changing the query-cache mode or GraphQL parser dependencies,
+run `php artisan lighthouse:clear-query-cache` before serving requests.
+
 After schema changes:
 
 ```powershell
