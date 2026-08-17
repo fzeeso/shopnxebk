@@ -2,7 +2,7 @@
 
 This is the working guide for developers extending the ShopNXE backend. It explains what is installed, why it exists, how information moves through the system, which process executes each kind of work, and how to make changes safely.
 
-The [canonical application context](context.md) defines domain language, identifiers, authorization, and module boundaries. Exact package versions, enabled modules, routes, GraphQL operations, migrations, commands, and environment-variable names are maintained in the [generated system inventory](generated/system-inventory.md). Architectural decisions are recorded in the [ADRs](adr/001-modular-monolith.md), and meaningful behavioral changes belong in the [development log](development-log.md).
+The [canonical application context](context.md) defines domain language, identifiers, authorization, and module boundaries. The [API manual](api-manual.md) is the implementation handoff for request cycles and client contracts. Exact package versions, enabled modules, routes, GraphQL operations, migrations, commands, and environment-variable names are maintained in generated references. Architectural decisions are recorded in the [ADRs](adr/001-modular-monolith.md), and meaningful behavioral changes belong in the [development log](development-log.md).
 
 ## 1. System shape
 
@@ -95,8 +95,10 @@ copies, and the Theme installer used by Store provisioning.
 `Modules/Catalog/` owns Store-local brands, collections, categories, products,
 options, variants, media/fulfillment metadata, license-key pools, and typed
 custom-field persistence. Brands expose Store-scoped CRUD services and REST
-routes; the remaining Catalog areas are still persistence-only. Localized
-category persistence includes description-specific banner images, SEO metadata,
+routes. Categories and Products expose Store-scoped models, transactional
+services, GraphQL queries/mutations, and automatic-translation handlers; the
+remaining Catalog areas are still persistence-only. Localized
+category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
 
@@ -350,7 +352,7 @@ HTTP transaction, database locks, or an application connection, and provider
 failure never rolls back merchant source content.
 
 `TranslationContentRegistry` resolves tagged `TranslationContentHandler`
-implementations. Brand and Store policy are the first handlers. A handler
+implementations. Brand, Category, Product, and Store policy are registered handlers. A handler
 selects the source and active/unlocked targets, supplies the field contract,
 and applies structured output. Snapshot hashes include source data and target
 revisions. Workers check the hash before and after the provider call, mark
@@ -389,14 +391,14 @@ and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
 three-letter currency code. Catalog registers REST CRUD under
 `/api/v1/store/brands`; shared application classes own request validation, the
-Store-scoped model/resource, and image integration. Catalog owns the active
-Brand controller and `BrandManagementService`, which reuse Catalog's
-authorization boundary. All
-other Catalog entities still lack routes, GraphQL, models, upload/download
-behavior, or search indexing. Catalog application contracts require Store
-context, `manage products` for writes, public ULIDs, and the service/media
-boundaries described in the
-[Catalog module](modules/catalog.md).
+Store-scoped model/resource, and image integration. Catalog owns the Brand
+controller and `BrandManagementService`. Its module-owned GraphQL schema
+exposes paginated/filterable Category/Product queries and explicit mutations
+backed by `CategoryManagementService` and `ProductManagementService`. Reads
+require active Store membership; writes require `manage products`; public
+relationships accept only same-Store ULIDs. Options, variants, product file
+delivery, custom fields, and search indexing still lack APIs. See the
+[API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.
 
@@ -721,6 +723,14 @@ Wait for the next 30-second code after enrollment confirmation because successfu
 
 `POST /graphql` is handled by Lighthouse. The root schema imports module-owned schemas.
 
+Category and Product operations are owned by
+`Modules/Catalog/graphql/schema.graphql`. They use explicit resolvers and
+transactional services, bounded page pagination, allow-listed filters/sorts,
+public ULIDs, Store context, and durable translation requests. Copy/paste
+operations and the full lifecycle are in the [API manual](api-manual.md); the
+generated [operation reference](generated/graphql-operations.md) is the current
+schema index.
+
 1. API middleware creates a request ID.
 2. The GraphQL rate limiter keys by user or IP.
 3. Optional store middleware resolves the store header when present.
@@ -928,7 +938,7 @@ composer analyse
 
 Then add a concise entry to `docs/development-log.md`, update the relevant module and directional communication documents, confirm no secrets are tracked, and recheck Store isolation/context cleanup.
 
-`composer docs:update` regenerates factual inventory. Composer also runs it after autoload dumps. CI runs `composer docs:check` and rejects stale inventory.
+`composer docs:update` regenerates factual inventory and the GraphQL operation reference. Composer also runs it after autoload dumps. CI runs `composer docs:check` and rejects either stale artifact. API/business intent remains hand-written in the API manual, affected module/context guides, and development log.
 
 Automation cannot infer why a business decision was made. That part remains a short human-written log entry.
 
@@ -967,6 +977,8 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Store management](store-management.md)
 - [Plans & Pricing](plans-and-pricing.md)
 - [GraphQL](graphql.md)
+- [API manual](api-manual.md)
+- [Generated GraphQL operation reference](generated/graphql-operations.md)
 - [REST API](rest-api.md)
 - [Local development](local-development.md)
 - [Deployment](deployment.md)

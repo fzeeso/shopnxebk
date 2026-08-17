@@ -1,14 +1,17 @@
 # Catalog schema reference
 
 This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the ten migrations under
+module. The source of truth is the eleven migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
-The Brand slice now includes Store-scoped models and REST CRUD services. Other
-Catalog entities remain persistence-only; no Catalog GraphQL fields,
-upload/download handlers, search projections, or administration screens are
-registered yet.
+The Brand slice includes Store-scoped models and REST CRUD services. Category
+and Product slices include Store-scoped models, transactional GraphQL
+queries/mutations, locale-aware manual translations, and durable automatic
+translation handlers. Options, variants, product files/fulfillment, custom
+fields, search projections, and administration screens remain persistence-only
+or follow-up work. See the [API manual](api-manual.md) for the executable
+request cycle and examples.
 
 ## 1. Migration order
 
@@ -24,6 +27,7 @@ registered yet.
 | 8 | `2026_08_08_000200_add_category_template_to_category_translations_table.php` | Optional localized category template name |
 | 9 | `2026_08_08_000300_add_banner_url_to_category_translations_table.php` | Optional localized category banner image locator |
 | 10 | `2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` | Non-null overwrite lock for every Catalog translation table |
+| 11 | `2026_08_17_000100_add_image_url_to_category_translations_table.php` | Optional localized category image locator before the banner field in application/API contracts |
 
 Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
 
@@ -354,6 +358,7 @@ Deleting a parent sets only `parent_id` to null. Indexes cover
 | `title` | `varchar(255)` | Required | Localized category title |
 | `slug` | `varchar(255)` | Required | Localized URL segment |
 | `description` | `text` | Nullable | Localized description |
+| `image_url` | `varchar(500)` | Nullable | Localized category image locator |
 | `banner_url` | `varchar(500)` | Nullable | Localized category banner image locator |
 | `seo_title` | `varchar(255)` | Nullable | Localized search title |
 | `seo_description` | `text` | Nullable | Localized search description |

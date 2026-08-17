@@ -164,7 +164,7 @@ import, and AI writers must skip locked rows through
 flag on translation tables added later.
 
 Automatic translation is always asynchronous in Redis-backed environments.
-Brand and Store-policy writes save the source and a Store-scoped
+Brand, Category, Product, and Store-policy writes save the source and a Store-scoped
 `translation_requests` ledger row in one transaction. Only after commit may
 `TranslateContentJob` enter the dedicated `translations` queue. The external
 provider call runs without database locks or an open transaction; a short
@@ -183,12 +183,18 @@ retry policy, and scheduled recovery are shared infrastructure rather than
 feature-specific implementations.
 
 Categories are the strict navigation taxonomy; collections are manual,
-rule-based, or AI-generated
-merchandising groups. Variant prices use non-negative integer minor units plus
-an uppercase three-letter currency code. The initial Catalog module provides
-persistence only: future API/model/search/file behavior must preserve Store
-context, public-ID, permission, and cross-module contracts. The complete
-column, relationship, constraint, and deletion contract is documented in the
+rule-based, or AI-generated merchandising groups. Category and Product GraphQL
+queries require authenticated active Store membership; create/update/delete
+mutations additionally require `manage products`. Explicit resolvers delegate
+to transactional Catalog services, accept only public ULIDs and allow-listed
+filters/sorts, enforce hierarchy/primary-category invariants, and expose all
+translations plus exact normalized-locale selection. Category translations
+carry independent nullable `image_url` and `banner_url` locators; these are
+validated manual metadata and are excluded from automatic language translation.
+Variant prices use
+non-negative integer minor units plus an uppercase three-letter currency code.
+Options, variants, files, fulfillment, and custom fields remain persistence-only
+until their owning APIs are implemented. See the [API manual](api-manual.md) and
 [Catalog schema reference](catalog.md).
 
 ## Store context and request flow
@@ -250,8 +256,8 @@ Platform roles are evaluated without an active store team. Store-role assignment
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 
-Every meaningful change must update the affected module document and directional communication document. Architecture or execution-flow changes also update the [developer guide](developer-guide.md); admin navigation/page behavior updates the affected [component guide](components.md); label or locale changes update relevant language dictionaries and the [localization contract](components/localization.md); and every meaningful change receives a [development log](development-log.md) entry. Finish with `composer docs:update`, `composer docs:check`, Pint, and PostgreSQL-backed tests.
+Every meaningful change must update the affected module document and directional communication document. API contract or execution-flow changes also update the [API manual](api-manual.md) and [developer guide](developer-guide.md); admin navigation/page behavior updates the affected [component guide](components.md); label or locale changes update relevant language dictionaries and the [localization contract](components/localization.md); and every meaningful change receives a [development log](development-log.md) entry. `composer docs:update` regenerates both factual inventory and the GraphQL operation reference; CI's `composer docs:check` rejects either generated artifact when stale. Finish with those commands, Pint, and PostgreSQL-backed tests.

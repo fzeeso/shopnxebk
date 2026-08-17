@@ -1,5 +1,45 @@
 # Development log
 
+## 2026-08-17 - Localized Category image URL
+
+- Changed: Added nullable `category_translations.image_url` ahead of
+  `banner_url` in the Category model, service, GraphQL translation input/output,
+  schema reference, and API examples.
+- Reason: Each Store language needs an independent Category image as well as
+  the existing localized banner.
+- Data/configuration impact: Added one Catalog migration with a nullable
+  500-character locator. Existing rows remain valid with `image_url = null`.
+- Compatibility or rollout notes: The existing Category-level `imageUrl` and
+  translation-level `bannerUrl` remain unchanged. Localized `imageUrl` accepts
+  root-relative or HTTP(S) locators and is not machine-translated.
+- Verification: Covered by PostgreSQL schema/persistence tests and the Catalog
+  GraphQL create/read lifecycle test, plus Lighthouse schema and documentation
+  checks.
+
+## 2026-08-17 - Category and Product GraphQL API with translations
+
+- Changed: Added Store-scoped Category and Product models, transactional
+  management services, explicit Lighthouse queries/mutations, bounded filters
+  and sorting, Category-tree validation, atomic primary-category assignments,
+  locale selection, manual translation locks, and durable automatic Category
+  and Product translation handlers. Added an end-to-end API manual and a
+  generated GraphQL operation reference.
+- Reason: Other applications and developers need a safe, reusable Catalog API
+  and one documented request/authorization/persistence/translation cycle rather
+  than working directly against persistence-only tables.
+- Data/configuration impact: No new database migration or secret is required;
+  the API uses the existing Catalog tables and translation-request pipeline.
+  `composer docs:update` now regenerates both system inventory and GraphQL
+  operation reference, while `composer docs:check` verifies both.
+- Compatibility or rollout notes: All operations use public ULIDs and require
+  `X-Store-ID`. Reads require active Store membership; mutations additionally
+  require `manage products`. Product option/variant/file/custom-field APIs
+  remain future work. Redis-backed translations are eventually consistent and
+  mutation payloads expose a nullable request for polling.
+- Verification: Lighthouse schema validation and PostgreSQL GraphQL feature
+  tests cover authentication, create/read/filter/update, automatic translation,
+  manual locks, primary-category validation, and cross-Store isolation.
+
 ## 2026-08-17 - Large-policy automatic translation capacity
 
 - Changed: Raised the OpenAI translation timeout default to 180 seconds, the

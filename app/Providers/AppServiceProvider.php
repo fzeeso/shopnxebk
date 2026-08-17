@@ -22,6 +22,8 @@ use Laravel\Pulse\Facades\Pulse;
 use Laravel\Sanctum\Sanctum;
 use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Catalog\Services\Translations\BrandTranslationHandler;
+use Modules\Catalog\Services\Translations\CategoryTranslationHandler;
+use Modules\Catalog\Services\Translations\ProductTranslationHandler;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Services\Translations\StorePolicyTranslationHandler;
@@ -36,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TranslationProvider::class, OpenAiTranslationService::class);
         $this->app->tag([
             BrandTranslationHandler::class,
+            CategoryTranslationHandler::class,
+            ProductTranslationHandler::class,
             StorePolicyTranslationHandler::class,
         ], TranslationContentHandler::class);
         $this->app->singleton(

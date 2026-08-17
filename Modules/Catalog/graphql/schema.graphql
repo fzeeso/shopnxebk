@@ -1,0 +1,223 @@
+extend type Query {
+    categories(page: Int = 1, perPage: Int = 20, filter: CategoryFilterInput, sortBy: CategorySortField = SORT_ORDER, sortDirection: CatalogSortDirection = ASC): CategoryPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListCategories")
+    category(id: ID!): CatalogCategory! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\CategoryById")
+    products(page: Int = 1, perPage: Int = 20, filter: ProductFilterInput, sortBy: ProductSortField = CREATED_AT, sortDirection: CatalogSortDirection = DESC): ProductPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListProducts")
+    product(id: ID!): CatalogProduct! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductById")
+}
+
+extend type Mutation {
+    createCategory(input: CreateCategoryInput!): CategoryPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateCategory")
+    updateCategory(id: ID!, input: UpdateCategoryInput!): CategoryPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateCategory")
+    deleteCategory(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteCategory")
+    createProduct(input: CreateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateProduct")
+    updateProduct(id: ID!, input: UpdateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateProduct")
+    deleteProduct(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteProduct")
+}
+
+enum CatalogSortDirection {
+    ASC @enum(value: "ASC")
+    DESC @enum(value: "DESC")
+}
+
+enum CategorySortField {
+    SORT_ORDER @enum(value: "sortOrder")
+    CREATED_AT @enum(value: "createdAt")
+    UPDATED_AT @enum(value: "updatedAt")
+}
+
+enum ProductSortField {
+    CREATED_AT @enum(value: "createdAt")
+    UPDATED_AT @enum(value: "updatedAt")
+    STATUS @enum(value: "status")
+    PUBLISHED_AT @enum(value: "publishedAt")
+}
+
+type CatalogCategory {
+    id: ID! @rename(attribute: "public_id")
+    parentId: ID @method(name: "parentPublicId")
+    imageUrl: String @rename(attribute: "image_url")
+    isActive: Boolean! @rename(attribute: "is_active")
+    sortOrder: Int! @rename(attribute: "sort_order")
+    childrenCount: Int @rename(attribute: "children_count")
+    productsCount: Int @rename(attribute: "products_count")
+    translations: [CategoryTranslation!]!
+    translation(locale: String!): CategoryTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\Types\\CategoryTranslationForLocale")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CategoryTranslation {
+    locale: String!
+    title: String!
+    slug: String!
+    description: String
+    imageUrl: String @rename(attribute: "image_url")
+    bannerUrl: String @rename(attribute: "banner_url")
+    seoTitle: String @rename(attribute: "seo_title")
+    seoDescription: String @rename(attribute: "seo_description")
+    pageTitle: String @rename(attribute: "page_title")
+    searchKeywords: String @rename(attribute: "search_keywords")
+    categoryTemplate: String @rename(attribute: "category_template")
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CatalogProduct {
+    id: ID! @rename(attribute: "public_id")
+    brandId: ID @method(name: "brandPublicId")
+    vendor: String
+    productType: String @rename(attribute: "product_type")
+    fulfillmentType: String! @method(name: "fulfillmentTypeValue")
+    trackInventory: Boolean! @rename(attribute: "track_inventory")
+    status: String! @method(name: "statusValue")
+    hasVariants: Boolean! @rename(attribute: "has_variants")
+    publishedAt: DateTime @rename(attribute: "published_at")
+    primaryCategoryId: ID @method(name: "primaryCategoryPublicId")
+    categories: [CatalogCategory!]!
+    translations: [ProductTranslation!]!
+    translation(locale: String!): ProductTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\Types\\ProductTranslationForLocale")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type ProductTranslation {
+    locale: String!
+    title: String!
+    slug: String!
+    description: String
+    seoTitle: String @rename(attribute: "seo_title")
+    seoDescription: String @rename(attribute: "seo_description")
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CategoryPage {
+    data: [CatalogCategory!]!
+    paginatorInfo: CatalogPaginatorInfo!
+}
+
+type ProductPage {
+    data: [CatalogProduct!]!
+    paginatorInfo: CatalogPaginatorInfo!
+}
+
+type CatalogPaginatorInfo {
+    count: Int!
+    currentPage: Int!
+    firstItem: Int
+    lastItem: Int
+    lastPage: Int!
+    perPage: Int!
+    total: Int!
+}
+
+type CategoryPayload {
+    category: CatalogCategory!
+    translationRequest: CatalogTranslationRequest
+}
+
+type ProductPayload {
+    product: CatalogProduct!
+    translationRequest: CatalogTranslationRequest
+}
+
+type CatalogTranslationRequest {
+    id: ID! @rename(attribute: "public_id")
+    sourceLocale: String! @rename(attribute: "source_locale")
+    targetLocales: [String!]! @rename(attribute: "target_locales")
+    status: String! @method(name: "statusValue")
+    attempts: Int!
+    lastError: String @rename(attribute: "last_error")
+    queuedAt: DateTime @rename(attribute: "queued_at")
+    startedAt: DateTime @rename(attribute: "started_at")
+    completedAt: DateTime @rename(attribute: "completed_at")
+}
+
+type DeletedCatalogEntity {
+    id: ID!
+    deleted: Boolean!
+}
+
+input CategoryFilterInput {
+    search: String
+    locale: String
+    parentId: ID
+    rootOnly: Boolean
+    isActive: Boolean
+}
+
+input ProductFilterInput {
+    search: String
+    locale: String
+    status: String
+    fulfillmentType: String
+    brandId: ID
+    categoryId: ID
+}
+
+input CategoryTranslationInput {
+    locale: String!
+    title: String!
+    slug: String!
+    description: String
+    imageUrl: String
+    bannerUrl: String
+    seoTitle: String
+    seoDescription: String
+    pageTitle: String
+    searchKeywords: String
+    categoryTemplate: String
+    lockIt: Boolean
+}
+
+input ProductTranslationInput {
+    locale: String!
+    title: String!
+    slug: String!
+    description: String
+    seoTitle: String
+    seoDescription: String
+    lockIt: Boolean
+}
+
+input CreateCategoryInput {
+    parentId: ID
+    imageUrl: String
+    isActive: Boolean
+    sortOrder: Int
+    translations: [CategoryTranslationInput!]!
+}
+
+input UpdateCategoryInput {
+    parentId: ID
+    imageUrl: String
+    isActive: Boolean
+    sortOrder: Int
+    translations: [CategoryTranslationInput!]
+}
+
+input CreateProductInput {
+    brandId: ID
+    vendor: String
+    productType: String
+    fulfillmentType: String
+    trackInventory: Boolean
+    status: String
+    categoryIds: [ID!]
+    primaryCategoryId: ID
+    translations: [ProductTranslationInput!]!
+}
+
+input UpdateProductInput {
+    brandId: ID
+    vendor: String
+    productType: String
+    fulfillmentType: String
+    trackInventory: Boolean
+    status: String
+    categoryIds: [ID!]
+    primaryCategoryId: ID
+    translations: [ProductTranslationInput!]
+}

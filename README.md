@@ -1,8 +1,8 @@
 # shopnxebk
 
-ShopNXE is an API-only Laravel 13 modular monolith for a multi-store SaaS commerce platform. It contains no customer or administration frontend. Authentication and store context are implemented; commerce modules remain intentionally deferred.
+ShopNXE is an API-only Laravel 13 modular monolith for a multi-store SaaS commerce platform. It contains no customer or administration frontend. Authentication, Store context, Catalog persistence, Brand REST, and Category/Product GraphQL are implemented; other commerce workflows remain intentionally incremental.
 
-Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. Its [generated system inventory](docs/generated/system-inventory.md) stays synchronized with dependencies, modules, routes, GraphQL operations, migrations, commands, and environment variables.
+Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. The [API manual](docs/api-manual.md) is the client/developer handoff for authentication, Store context, Catalog GraphQL, translations, examples, and future implementation rules. Generated system and GraphQL references stay synchronized through the documentation commands and CI.
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ curl http://localhost/shopnxebk/public/graphql -H 'Accept: application/json' -H 
 curl -X POST http://localhost/shopnxebk/public/api/v1/auth/logout -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
-The OpenAPI description of implemented REST endpoints is in `docs/openapi.yaml`; the Lighthouse schema is the source of truth for GraphQL.
+The OpenAPI description of implemented REST endpoints is in `docs/openapi.yaml`; the Lighthouse schema is the source of truth for GraphQL. Use the [API manual](docs/api-manual.md) for end-to-end usage and the generated [GraphQL operation reference](docs/generated/graphql-operations.md) for the current operation index.
 
 ## Configuration
 

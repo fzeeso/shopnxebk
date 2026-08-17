@@ -186,8 +186,18 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 
 | Type | Field | Protection | Schema owner |
 | --- | --- | --- | --- |
+| Mutation | `createCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `createProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `activeStore` | Sanctum guard | `Modules/Stores/graphql/schema.graphql` |
 | Query | `apiVersion` | Public | `graphql/schema.graphql` |
+| Query | `categories` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `category` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `product` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `products` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `viewer` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
 | Query | `viewerStores` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
 
@@ -211,6 +221,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000200_add_category_template_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000300_add_banner_url_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_17_000100_add_image_url_to_category_translations_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |

@@ -1,12 +1,10 @@
 # Catalog module
 
 `Modules/Catalog` owns the Store-local merchandising and product persistence
-foundation plus the Brand routes and authorization boundary. The shared
-application layer supplies the Brand HTTP controller, write validation,
-Store-scoped models, media resource, and transactional workflow consumed by
-those routes. Other Catalog areas currently expose migrations and PostgreSQL
-invariants only; their models, APIs, search projections, and admin screens
-remain follow-up work.
+foundation, Brand REST routes, Category/Product GraphQL schema, Catalog models,
+transactional services, resolvers, translation handlers, and authorization
+boundary. Options, variants, product files/fulfillment, custom fields, search
+projections, and admin screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
@@ -46,6 +44,18 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
+- Category and Product GraphQL reads require active Store membership. Their
+  explicit mutations require `manage products`, use public ULIDs, reject
+  cross-Store references, validate Category cycles, and replace product
+  category/primary assignments atomically. Lists use bounded pagination plus
+  explicit filter and sort allow-lists.
+- Category and Product translation inputs accept only active Store locales.
+  Manual `lock_it` values are preserved, source writes create durable
+  translation requests, generated localized slugs remain Store/locale unique,
+  and entity-specific handlers recheck stale snapshots and locked targets.
+  Category translations also own nullable `image_url` and `banner_url` manual
+  locators; services validate and persist them without sending URLs to the
+  automatic language translator.
 - Variant prices use non-negative integer minor units plus a three-letter
   uppercase currency code. A Store-local partial unique index rejects duplicate
   non-null SKUs.
@@ -76,10 +86,10 @@ Product files still have no upload, scan, signing, or delivery workflow.
 
 - Catalog consumes Stores identity through internal bigint foreign keys and
   must use Stores middleware/context before future Store APIs access rows.
-- Catalog's Brand service requests automatic translation through the shared
-  `TranslationCoordinator`; `BrandTranslationHandler` owns only Brand field,
-  slug, locale, and locked-row behavior. It never performs an external AI call
-  inside the Brand write transaction.
+- Catalog's Brand, Category, and Product services request automatic translation
+  through the shared `TranslationCoordinator`. Their handlers own only each
+  entity's field, slug, locale, and locked-row behavior. They never perform an
+  external AI call inside a Catalog write transaction.
 - Locale and currency strings follow Settings-owned catalog semantics without
   importing Settings bigint IDs into translated or historical product data.
 - Future Files and Search modules consume Catalog identifiers through contracts
@@ -91,4 +101,5 @@ Product files still have no upload, scan, signing, or delivery workflow.
 See [Catalog to Stores](../module-communication/catalog-to-stores.md),
 [Catalog to Settings](../module-communication/catalog-to-settings.md), and
 [Catalog to Files](../module-communication/catalog-to-files.md). See also the
-complete [Catalog schema reference](../catalog.md).
+complete [Catalog schema reference](../catalog.md) and the end-to-end
+[API manual](../api-manual.md).

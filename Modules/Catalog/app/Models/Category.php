@@ -48,6 +48,11 @@ final class Category extends Model
             ->orderByPivot('sort_order');
     }
 
+    public function parentPublicId(): ?string
+    {
+        return $this->parent?->public_id;
+    }
+
     protected function casts(): array
     {
         return [

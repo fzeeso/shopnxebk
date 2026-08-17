@@ -62,6 +62,18 @@ final class Product extends Model
         return (string) $this->fulfillment_type;
     }
 
+    public function brandPublicId(): ?string
+    {
+        return $this->brand?->public_id;
+    }
+
+    public function primaryCategoryPublicId(): ?string
+    {
+        return $this->categories->first(
+            fn (Category $category): bool => (bool) $category->pivot?->is_primary,
+        )?->public_id;
+    }
+
     protected function casts(): array
     {
         return [

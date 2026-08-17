@@ -21,6 +21,7 @@ final class CategoryTranslationDatabaseTest extends TestCase
             'page_title',
             'search_keywords',
             'category_template',
+            'image_url',
             'banner_url',
         ]));
 
@@ -41,6 +42,7 @@ final class CategoryTranslationDatabaseTest extends TestCase
             'title' => 'Running Shoes',
             'slug' => 'running-shoes',
             'description' => 'Shoes designed for running.',
+            'image_url' => '/assets/categories/running-shoes.webp',
             'banner_url' => '/assets/categories/running-shoes-banner.webp',
             'seo_description' => 'Shop running shoes.',
             'page_title' => 'Running Shoes for Every Runner',
@@ -53,6 +55,7 @@ final class CategoryTranslationDatabaseTest extends TestCase
         $this->assertDatabaseHas('category_translations', [
             'category_id' => $categoryId,
             'locale' => 'en',
+            'image_url' => '/assets/categories/running-shoes.webp',
             'banner_url' => '/assets/categories/running-shoes-banner.webp',
             'page_title' => 'Running Shoes for Every Runner',
             'search_keywords' => 'running shoes, trainers, athletic footwear',

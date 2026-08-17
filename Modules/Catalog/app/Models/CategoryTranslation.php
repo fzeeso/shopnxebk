@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'title',
     'slug',
     'description',
+    'image_url',
     'banner_url',
     'seo_title',
     'seo_description',
