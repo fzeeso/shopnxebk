@@ -66,8 +66,9 @@ type CategoryTranslation {
 type CatalogProduct {
     id: ID! @rename(attribute: "public_id")
     brandId: ID @method(name: "brandPublicId")
+    platformTaxonomyNodeId: ID @method(name: "platformTaxonomyNodePublicId")
     vendor: String
-    productType: String @rename(attribute: "product_type")
+    productTypeId: ID @method(name: "productTypePublicId")
     fulfillmentType: String! @method(name: "fulfillmentTypeValue")
     trackInventory: Boolean! @rename(attribute: "track_inventory")
     status: String! @method(name: "statusValue")
@@ -200,8 +201,9 @@ input UpdateCategoryInput {
 
 input CreateProductInput {
     brandId: ID
+    platformTaxonomyNodeId: ID
     vendor: String
-    productType: String
+    productTypeId: ID
     fulfillmentType: String
     trackInventory: Boolean
     status: String
@@ -212,8 +214,9 @@ input CreateProductInput {
 
 input UpdateProductInput {
     brandId: ID
+    platformTaxonomyNodeId: ID
     vendor: String
-    productType: String
+    productTypeId: ID
     fulfillmentType: String
     trackInventory: Boolean
     status: String

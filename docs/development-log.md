@@ -1,5 +1,26 @@
 # Development log
 
+## 2026-08-20 - Product Types and Platform taxonomy classification
+
+- Changed: Added Store-local `product_types`/translations plus global
+  `platform_taxonomies`, hierarchical nodes, and node custom-field assignments.
+  Products now reference a same-Store Product Type and an optional global
+  taxonomy node; GraphQL resolves both through public ULIDs.
+- Reason: Products need reusable localized types and stable Platform-wide
+  classification without retaining an ambiguous free-text Product Type value.
+- Data/configuration impact: Five Catalog tables are added. The follow-on
+  migration replaces nullable `products.product_type` with nullable bigint
+  `product_type_id`, adds `platform_taxonomy_node_id`, and adds foreign keys,
+  indexes, taxonomy status/default constraints, and hierarchy integrity. No
+  environment value or external service is required.
+- Compatibility or rollout notes: `productType` is replaced by `productTypeId`
+  in Product GraphQL inputs/output. Deployment stops before changing the column
+  if any legacy non-null Product Type strings require an explicit mapping.
+  Product Type administration remains persistence-only.
+- Verification: Added PostgreSQL coverage for schema/defaults, taxonomy/model
+  relations, cascade/null behavior, Product Type translation uniqueness,
+  cross-Store foreign keys, and the updated Product GraphQL lifecycle.
+
 ## 2026-08-17 - Process-safe Lighthouse query caching
 
 - Changed: Lighthouse parsed-query caching now defaults to filesystem/OPcache

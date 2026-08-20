@@ -17,8 +17,9 @@ use Modules\Stores\Models\Store;
 #[Fillable([
     'store_id',
     'brand_id',
+    'platform_taxonomy_node_id',
     'vendor',
-    'product_type',
+    'product_type_id',
     'fulfillment_type',
     'track_inventory',
     'status',
@@ -37,6 +38,16 @@ final class Product extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    public function platformTaxonomyNode(): BelongsTo
+    {
+        return $this->belongsTo(PlatformTaxonomyNode::class, 'platform_taxonomy_node_id');
+    }
+
+    public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductType::class);
     }
 
     public function translations(): HasMany
@@ -67,6 +78,16 @@ final class Product extends Model
         return $this->brand?->public_id;
     }
 
+    public function platformTaxonomyNodePublicId(): ?string
+    {
+        return $this->platformTaxonomyNode?->public_id;
+    }
+
+    public function productTypePublicId(): ?string
+    {
+        return $this->productType?->public_id;
+    }
+
     public function primaryCategoryPublicId(): ?string
     {
         return $this->categories->first(
@@ -77,6 +98,8 @@ final class Product extends Model
     protected function casts(): array
     {
         return [
+            'platform_taxonomy_node_id' => 'integer',
+            'product_type_id' => 'integer',
             'track_inventory' => 'boolean',
             'has_variants' => 'boolean',
             'published_at' => 'immutable_datetime',

@@ -1,7 +1,8 @@
 # Catalog schema reference
 
-This document is the complete persistence contract for the Store-local Catalog
-module. The source of truth is the eleven migrations under
+This document is the complete persistence contract for the Catalog module,
+including its global Platform classification tree and Store-local catalog
+records. The source of truth is the thirteen migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
@@ -10,7 +11,8 @@ and Product slices include Store-scoped models, transactional GraphQL
 queries/mutations, locale-aware manual translations, and durable automatic
 translation handlers. Options, variants, product files/fulfillment, custom
 fields, search projections, and administration screens remain persistence-only
-or follow-up work. See the [API manual](api-manual.md) for the executable
+or follow-up work. Product writes can assign both a global taxonomy-node ULID
+and a Store-local Product Type ULID. See the [API manual](api-manual.md) for the executable
 request cycle and examples.
 
 ## 1. Migration order
@@ -28,8 +30,11 @@ request cycle and examples.
 | 9 | `2026_08_08_000300_add_banner_url_to_category_translations_table.php` | Optional localized category banner image locator |
 | 10 | `2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` | Non-null overwrite lock for every Catalog translation table |
 | 11 | `2026_08_17_000100_add_image_url_to_category_translations_table.php` | Optional localized category image locator before the banner field in application/API contracts |
+| 12 | `2026_08_20_000100_create_product_type_tables.php` | Store-local product-type identities and localized names, slugs, and descriptions |
+| 13 | `2026_08_20_000200_create_platform_taxonomy_tables.php` | Global Platform taxonomies/nodes, node custom-field assignments, and Product classification foreign keys |
 
-Rollback runs in the reverse order. Store deletion cascades all Catalog rows.
+Rollback runs in the reverse order. Store deletion cascades Store-local Catalog
+rows; Platform taxonomies are global and survive Store deletion.
 
 ## 2. Shared conventions
 
@@ -58,6 +63,7 @@ Addressable entity tables are:
 - `collection_rules`
 - `collection_ai_jobs`
 - `categories`
+- `product_types`
 - `tags`
 - `custom_field_definitions`
 - `custom_field_options`
@@ -70,10 +76,18 @@ Addressable entity tables are:
 - `product_license_keys`
 - `product_custom_field_values`
 
+### Platform taxonomy entity columns
+
+`platform_taxonomies` and `platform_taxonomy_nodes` are global records and do
+not contain `store_id`. Both use bigint `id`, unique application-generated ULID
+`public_id`, and timezone-aware `created_at`/`updated_at`. The
+`platform_taxonomy_custom_fields` association has a bigint primary key and
+timestamps but no public ULID because it is not an addressable API resource.
+
 ### Translation-table columns
 
-Translation rows are value records, not independently addressable resources.
-Every translation table contains:
+Translation rows are value records, not public resources. Every translation
+table contains:
 
 | Column | PostgreSQL type | Null/default | Contract |
 | --- | --- | --- | --- |
@@ -84,12 +98,15 @@ Every translation table contains:
 | `created_at` | `timestamptz` | Nullable | Laravel creation audit time |
 | `updated_at` | `timestamptz` | Nullable | Laravel update audit time |
 
-The primary key is always `(parent_key, locale)`: one translation per entity
-and locale. Deleting the parent or Store cascades translations. The schema does
-not implement locale fallback; future reads must request the selected locale
-and explicitly fall back to the Store default. Manual editors may set or clear
-`lock_it`; automated writes must use `AutomatedTranslationWriter`, which skips
-locked rows and never changes the flag.
+Most Catalog translation tables use `(parent_key, locale)` as their primary
+key. `product_type_translations` follows the requested surrogate `id` design
+and instead enforces the same one-row rule with unique
+`(product_type_id, locale)`. Deleting the parent or Store cascades
+translations. The schema does not implement locale fallback; future reads must
+request the selected locale and explicitly fall back to the Store default.
+Manual editors may set or clear `lock_it`; automated writes must use
+`AutomatedTranslationWriter`, which skips locked rows and never changes the
+flag.
 
 ### Money
 
@@ -112,6 +129,10 @@ the PostgreSQL boundary.
 
 ```mermaid
 erDiagram
+    PLATFORM_TAXONOMIES ||--o{ PLATFORM_TAXONOMY_NODES : contains
+    PLATFORM_TAXONOMY_NODES o|--o{ PLATFORM_TAXONOMY_NODES : parent
+    PLATFORM_TAXONOMY_NODES o|--o{ PRODUCT_TYPES : maps
+    PLATFORM_TAXONOMY_NODES o|--o{ PRODUCTS : classifies
     STORES ||--o{ BRANDS : owns
     BRANDS ||--o{ BRAND_TRANSLATIONS : translates
     BRANDS o|--o{ PRODUCTS : classifies
@@ -127,6 +148,9 @@ erDiagram
     CATEGORIES ||--o{ CATEGORY_TRANSLATIONS : translates
     CATEGORIES ||--o{ PRODUCT_CATEGORIES : contains
     PRODUCTS ||--o{ PRODUCT_CATEGORIES : assigned
+    STORES ||--o{ PRODUCT_TYPES : owns
+    PRODUCT_TYPES ||--o{ PRODUCT_TYPE_TRANSLATIONS : translates
+    PRODUCT_TYPES o|--o{ PRODUCTS : types
     STORES ||--o{ TAGS : owns
     TAGS ||--o{ PRODUCT_TAGS : assigned
     PRODUCTS ||--o{ PRODUCT_TAGS : tagged
@@ -159,6 +183,8 @@ erDiagram
 
 ```mermaid
 erDiagram
+    PLATFORM_TAXONOMY_NODES ||--o{ PLATFORM_TAXONOMY_CUSTOM_FIELDS : configures
+    CUSTOM_FIELD_DEFINITIONS ||--o{ PLATFORM_TAXONOMY_CUSTOM_FIELDS : assigned
     CUSTOM_FIELD_DEFINITIONS ||--o{ CUSTOM_FIELD_DEFINITION_TRANSLATIONS : translates
     CUSTOM_FIELD_DEFINITIONS ||--o{ CUSTOM_FIELD_OPTIONS : offers
     CUSTOM_FIELD_OPTIONS ||--o{ CUSTOM_FIELD_OPTION_TRANSLATIONS : translates
@@ -408,7 +434,110 @@ Unique key: `(store_id, name)`. Tags do not currently have translations.
 Primary key: `(product_id, tag_id)`. Both parents must belong to `store_id`.
 Index: `(store_id, tag_id)` for tag-to-product lookup.
 
-## 7. Products
+## 7. Platform taxonomies, product types, and products
+
+### `platform_taxonomies`
+
+Global, versioned classification catalogs shared by every Store.
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal primary key |
+| `public_id` | `char(26)` | Required | Unique application-generated public ULID |
+| `name` | `varchar(255)` | Required | Human-readable taxonomy name |
+| `code` | `varchar(100)` | Required | Stable taxonomy family code |
+| `version` | `integer` | Default `1` | Version within the code family |
+| `status` | `varchar(20)` | Default `draft` | `draft`, `active`, or `archived` |
+| `is_default` | `boolean` | Default `false` | Marks the single Platform-default taxonomy |
+| `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
+
+`(code, version)` is unique. A partial unique index permits only one row where
+`is_default = true`; `(status, is_default)` supports administration lookups.
+
+### `platform_taxonomy_nodes`
+
+Materialized-path hierarchy for one Platform taxonomy.
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal primary key |
+| `public_id` | `char(26)` | Required | Unique public ULID |
+| `taxonomy_id` | `bigint` | Required | Owning `platform_taxonomies.id` |
+| `parent_id` | `bigint` | Nullable | Parent node in the same taxonomy |
+| `name` | `varchar(255)` | Required | Platform-managed display name |
+| `slug` | `varchar(255)` | Required | Path segment |
+| `code` | `varchar(100)` | Required | Stable code unique inside the taxonomy |
+| `level` | `smallint` | Default `0` | Zero-based hierarchy depth |
+| `path` | `varchar(500)` | Required | Canonical materialized path unique inside the taxonomy |
+| `description` | `text` | Nullable | Optional explanatory content |
+| `is_active` | `boolean` | Default `true` | Whether new classifications may use the node |
+| `position` | `integer` | Default `0` | Sibling/display ordering |
+| `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
+
+The composite parent foreign key `(parent_id, taxonomy_id)` requires parent and
+child to share a taxonomy. Deleting a taxonomy or node cascades its node
+subtree. Unique keys cover `(taxonomy_id, code)` and `(taxonomy_id, path)`;
+indexes cover hierarchy and active-node ordering.
+
+### `platform_taxonomy_custom_fields`
+
+Assigns an existing Store-local custom-field definition to a Platform node and
+records how that field behaves for the classification.
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal assignment key |
+| `taxonomy_node_id` | `bigint` | Required | Assigned Platform taxonomy node |
+| `custom_field_definition_id` | `bigint` | Required | Assigned Store-local field definition |
+| `is_required` | `boolean` | Default `false` | Field is required for this node |
+| `is_filterable` | `boolean` | Default `false` | Field can drive storefront filters |
+| `is_searchable` | `boolean` | Default `false` | Field contributes to search documents |
+| `is_variant` | `boolean` | Default `false` | Field applies at variant level |
+| `position` | `integer` | Default `0` | Field order within the node |
+| `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
+
+`(taxonomy_node_id, custom_field_definition_id)` is unique. Deleting either
+parent cascades the assignment. Indexes support ordered node fields and reverse
+definition lookup.
+
+### `product_types`
+
+Store-local reference identities for reusable product-type labels. The table
+includes the shared entity columns plus:
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `code` | `varchar(100)` | Required | Stable Store-managed integration code; indexed but not database-unique |
+| `platform_taxonomy_node_id` | `bigint` | Nullable | Optional global Platform taxonomy-node mapping; deletion sets it to null |
+| `is_active` | `boolean` | Default `true` | Whether the type is available for selection |
+| `sort_order` | `integer` | Default `0` | Merchant-defined display order |
+
+Indexes cover `(store_id, code)`, `(store_id, platform_taxonomy_node_id)`, and
+`(store_id, is_active, sort_order)`. `public_id` is globally unique and
+`(id, store_id)` supports Store-safe composite child references.
+
+### `product_type_translations`
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal primary key; not a public API identifier |
+| `product_type_id` | `bigint` | Required | Parent product type |
+| `store_id` | `bigint` | Required | Store boundary; must match the parent's Store |
+| `locale` | `varchar(35)` | Required | Translation locale |
+| `name` | `varchar(255)` | Required | Localized display name |
+| `slug` | `varchar(255)` | Required | Localized URL/integration segment |
+| `description` | `text` | Nullable | Localized explanatory text |
+| `lock_it` | `boolean` | Default `false` | Protects merchant-authored text from automated writers |
+| `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
+
+Uniqueness is enforced exactly at `(product_type_id, locale)` and
+`(store_id, locale, slug)`. The composite
+`(product_type_id, store_id)` foreign key rejects a translation attached to a
+product type from another Store. Parent or Store deletion cascades the row.
+
+Product Type administration remains persistence-only, but Product GraphQL
+create/update accepts an existing same-Store Product Type public ULID through
+`productTypeId`.
 
 ### `products`
 
@@ -418,16 +547,19 @@ columns plus:
 | Column | Type | Null/default | Meaning |
 | --- | --- | --- | --- |
 | `brand_id` | `bigint` | Nullable | Brand in the same Store; deleting it sets this field to null |
+| `platform_taxonomy_node_id` | `bigint` | Nullable | Global Platform node; deleting the node sets this field to null |
 | `vendor` | `varchar(255)` | Nullable | Supplier/manufacturer label |
-| `product_type` | `varchar(255)` | Nullable | Merchant-defined type such as `Shoes` or `E-book` |
+| `product_type_id` | `bigint` | Nullable | Product Type in the same Store; deleting it sets this field to null |
 | `fulfillment_type` | `varchar(20)` | Default `physical` | `physical`, `digital`, `software`, or `service` |
 | `track_inventory` | `boolean` | Default `true` | Whether variant stock/policy controls sellability |
 | `status` | `varchar(20)` | Default `draft` | `draft`, `active`, or `archived` |
 | `has_variants` | `boolean` | Default `false` | Application-maintained variant-mode flag |
 | `published_at` | `timestamptz` | Nullable | Publication time |
 
-Indexes cover `(store_id, status)`, `(store_id, fulfillment_type)`, and
-`(store_id, brand_id)`. The database does not automatically synchronize
+Indexes cover `(store_id, status)`, `(store_id, fulfillment_type)`,
+`(store_id, brand_id)`, `(store_id, platform_taxonomy_node_id)`, and
+`(store_id, product_type_id)`. A composite Product Type foreign key rejects a
+cross-Store assignment. The database does not automatically synchronize
 `status` with `published_at`, `has_variants` with child-row count, or
 `track_inventory` with variant quantities.
 
@@ -807,6 +939,7 @@ container and option to share `definition_id` and `store_id`.
 | `collections.rules_match_type` | `all`, `any` |
 | `collections.ai_status` | Null, `pending`, `processing`, `completed`, `failed` |
 | `collection_ai_jobs.status` | `pending`, `processing`, `completed`, `failed` |
+| `platform_taxonomies.status` | `draft`, `active`, `archived` |
 | `products.fulfillment_type` | `physical`, `digital`, `software`, `service` |
 | `products.status` | `draft`, `active`, `archived` |
 | `product_collections.added_by` | `manual`, `rule`, `ai` |
@@ -822,9 +955,13 @@ container and option to share `definition_id` and `store_id`.
 
 | Scope | Guarantee |
 | --- | --- |
-| Every entity | Unique `public_id` and unique `(id, store_id)` |
-| Brand/collection/category/product translation | Unique `(store_id, locale, slug)` |
-| Every translation | Primary `(parent_id, locale)` using its specific parent-key name |
+| Every Store-local entity | Unique `public_id` and unique `(id, store_id)` |
+| `platform_taxonomies` | Unique `public_id`, unique `(code, version)`, and at most one `is_default = true` row |
+| `platform_taxonomy_nodes` | Unique `public_id`, `(taxonomy_id, code)`, and `(taxonomy_id, path)` |
+| `platform_taxonomy_custom_fields` | Unique `(taxonomy_node_id, custom_field_definition_id)` |
+| Brand/collection/category/product/product-type translation | Unique `(store_id, locale, slug)` |
+| Most translations | Primary `(parent_id, locale)` using the table's specific parent-key name |
+| `product_type_translations` | Primary `id`; unique `(product_type_id, locale)` |
 | `tags` | Unique `(store_id, name)` |
 | `product_tags` | Primary `(product_id, tag_id)` |
 | `product_collections` | Primary `(collection_id, product_id)` |
@@ -844,14 +981,18 @@ container and option to share `definition_id` and `store_id`.
 
 | Table | Query indexes beyond primary/unique keys |
 | --- | --- |
+| `platform_taxonomies` | `(status, is_default)` |
+| `platform_taxonomy_nodes` | `(taxonomy_id, parent_id, position)`; `(taxonomy_id, is_active, position)` |
+| `platform_taxonomy_custom_fields` | `(taxonomy_node_id, position)`; `custom_field_definition_id` |
 | `brands` | `(store_id, is_active, sort_order)` |
 | `collections` | `(store_id, collection_type)`; `(store_id, parent_id, sort_order)` |
 | `collection_rules` | `(store_id, collection_id, position)` |
 | `collection_ai_jobs` | `(store_id, collection_id, created_at)` |
 | `categories` | `(store_id, parent_id, sort_order)`; `(store_id, is_active)` |
+| `product_types` | `(store_id, code)`; `(store_id, platform_taxonomy_node_id)`; `(store_id, is_active, sort_order)` |
 | `custom_field_definitions` | `(store_id, product_type)` |
 | `custom_field_options` | `(store_id, definition_id, position)` |
-| `products` | `(store_id, status)`; `(store_id, fulfillment_type)`; `(store_id, brand_id)` |
+| `products` | `(store_id, status)`; `(store_id, fulfillment_type)`; `(store_id, brand_id)`; `(store_id, platform_taxonomy_node_id)`; `(store_id, product_type_id)` |
 | `product_tags` | `(store_id, tag_id)` |
 | `product_collections` | `(store_id, product_id)`; `(store_id, collection_id, sort_order)` |
 | `product_categories` | `(store_id, product_id)`; `(store_id, category_id, sort_order)` |
@@ -870,10 +1011,13 @@ container and option to share `definition_id` and `store_id`.
 | Deleted parent | Result |
 | --- | --- |
 | Store | All Catalog entities, translations, and relationships cascade |
+| Platform taxonomy | Its complete node tree and node/custom-field assignments cascade; Store-local Product/Product Type mappings become null |
+| Platform taxonomy node | Its descendant subtree and custom-field assignments cascade; Product/Product Type mappings become null |
 | Brand | Product `brand_id` values become null; brand translations cascade |
 | Parent collection/category | Child `parent_id` becomes null; children remain |
 | Collection | Translations, rules, AI jobs, and product assignments cascade |
 | Category/tag | Translations or product assignments cascade |
+| Product type | Product-type translations cascade; Product `product_type_id` values become null |
 | Product | Translations, assignments, options, variants, media, assets, keys, and custom values cascade |
 | Product option | Option translations and option values cascade |
 | Product option value | Translations and variant selections cascade |
@@ -893,7 +1037,10 @@ must additionally enforce the remaining rules:
 
 - authenticated Store context and `manage products` authorization;
 - ULID-only public contracts and no bigint leakage;
+- Platform taxonomy code/version/default lifecycle and node level/path consistency;
+- same-Store Product Type resolution plus global Platform-node resolution for Product writes;
 - normalized, collision-safe localized slugs;
+- product-type code normalization and administration workflows;
 - locale fallback to the Store default;
 - cycle prevention for category and collection parent trees;
 - collection-rule field/operator whitelists and typed operand validation;
@@ -924,6 +1071,11 @@ ShopNXE standards:
 - localized slugs are truly unique per Store and locale;
 - BCP 47-style locale columns allow 35 characters instead of 10;
 - addressable rows receive public ULIDs and timezone audit timestamps;
+- product-type translations retain the explicitly requested surrogate `id`
+  while unique `(product_type_id, locale)` preserves one translation per locale;
+- the legacy nullable Product `product_type` string is replaced by a nullable,
+  same-Store `product_type_id` foreign key, and Products may also reference a
+  global Platform taxonomy node;
 - product/option/variant, media, asset, license, and custom-field relationships
   use composite foreign keys to prevent cross-product or cross-definition data;
 - circular image/variant and nullable hierarchy relationships use PostgreSQL

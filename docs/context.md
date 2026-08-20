@@ -150,10 +150,11 @@ Plan administration is Platform-only and requires `manage plans`. `Super Admin` 
 
 ## Catalog persistence contract
 
-Catalog owns Store-local brands, collections, categories, tags, products,
-options, variants, media/fulfillment metadata, software license-key pools, and
-typed custom fields. Addressable rows use bigint primary keys, public ULIDs,
-non-null indexed Store IDs, and timezone timestamps. Translation and
+Catalog owns global Platform taxonomies/nodes alongside Store-local brands,
+collections, categories, tags, product types, products, options, variants,
+media/fulfillment metadata, software license-key pools, and typed custom
+fields. Addressable rows use bigint primary keys, public ULIDs, and timezone
+timestamps; Store-owned rows additionally carry non-null indexed Store IDs. Translation and
 relationship rows retain Store IDs so composite foreign keys reject cross-Store
 associations at the database boundary.
 
@@ -182,8 +183,19 @@ after-commit dispatcher, snapshot hashes, `lock_it` recheck, Store-aware job,
 retry policy, and scheduled recovery are shared infrastructure rather than
 feature-specific implementations.
 
-Categories are the strict navigation taxonomy; collections are manual,
-rule-based, or AI-generated merchandising groups. Category and Product GraphQL
+Categories are the strict Store navigation taxonomy; collections are manual,
+rule-based, or AI-generated merchandising groups. Platform taxonomies are
+versioned global classification trees with stable node code/path identity and
+optional node-to-custom-field behavior. Product types are a Store-local
+reference catalog with stable public ULIDs/codes, nullable Platform node
+mappings, active/sort metadata, and localized name/slug/description rows.
+PostgreSQL guarantees one translation per Product Type and locale, a unique
+slug per Store and locale, and matching Store ownership across Product Type,
+Product, and translation relationships. `products.product_type_id` replaces
+the legacy free-text field; Product writes resolve Product Types by same-Store
+public ULID and may independently assign a global Platform node public ULID.
+
+Category and Product GraphQL
 queries require authenticated active Store membership; create/update/delete
 mutations additionally require `manage products`. Explicit resolvers delegate
 to transactional Catalog services, accept only public ULIDs and allow-listed
@@ -249,8 +261,9 @@ Platform roles are evaluated without an active store team. Store-role assignment
   review submissions, Store licenses, installed/customized Store copies, and
   the Store-provisioning installer contract.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
-- Catalog owns Store-local merchandising, products, variants, fulfillment
-  metadata, and custom fields. Inventory, Files, Search, and Orders consume its
+- Catalog owns global Platform classification plus Store-local merchandising,
+  products, variants, fulfillment metadata, and custom fields. Inventory,
+  Files, Search, and Orders consume its
   stable identifiers through future contracts/events rather than writing its
   tables.
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.

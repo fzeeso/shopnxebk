@@ -12,7 +12,10 @@ use Illuminate\Support\Str;
 use Modules\Authentication\Models\User;
 use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Catalog\Models\Category;
+use Modules\Catalog\Models\PlatformTaxonomy;
+use Modules\Catalog\Models\PlatformTaxonomyNode;
 use Modules\Catalog\Models\Product;
+use Modules\Catalog\Models\ProductType;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Modules\Settings\Models\Language;
 use Modules\Stores\Contracts\StoreProvisioner;
@@ -95,12 +98,37 @@ final class CatalogGraphqlApiTest extends TestCase
             'lock_it' => false,
         ]);
 
+        $taxonomy = PlatformTaxonomy::query()->create([
+            'name' => 'Global Commerce Taxonomy',
+            'code' => 'global-commerce',
+            'version' => 1,
+            'status' => 'active',
+            'is_default' => true,
+        ]);
+        $taxonomyNode = PlatformTaxonomyNode::query()->create([
+            'taxonomy_id' => $taxonomy->getKey(),
+            'name' => 'Running Shoes',
+            'slug' => 'running-shoes',
+            'code' => 'FOOTWEAR-RUNNING',
+            'level' => 0,
+            'path' => '/running-shoes',
+            'is_active' => true,
+            'position' => 10,
+        ]);
+        $productType = ProductType::query()->create([
+            'store_id' => $store->getKey(),
+            'code' => 'running-shoe',
+            'platform_taxonomy_node_id' => $taxonomyNode->getKey(),
+            'is_active' => true,
+            'sort_order' => 10,
+        ]);
+
         $productResponse = $this->actingAs($owner, 'web')->postJson('/graphql', [
             'query' => <<<'GRAPHQL'
                 mutation CreateProduct($input: CreateProductInput!) {
                   createProduct(input: $input) {
                     product {
-                      id status primaryCategoryId
+                      id status primaryCategoryId platformTaxonomyNodeId productTypeId
                       categories { id translation(locale: "en") { title } }
                       translation(locale: "en") { title slug }
                     }
@@ -111,6 +139,8 @@ final class CatalogGraphqlApiTest extends TestCase
             'variables' => ['input' => [
                 'status' => 'active',
                 'fulfillmentType' => 'physical',
+                'platformTaxonomyNodeId' => (string) $taxonomyNode->public_id,
+                'productTypeId' => (string) $productType->public_id,
                 'categoryIds' => [$categoryId],
                 'primaryCategoryId' => $categoryId,
                 'translations' => [[
@@ -124,6 +154,16 @@ final class CatalogGraphqlApiTest extends TestCase
         $productId = (string) $productResponse->json('data.createProduct.product.id');
         $product = Product::query()->where('public_id', $productId)->firstOrFail();
         $this->assertSame($categoryId, $productResponse->json('data.createProduct.product.primaryCategoryId'));
+        $this->assertSame(
+            (string) $taxonomyNode->public_id,
+            $productResponse->json('data.createProduct.product.platformTaxonomyNodeId'),
+        );
+        $this->assertSame(
+            (string) $productType->public_id,
+            $productResponse->json('data.createProduct.product.productTypeId'),
+        );
+        $this->assertSame($taxonomyNode->getKey(), $product->platform_taxonomy_node_id);
+        $this->assertSame($productType->getKey(), $product->product_type_id);
         $this->assertNotNull($product->published_at);
         $this->assertDatabaseHas('product_translations', [
             'product_id' => $product->getKey(),

@@ -1,10 +1,11 @@
 # Catalog module
 
-`Modules/Catalog` owns the Store-local merchandising and product persistence
-foundation, Brand REST routes, Category/Product GraphQL schema, Catalog models,
+`Modules/Catalog` owns the global Platform classification taxonomy plus the
+Store-local merchandising and product persistence foundation, Brand REST
+routes, Category/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Options, variants, product files/fulfillment, custom fields, search
-projections, and admin screens remain follow-up work.
+projections, Product Type APIs, and admin screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
@@ -16,6 +17,8 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Brands | `brands`, `brand_translations` |
 | Collections | `collections`, `collection_translations`, `collection_rules`, `collection_ai_jobs`, `product_collections` |
 | Categories and tags | `categories`, `category_translations`, `tags`, `product_tags`, `product_categories` |
+| Platform taxonomy | `platform_taxonomies`, `platform_taxonomy_nodes`, `platform_taxonomy_custom_fields` |
+| Product types | `product_types`, `product_type_translations` |
 | Products | `products`, `product_translations` |
 | Options and variants | `product_options`, `product_option_translations`, `product_option_values`, `product_option_value_translations`, `product_variants`, `product_variant_translations`, `variant_option_values` |
 | Media and fulfillment | `product_images`, `product_image_translations`, `product_digital_assets`, `product_digital_asset_translations`, `product_license_keys` |
@@ -23,8 +26,9 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 
 ## Persistence rules
 
-- Addressable entities use bigint `id`, unique ULID `public_id`, non-null
-  indexed bigint `store_id`, and timezone-aware audit timestamps.
+- Addressable entities use bigint `id`, unique ULID `public_id`, and
+  timezone-aware audit timestamps. Store-owned entities additionally carry a
+  non-null indexed bigint `store_id`; Platform taxonomies/nodes are global.
 - Translation and relationship tables are not public resources. They use
   composite keys and retain `store_id` so composite foreign keys reject
   cross-Store parents, assignments, variants, options, and custom values.
@@ -34,6 +38,14 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Brand, collection, category, and product slugs are unique by
   `(store_id, locale, slug)`. Locale fields accept up to 35 characters for
   BCP 47-style values.
+- Platform taxonomies are versioned global trees. A same-taxonomy composite
+  self-reference protects node ancestry; code/path uniqueness provides stable
+  classification, and only one taxonomy may be the Platform default.
+- Product types have Store-local codes, nullable foreign-key Platform
+  taxonomy-node mappings, active/sort metadata, and localized names/slugs/descriptions. Their
+  translations use bigint `id`, unique `(product_type_id, locale)`, unique
+  `(store_id, locale, slug)`, and a composite foreign key that rejects a parent
+  from another Store.
 - Brand reads require active Store membership. Brand writes require
   `manage products`; they accept localized identity/SEO data plus optional
   translation locks, managed image/banner uploads, a legacy logo locator,
@@ -46,7 +58,8 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
   PostgreSQL permits only one primary category assignment per Store/product.
 - Category and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
-  cross-Store references, validate Category cycles, and replace product
+  cross-Store references, resolve Product Types within the selected Store,
+  accept global Platform taxonomy-node ULIDs, validate Category cycles, and replace product
   category/primary assignments atomically. Lists use bounded pagination plus
   explicit filter and sort allow-lists.
 - Category and Product translation inputs accept only active Store locales.
@@ -86,6 +99,10 @@ Product files still have no upload, scan, signing, or delivery workflow.
 
 - Catalog consumes Stores identity through internal bigint foreign keys and
   must use Stores middleware/context before future Store APIs access rows.
+- Product Type administration has no public operation yet. Product create and
+  update can nevertheless assign an existing Product Type using its public
+  ULID; PostgreSQL rejects cross-Store type assignments. Product writes may
+  independently assign a global Platform taxonomy-node ULID.
 - Catalog's Brand, Category, and Product services request automatic translation
   through the shared `TranslationCoordinator`. Their handlers own only each
   entity's field, slug, locale, and locked-row behavior. They never perform an

@@ -92,12 +92,13 @@ copies, and the Theme installer used by Store provisioning.
 
 `Modules/Billing/` owns editable Platform plan prices, reusable feature definitions, included/add-on assignments, catalog administration services/routes, and the initial sample catalog.
 
-`Modules/Catalog/` owns Store-local brands, collections, categories, products,
-options, variants, media/fulfillment metadata, license-key pools, and typed
-custom-field persistence. Brands expose Store-scoped CRUD services and REST
-routes. Categories and Products expose Store-scoped models, transactional
-services, GraphQL queries/mutations, and automatic-translation handlers; the
-remaining Catalog areas are still persistence-only. Localized
+`Modules/Catalog/` owns global Platform classification taxonomies plus
+Store-local brands, collections, categories, Product Types, products, options,
+variants, media/fulfillment metadata, license-key pools, and typed custom-field
+persistence. Brands expose Store-scoped CRUD services and REST routes.
+Categories and Products expose Store-scoped models, transactional services,
+GraphQL queries/mutations, and automatic-translation handlers; Product Type
+administration and the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
@@ -300,13 +301,29 @@ Any Platform-scoped user may read `GET /api/v1/platform/settings/currencies`. Cr
 
 ### Catalog persistence foundation
 
-Catalog owns 33 normalized tables spanning brands, manual/rule/AI collections,
-strict category trees, tags, products, translated content, product assignments,
-options/values, variants, images, digital assets, software license-key pools,
-and typed custom fields. Addressable rows use bigint internal IDs, public ULIDs,
-indexed Store IDs, and timezone timestamps. Translations and relationship rows
-carry Store IDs for composite foreign keys even when their primary key is a
-natural pair.
+Catalog owns 38 normalized tables spanning global Platform taxonomies, brands,
+manual/rule/AI collections, strict Store category trees, tags, Product Types,
+products, translated content, product assignments, options/values, variants,
+images, digital assets, software license-key pools, and typed custom fields.
+Addressable rows use bigint internal IDs, public ULIDs, and timezone timestamps;
+Store-owned rows also use indexed Store IDs. Translations and Store-local
+relationship rows carry Store IDs for composite foreign keys even when their
+primary key is a natural pair.
+
+`platform_taxonomies` and `platform_taxonomy_nodes` provide a versioned global
+classification tree with a single default taxonomy, same-taxonomy ancestry,
+stable node codes/paths, and node-specific custom-field behavior.
+`product_types` and `product_type_translations` provide a Store-local,
+localized reference catalog. Product types carry a public ULID, stable code,
+nullable foreign-key Platform taxonomy-node mapping, active state, and sort order.
+Translations use their requested bigint `id` while unique
+`(product_type_id, locale)` and `(store_id, locale, slug)` constraints preserve
+one locale row and one Store-local URL segment. A composite parent/Store foreign
+key prevents cross-Store content, and the standard non-null `lock_it = false`
+protects future manual translations. Product Type administration remains
+persistence-only, but Product GraphQL accepts `productTypeId` and
+`platformTaxonomyNodeId` public ULIDs. The Product Type is resolved inside the
+selected Store; both relationships are stored as nullable bigint foreign keys.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
 legacy logo reference. The Brand model now owns single-file `image` and
@@ -395,9 +412,11 @@ Store-scoped model/resource, and image integration. Catalog owns the Brand
 controller and `BrandManagementService`. Its module-owned GraphQL schema
 exposes paginated/filterable Category/Product queries and explicit mutations
 backed by `CategoryManagementService` and `ProductManagementService`. Reads
-require active Store membership; writes require `manage products`; public
-relationships accept only same-Store ULIDs. Options, variants, product file
-delivery, custom fields, and search indexing still lack APIs. See the
+require active Store membership; writes require `manage products`; Store-owned
+relationships accept same-Store ULIDs while Platform taxonomy nodes use global
+ULIDs. Product-type administration,
+options, variants, product file delivery, custom fields, and search indexing
+still lack APIs. See the
 [API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.

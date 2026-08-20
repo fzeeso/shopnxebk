@@ -222,6 +222,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_08_000300_add_banner_url_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_09_000100_add_lock_it_to_catalog_translation_tables.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_17_000100_add_image_url_to_category_translations_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_20_000100_create_product_type_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_20_000200_create_platform_taxonomy_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |

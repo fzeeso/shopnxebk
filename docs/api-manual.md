@@ -73,6 +73,14 @@ Lists default to 20 records and permit at most 100. Category sorting is allow-li
 
 Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`. Product filters are `search`, `locale`, `status`, `fulfillmentType`, `brandId`, and `categoryId`. Search matches localized title or slug case-insensitively; `locale` restricts which translation is searched.
 
+Product Type administration status: `product_types` and
+`product_type_translations` exist as Store-local persistence, but there is no
+`productTypes` query or Product Type mutation yet. Product create/update does
+accept `productTypeId`: it must be the public ULID of an existing Product Type
+in the selected Store. `platformTaxonomyNodeId` independently accepts a global
+Platform taxonomy-node public ULID. Both inputs are nullable, and neither API
+exposes an internal bigint identifier.
+
 ## 4. Category lifecycle
 
 A category is Store-owned navigation taxonomy. `parentId` creates a tree, `sortOrder` controls sibling ordering, and translated slugs are unique inside one Store and locale. A category cannot become its own parent or a child of one of its descendants.
@@ -154,6 +162,8 @@ Allowed product values:
 | `fulfillmentType` | `physical`, `digital`, `software`, `service` |
 | `trackInventory` | Boolean; defaults to `true` |
 | `hasVariants` | Read-only in this API; variant APIs will own it |
+| `productTypeId` | Nullable same-Store `product_types.public_id` ULID |
+| `platformTaxonomyNodeId` | Nullable global `platform_taxonomy_nodes.public_id` ULID |
 | `publishedAt` | Set on first activation, cleared when returned to draft, retained when archived |
 
 Create a product:
@@ -166,6 +176,8 @@ mutation CreateProduct($input: CreateProductInput!) {
       status
       fulfillmentType
       publishedAt
+      productTypeId
+      platformTaxonomyNodeId
       primaryCategoryId
       categories { id translation(locale: "en") { title } }
       translations { locale title slug lockIt }
@@ -180,7 +192,8 @@ mutation CreateProduct($input: CreateProductInput!) {
   "input": {
     "brandId": "01K...",
     "vendor": "ShopNXE Demo",
-    "productType": "running-shoe",
+    "productTypeId": "01K_PRODUCT_TYPE",
+    "platformTaxonomyNodeId": "01K_TAXONOMY_NODE",
     "fulfillmentType": "physical",
     "trackInventory": true,
     "status": "active",
@@ -200,7 +213,13 @@ mutation CreateProduct($input: CreateProductInput!) {
 }
 ```
 
-Updating `categoryIds` replaces the product's category assignments atomically. Sending an empty list removes every assignment. Sending `brandId: null` removes the Brand relationship. Deleting a product cascades its translations and category/tag/collection/options/variant-owned relationships according to the Catalog schema; it does not delete shared categories or Brands.
+Updating `categoryIds` replaces the product's category assignments atomically.
+Sending an empty list removes every assignment. Sending `brandId: null`,
+`productTypeId: null`, or `platformTaxonomyNodeId: null` removes that
+relationship. A Product Type from another Store is rejected. Deleting a
+product cascades its translations and category/tag/collection/options/variant-
+owned relationships according to the Catalog schema; it does not delete shared
+categories, Brands, Product Types, or Platform taxonomy nodes.
 
 ## 6. Reading localized data
 

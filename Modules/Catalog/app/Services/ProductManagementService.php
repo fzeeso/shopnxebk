@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Catalog\Models\Category;
+use Modules\Catalog\Models\PlatformTaxonomyNode;
 use Modules\Catalog\Models\Product;
+use Modules\Catalog\Models\ProductType;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
 
@@ -47,7 +49,14 @@ final readonly class ProductManagementService
         $filter = $data['filter'] ?? [];
         $query = Product::query()
             ->where('store_id', $store->getKey())
-            ->with(['brand', 'translations', 'categories.parent', 'categories.translations'])
+            ->with([
+                'brand',
+                'platformTaxonomyNode',
+                'productType',
+                'translations',
+                'categories.parent',
+                'categories.translations',
+            ])
             ->withCount('categories');
 
         if (($filter['search'] ?? null) !== null && trim((string) $filter['search']) !== '') {
@@ -91,7 +100,14 @@ final readonly class ProductManagementService
     {
         $store = $this->store($user, false);
 
-        return $this->product($store, $publicId)->load(['brand', 'translations', 'categories.parent', 'categories.translations']);
+        return $this->product($store, $publicId)->load([
+            'brand',
+            'platformTaxonomyNode',
+            'productType',
+            'translations',
+            'categories.parent',
+            'categories.translations',
+        ]);
     }
 
     /** @param array<string, mixed> $input */
@@ -102,12 +118,19 @@ final readonly class ProductManagementService
 
         return DB::transaction(function () use ($data, $store, $user): Product {
             $brand = ($data['brandId'] ?? null) === null ? null : $this->brand($store, (string) $data['brandId']);
+            $taxonomyNode = ($data['platformTaxonomyNodeId'] ?? null) === null
+                ? null
+                : $this->platformTaxonomyNode((string) $data['platformTaxonomyNodeId']);
+            $productType = ($data['productTypeId'] ?? null) === null
+                ? null
+                : $this->productType($store, (string) $data['productTypeId']);
             $status = (string) ($data['status'] ?? 'draft');
             $product = Product::query()->create([
                 'store_id' => $store->getKey(),
                 'brand_id' => $brand?->getKey(),
+                'platform_taxonomy_node_id' => $taxonomyNode?->getKey(),
                 'vendor' => $data['vendor'] ?? null,
-                'product_type' => $data['productType'] ?? null,
+                'product_type_id' => $productType?->getKey(),
                 'fulfillment_type' => $data['fulfillmentType'] ?? 'physical',
                 'track_inventory' => $data['trackInventory'] ?? true,
                 'status' => $status,
@@ -137,7 +160,14 @@ final readonly class ProductManagementService
                 requestedBy: (int) $user->getKey(),
             );
 
-            return $product->load(['brand', 'translations', 'categories.parent', 'categories.translations'])
+            return $product->load([
+                'brand',
+                'platformTaxonomyNode',
+                'productType',
+                'translations',
+                'categories.parent',
+                'categories.translations',
+            ])
                 ->setRelation('translationRequest', $request);
         });
     }
@@ -156,7 +186,6 @@ final readonly class ProductManagementService
             $attributes = [];
             foreach ([
                 'vendor' => 'vendor',
-                'productType' => 'product_type',
                 'fulfillmentType' => 'fulfillment_type',
                 'trackInventory' => 'track_inventory',
                 'status' => 'status',
@@ -169,6 +198,16 @@ final readonly class ProductManagementService
                 $attributes['brand_id'] = $data['brandId'] === null
                     ? null
                     : $this->brand($store, (string) $data['brandId'])->getKey();
+            }
+            if (array_key_exists('platformTaxonomyNodeId', $data)) {
+                $attributes['platform_taxonomy_node_id'] = $data['platformTaxonomyNodeId'] === null
+                    ? null
+                    : $this->platformTaxonomyNode((string) $data['platformTaxonomyNodeId'])->getKey();
+            }
+            if (array_key_exists('productTypeId', $data)) {
+                $attributes['product_type_id'] = $data['productTypeId'] === null
+                    ? null
+                    : $this->productType($store, (string) $data['productTypeId'])->getKey();
             }
             if (($attributes['status'] ?? null) === 'active' && $product->published_at === null) {
                 $attributes['published_at'] = now();
@@ -214,7 +253,14 @@ final readonly class ProductManagementService
                 requestedBy: (int) $user->getKey(),
             );
 
-            return $product->refresh()->load(['brand', 'translations', 'categories.parent', 'categories.translations'])
+            return $product->refresh()->load([
+                'brand',
+                'platformTaxonomyNode',
+                'productType',
+                'translations',
+                'categories.parent',
+                'categories.translations',
+            ])
                 ->setRelation('translationRequest', $request);
         });
     }
@@ -252,6 +298,21 @@ final readonly class ProductManagementService
     private function brand(Store $store, string $publicId): Brand
     {
         return Brand::query()
+            ->where('store_id', $store->getKey())
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+    }
+
+    private function platformTaxonomyNode(string $publicId): PlatformTaxonomyNode
+    {
+        return PlatformTaxonomyNode::query()
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+    }
+
+    private function productType(Store $store, string $publicId): ProductType
+    {
+        return ProductType::query()
             ->where('store_id', $store->getKey())
             ->where('public_id', $publicId)
             ->firstOrFail();
@@ -303,8 +364,9 @@ final readonly class ProductManagementService
 
         return Validator::make($input, [
             'brandId' => ['sometimes', 'nullable', 'ulid'],
+            'platformTaxonomyNodeId' => ['sometimes', 'nullable', 'ulid'],
             'vendor' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'productType' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'productTypeId' => ['sometimes', 'nullable', 'ulid'],
             'fulfillmentType' => ['sometimes', 'in:physical,digital,software,service'],
             'trackInventory' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'in:draft,active,archived'],
