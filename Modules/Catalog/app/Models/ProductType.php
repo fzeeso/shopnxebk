@@ -37,6 +37,11 @@ final class ProductType extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function platformTaxonomyNodePublicId(): ?string
+    {
+        return $this->platformTaxonomyNode?->public_id;
+    }
+
     protected function casts(): array
     {
         return [

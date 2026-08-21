@@ -16,7 +16,7 @@ Authorization: Bearer <store-bound-token>
 X-Store-ID: <store-public-ulid>
 ```
 
-Cookie-authenticated Sanctum sessions are also supported. A bearer token used with a Store operation must have the `store:access` ability and be bound to the same Store as `X-Store-ID`. Category and product reads require an active Store membership. Mutations additionally require the Store-team permission `manage products`.
+Cookie-authenticated Sanctum sessions are also supported. A bearer token used with a Store operation must have the `store:access` ability and be bound to the same Store as `X-Store-ID`. Category, Product Type, and Product reads require an active Store membership. Mutations additionally require the Store-team permission `manage products`.
 
 The JSON envelope is standard GraphQL:
 
@@ -49,7 +49,7 @@ sequenceDiagram
     Resolver->>Service: Authenticated User + typed arguments
     Service->>Service: Allow-list validation and authorization
     Service->>DB: One Store-scoped transaction
-    DB-->>Service: Category/Product + translations
+    DB-->>Service: Catalog entity + translations
     Service->>DB: Record translation request when targets exist
     DB-->>Client: Commit before response
     Service-->>Queue: Dispatch after commit
@@ -64,24 +64,113 @@ Resolvers are adapters. Business rules, Store ownership, permissions, translatio
 | --- | --- | --- |
 | `categories` | Filtered, sorted, paginated category list | Active Store membership |
 | `category` | One category by public ULID | Active Store membership |
+| `productTypes` | Filtered, sorted, paginated Product Type list | Active Store membership |
+| `productType` | One Product Type by public ULID | Active Store membership |
 | `products` | Filtered, sorted, paginated product list | Active Store membership |
 | `product` | One product by public ULID | Active Store membership |
 | `createCategory`, `updateCategory`, `deleteCategory` | Category lifecycle | `manage products` |
+| `createProductType`, `updateProductType`, `deleteProductType` | Product Type lifecycle | `manage products` |
 | `createProduct`, `updateProduct`, `deleteProduct` | Product lifecycle | `manage products` |
 
-Lists default to 20 records and permit at most 100. Category sorting is allow-listed to `SORT_ORDER`, `CREATED_AT`, or `UPDATED_AT`. Product sorting is allow-listed to `CREATED_AT`, `UPDATED_AT`, `STATUS`, or `PUBLISHED_AT`.
+Lists default to 20 records and permit at most 100. Category sorting is allow-listed to `SORT_ORDER`, `CREATED_AT`, or `UPDATED_AT`. Product Type sorting is allow-listed to `SORT_ORDER`, `CODE`, `CREATED_AT`, or `UPDATED_AT`. Product sorting is allow-listed to `CREATED_AT`, `UPDATED_AT`, `STATUS`, or `PUBLISHED_AT`.
 
-Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`. Product filters are `search`, `locale`, `status`, `fulfillmentType`, `brandId`, and `categoryId`. Search matches localized title or slug case-insensitively; `locale` restricts which translation is searched.
+Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`. Product Type filters are `search`, `locale`, `code`, `platformTaxonomyNodeId`, and `isActive`. Product filters are `search`, `locale`, `status`, `fulfillmentType`, `brandId`, and `categoryId`. Search matches the entity's localized title/name or slug case-insensitively; `locale` restricts which translation is searched.
 
-Product Type administration status: `product_types` and
-`product_type_translations` exist as Store-local persistence, but there is no
-`productTypes` query or Product Type mutation yet. Product create/update does
-accept `productTypeId`: it must be the public ULID of an existing Product Type
-in the selected Store. `platformTaxonomyNodeId` independently accepts a global
-Platform taxonomy-node public ULID. Both inputs are nullable, and neither API
-exposes an internal bigint identifier.
+## 4. Product Type lifecycle
 
-## 4. Category lifecycle
+A Product Type is a reusable, Store-local classification such as `running-shoe`
+or `ebook`. `code` is required, accepts ASCII letters, numbers, dots,
+underscores, and hyphens, and is indexed but not database-unique. `sortOrder`
+controls presentation order, while `isActive` controls availability. An
+optional `platformTaxonomyNodeId` maps the type to a global Platform taxonomy
+node; all API identifiers are public ULIDs.
+
+Create a Product Type:
+
+```graphql
+mutation CreateProductType($input: CreateProductTypeInput!) {
+  createProductType(input: $input) {
+    productType {
+      id
+      code
+      platformTaxonomyNodeId
+      isActive
+      sortOrder
+      productsCount
+      translations { locale name slug description lockIt }
+      translation(locale: "de") { name slug }
+    }
+    translationRequest { id status sourceLocale targetLocales }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "code": "running-shoe",
+    "platformTaxonomyNodeId": "01K_TAXONOMY_NODE",
+    "isActive": true,
+    "sortOrder": 10,
+    "translations": [
+      {
+        "locale": "en",
+        "name": "Running shoe",
+        "slug": "running-shoe",
+        "description": "Footwear designed for running.",
+        "lockIt": false
+      }
+    ]
+  }
+}
+```
+
+Create commits the Product Type and supplied translations together. If other
+active Store languages are eligible, `translationRequest` identifies the
+after-commit job; generated translations may not be visible in the original
+mutation payload, so poll the request and read the entity again.
+
+List and search Product Types:
+
+```graphql
+query ProductTypes($filter: ProductTypeFilterInput!) {
+  productTypes(
+    filter: $filter
+    page: 1
+    perPage: 25
+    sortBy: SORT_ORDER
+    sortDirection: ASC
+  ) {
+    data {
+      id
+      code
+      isActive
+      productsCount
+      translation(locale: "de") { name slug description }
+    }
+    paginatorInfo { count currentPage lastPage perPage total }
+  }
+}
+```
+
+```json
+{
+  "filter": {
+    "search": "Laufschuh",
+    "locale": "de",
+    "isActive": true,
+    "platformTaxonomyNodeId": "01K_TAXONOMY_NODE"
+  }
+}
+```
+
+Use `productType(id: ID!)` for detail reads. Update inputs are partial: omitted
+metadata remains unchanged, and each supplied translation is a complete value
+for that locale. Send `platformTaxonomyNodeId: null` to remove the global
+mapping. Deleting a Product Type cascades its translations and sets
+`products.product_type_id` to null; Products are not deleted.
+
+## 5. Category lifecycle
 
 A category is Store-owned navigation taxonomy. `parentId` creates a tree, `sortOrder` controls sibling ordering, and translated slugs are unique inside one Store and locale. A category cannot become its own parent or a child of one of its descendants.
 
@@ -150,7 +239,7 @@ not sent to the language-translation provider.
 
 Delete behavior is deliberate: child categories become roots, category translations are deleted, and product assignments to that category are removed. Products themselves are not deleted.
 
-## 5. Product lifecycle
+## 6. Product lifecycle
 
 A product can reference an existing Store-local Brand, zero or more categories, and at most one primary category. When `primaryCategoryId` is present it must also appear in `categoryIds`. Category order in `categoryIds` becomes assignment `sort_order`.
 
@@ -221,9 +310,9 @@ product cascades its translations and category/tag/collection/options/variant-
 owned relationships according to the Catalog schema; it does not delete shared
 categories, Brands, Product Types, or Platform taxonomy nodes.
 
-## 6. Reading localized data
+## 7. Reading localized data
 
-Every category and product returns:
+Every Category, Product Type, and Product returns:
 
 - `translations`: all saved manual or generated locale rows, ordered by locale.
 - `translation(locale: "...")`: one exact locale using hyphen/underscore and case-insensitive normalization.
@@ -257,9 +346,9 @@ query Products($filter: ProductFilterInput!) {
 
 Only Store languages that are both selected and active may be written. Locale tags normalize `en-US` and `en_US` for matching while the saved Store language spelling is retained.
 
-## 7. Manual and automatic translation
+## 8. Manual and automatic translation
 
-The first/default active Store language is the preferred source. If it is not yet saved, the first supplied translation becomes the source. Category automation translates title, description, SEO title/description, page title, and search keywords. Product automation translates title, description, and SEO title/description. Slugs are generated from translated titles and made unique per Store/locale. Category image/banner URLs and category template keys are manual metadata and are not sent for language translation.
+The first/default active Store language is the preferred source. If it is not yet saved, the first supplied translation becomes the source. Category automation translates title, description, SEO title/description, page title, and search keywords. Product Type automation translates name and description. Product automation translates title, description, and SEO title/description. Slugs are generated from translated titles or Product Type names and made unique per Store/locale. Category image/banner URLs and category template keys are manual metadata and are not sent for language translation.
 
 The write cycle is:
 
@@ -283,7 +372,7 @@ X-Store-ID: <store-public-ulid>
 
 Statuses are `pending`, `processing`, `completed`, `failed`, `superseded`, or `cancelled`. A failed provider call never rolls back valid source content. A changed source supersedes stale work; deleted content cancels it.
 
-## 8. Errors and client behavior
+## 9. Errors and client behavior
 
 GraphQL execution/validation failures normally return HTTP 200 with an `errors` array and may include partial `data`. HTTP middleware failures, such as missing authentication during Store resolution, may return 401/403 JSON before GraphQL execution.
 
@@ -295,9 +384,9 @@ Clients should:
 4. Treat missing/cross-Store ULIDs as not found rather than trying another internal ID.
 5. Retry only transport failures and explicitly retryable jobs; do not blindly replay mutations.
 
-Common failures include missing `X-Store-ID`, inactive membership, token/Store mismatch, missing `manage products`, inactive translation locale, duplicate localized slug, invalid category tree, and a primary category absent from `categoryIds`.
+Common failures include missing `X-Store-ID`, inactive membership, token/Store mismatch, missing `manage products`, inactive translation locale, duplicate localized slug, invalid Product Type code, unknown taxonomy-node ULID, invalid category tree, and a primary category absent from `categoryIds`.
 
-## 9. Adding another application or Catalog entity
+## 10. Adding another application or Catalog entity
 
 An external application should bootstrap in this order:
 
@@ -311,7 +400,7 @@ An external application should bootstrap in this order:
 
 When developers add another translatable entity, they must add the Store-scoped model/service, explicit GraphQL resolver and SDL, translation handler and registry tag, `lock_it` migration contract, PostgreSQL feature tests, this manual's behavioral explanation, the affected module/context guide, and a development-log entry.
 
-## 10. Keeping this manual current
+## 11. Keeping this manual current
 
 After application, dependency, route, GraphQL, migration, module, configuration, or workflow changes:
 

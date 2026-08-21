@@ -96,9 +96,9 @@ copies, and the Theme installer used by Store provisioning.
 Store-local brands, collections, categories, Product Types, products, options,
 variants, media/fulfillment metadata, license-key pools, and typed custom-field
 persistence. Brands expose Store-scoped CRUD services and REST routes.
-Categories and Products expose Store-scoped models, transactional services,
-GraphQL queries/mutations, and automatic-translation handlers; Product Type
-administration and the remaining Catalog areas are still persistence-only. Localized
+Categories, Product Types, and Products expose Store-scoped models,
+transactional services, GraphQL queries/mutations, and automatic-translation
+handlers; the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
@@ -320,10 +320,13 @@ Translations use their requested bigint `id` while unique
 `(product_type_id, locale)` and `(store_id, locale, slug)` constraints preserve
 one locale row and one Store-local URL segment. A composite parent/Store foreign
 key prevents cross-Store content, and the standard non-null `lock_it = false`
-protects future manual translations. Product Type administration remains
-persistence-only, but Product GraphQL accepts `productTypeId` and
-`platformTaxonomyNodeId` public ULIDs. The Product Type is resolved inside the
-selected Store; both relationships are stored as nullable bigint foreign keys.
+protects manual translations. Product Type GraphQL provides paginated,
+filterable list/detail reads plus explicit create/update/delete mutations.
+Writes validate Store locales, code format, sort/active metadata, and an
+optional global Platform-node ULID in one Store-scoped transaction. Product
+GraphQL accepts `productTypeId` and `platformTaxonomyNodeId` public ULIDs; the
+Product Type is resolved inside the selected Store and both relationships are
+stored as nullable bigint foreign keys.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
 legacy logo reference. The Brand model now owns single-file `image` and
@@ -369,7 +372,7 @@ HTTP transaction, database locks, or an application connection, and provider
 failure never rolls back merchant source content.
 
 `TranslationContentRegistry` resolves tagged `TranslationContentHandler`
-implementations. Brand, Category, Product, and Store policy are registered handlers. A handler
+implementations. Brand, Category, Product Type, Product, and Store policy are registered handlers. A handler
 selects the source and active/unlocked targets, supplies the field contract,
 and applies structured output. Snapshot hashes include source data and target
 revisions. Workers check the hash before and after the provider call, mark
@@ -410,13 +413,13 @@ three-letter currency code. Catalog registers REST CRUD under
 `/api/v1/store/brands`; shared application classes own request validation, the
 Store-scoped model/resource, and image integration. Catalog owns the Brand
 controller and `BrandManagementService`. Its module-owned GraphQL schema
-exposes paginated/filterable Category/Product queries and explicit mutations
-backed by `CategoryManagementService` and `ProductManagementService`. Reads
+exposes paginated/filterable Category/Product Type/Product queries and explicit
+mutations backed by `CategoryManagementService`,
+`ProductTypeManagementService`, and `ProductManagementService`. Reads
 require active Store membership; writes require `manage products`; Store-owned
 relationships accept same-Store ULIDs while Platform taxonomy nodes use global
-ULIDs. Product-type administration,
-options, variants, product file delivery, custom fields, and search indexing
-still lack APIs. See the
+ULIDs. Options, variants, product file delivery, custom fields, and search
+indexing still lack APIs. See the
 [API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.

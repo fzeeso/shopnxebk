@@ -9,15 +9,20 @@ This reference is the operation index for the [API manual](../api-manual.md). Ru
 | --- | --- | --- | --- | --- |
 | Mutation | `createCategory` | `createCategory(input: CreateCategoryInput!): CategoryPayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `createProduct` | `createProduct(input: CreateProductInput!): ProductPayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `createProductType` | `createProductType(input: CreateProductTypeInput!): ProductTypePayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteCategory` | `deleteCategory(id: ID!): DeletedCatalogEntity!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteProduct` | `deleteProduct(id: ID!): DeletedCatalogEntity!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteProductType` | `deleteProductType(id: ID!): DeletedCatalogEntity!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateCategory` | `updateCategory(id: ID!, input: UpdateCategoryInput!): CategoryPayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateProduct` | `updateProduct(id: ID!, input: UpdateProductInput!): ProductPayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateProductType` | `updateProductType(id: ID!, input: UpdateProductTypeInput!): ProductTypePayload!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `activeStore` | `activeStore: Store!` | Sanctum guard | `Modules/Stores/graphql/schema.graphql` |
 | Query | `apiVersion` | `apiVersion: String!` | Public | `graphql/schema.graphql` |
 | Query | `categories` | `categories(page: Int = 1, perPage: Int = 20, filter: CategoryFilterInput, sortBy: CategorySortField = SORT_ORDER, sortDirection: CatalogSortDirection = ASC): CategoryPage!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `category` | `category(id: ID!): CatalogCategory!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `product` | `product(id: ID!): CatalogProduct!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productType` | `productType(id: ID!): CatalogProductType!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productTypes` | `productTypes(page: Int = 1, perPage: Int = 20, filter: ProductTypeFilterInput, sortBy: ProductTypeSortField = SORT_ORDER, sortDirection: CatalogSortDirection = ASC): ProductTypePage!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `products` | `products(page: Int = 1, perPage: Int = 20, filter: ProductFilterInput, sortBy: ProductSortField = CREATED_AT, sortDirection: CatalogSortDirection = DESC): ProductPage!` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `viewer` | `viewer: User!` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
 | Query | `viewerStores` | `viewerStores: [Store!]!` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |

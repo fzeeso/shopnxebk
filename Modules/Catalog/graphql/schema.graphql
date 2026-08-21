@@ -1,6 +1,8 @@
 extend type Query {
     categories(page: Int = 1, perPage: Int = 20, filter: CategoryFilterInput, sortBy: CategorySortField = SORT_ORDER, sortDirection: CatalogSortDirection = ASC): CategoryPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListCategories")
     category(id: ID!): CatalogCategory! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\CategoryById")
+    productTypes(page: Int = 1, perPage: Int = 20, filter: ProductTypeFilterInput, sortBy: ProductTypeSortField = SORT_ORDER, sortDirection: CatalogSortDirection = ASC): ProductTypePage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListProductTypes")
+    productType(id: ID!): CatalogProductType! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductTypeById")
     products(page: Int = 1, perPage: Int = 20, filter: ProductFilterInput, sortBy: ProductSortField = CREATED_AT, sortDirection: CatalogSortDirection = DESC): ProductPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListProducts")
     product(id: ID!): CatalogProduct! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductById")
 }
@@ -9,6 +11,9 @@ extend type Mutation {
     createCategory(input: CreateCategoryInput!): CategoryPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateCategory")
     updateCategory(id: ID!, input: UpdateCategoryInput!): CategoryPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateCategory")
     deleteCategory(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteCategory")
+    createProductType(input: CreateProductTypeInput!): ProductTypePayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateProductType")
+    updateProductType(id: ID!, input: UpdateProductTypeInput!): ProductTypePayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateProductType")
+    deleteProductType(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteProductType")
     createProduct(input: CreateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateProduct")
     updateProduct(id: ID!, input: UpdateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateProduct")
     deleteProduct(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteProduct")
@@ -30,6 +35,13 @@ enum ProductSortField {
     UPDATED_AT @enum(value: "updatedAt")
     STATUS @enum(value: "status")
     PUBLISHED_AT @enum(value: "publishedAt")
+}
+
+enum ProductTypeSortField {
+    SORT_ORDER @enum(value: "sortOrder")
+    CODE @enum(value: "code")
+    CREATED_AT @enum(value: "createdAt")
+    UPDATED_AT @enum(value: "updatedAt")
 }
 
 type CatalogCategory {
@@ -58,6 +70,29 @@ type CategoryTranslation {
     pageTitle: String @rename(attribute: "page_title")
     searchKeywords: String @rename(attribute: "search_keywords")
     categoryTemplate: String @rename(attribute: "category_template")
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CatalogProductType {
+    id: ID! @rename(attribute: "public_id")
+    code: String!
+    platformTaxonomyNodeId: ID @method(name: "platformTaxonomyNodePublicId")
+    isActive: Boolean! @rename(attribute: "is_active")
+    sortOrder: Int! @rename(attribute: "sort_order")
+    productsCount: Int @rename(attribute: "products_count")
+    translations: [ProductTypeTranslation!]!
+    translation(locale: String!): ProductTypeTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\Types\\ProductTypeTranslationForLocale")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type ProductTypeTranslation {
+    locale: String!
+    name: String!
+    slug: String!
+    description: String
     lockIt: Boolean! @rename(attribute: "lock_it")
     createdAt: DateTime! @rename(attribute: "created_at")
     updatedAt: DateTime! @rename(attribute: "updated_at")
@@ -99,6 +134,11 @@ type CategoryPage {
     paginatorInfo: CatalogPaginatorInfo!
 }
 
+type ProductTypePage {
+    data: [CatalogProductType!]!
+    paginatorInfo: CatalogPaginatorInfo!
+}
+
 type ProductPage {
     data: [CatalogProduct!]!
     paginatorInfo: CatalogPaginatorInfo!
@@ -116,6 +156,11 @@ type CatalogPaginatorInfo {
 
 type CategoryPayload {
     category: CatalogCategory!
+    translationRequest: CatalogTranslationRequest
+}
+
+type ProductTypePayload {
+    productType: CatalogProductType!
     translationRequest: CatalogTranslationRequest
 }
 
@@ -149,6 +194,14 @@ input CategoryFilterInput {
     isActive: Boolean
 }
 
+input ProductTypeFilterInput {
+    search: String
+    locale: String
+    code: String
+    platformTaxonomyNodeId: ID
+    isActive: Boolean
+}
+
 input ProductFilterInput {
     search: String
     locale: String
@@ -173,6 +226,14 @@ input CategoryTranslationInput {
     lockIt: Boolean
 }
 
+input ProductTypeTranslationInput {
+    locale: String!
+    name: String!
+    slug: String!
+    description: String
+    lockIt: Boolean
+}
+
 input ProductTranslationInput {
     locale: String!
     title: String!
@@ -189,6 +250,22 @@ input CreateCategoryInput {
     isActive: Boolean
     sortOrder: Int
     translations: [CategoryTranslationInput!]!
+}
+
+input CreateProductTypeInput {
+    code: String!
+    platformTaxonomyNodeId: ID
+    isActive: Boolean
+    sortOrder: Int
+    translations: [ProductTypeTranslationInput!]!
+}
+
+input UpdateProductTypeInput {
+    code: String
+    platformTaxonomyNodeId: ID
+    isActive: Boolean
+    sortOrder: Int
+    translations: [ProductTypeTranslationInput!]
 }
 
 input UpdateCategoryInput {

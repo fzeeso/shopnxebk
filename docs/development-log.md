@@ -1,5 +1,28 @@
 # Development log
 
+## 2026-08-20 - Product Type GraphQL lifecycle
+
+- Changed: Added Store-scoped `productTypes`/`productType` queries and explicit
+  create/update/delete mutations with bounded pagination, allow-listed filters
+  and sorting, public ULIDs, Product counts, exact-locale reads, and optional
+  Platform taxonomy-node mapping. Restored the committed-but-missing Laravel
+  `bootstrap/app.php` so Artisan and HTTP execution can boot again.
+- Reason: Developers need a supported API for provisioning and maintaining the
+  Product Types already referenced by Product GraphQL instead of writing the
+  tables directly.
+- Data/configuration impact: No new migration or environment value is required.
+  Product Type names/descriptions now use the durable `product_type`
+  translation handler; localized slugs are generated collision-safely and
+  merchant-locked rows remain protected.
+- Compatibility or rollout notes: Reads require active Store membership;
+  mutations require `manage products`. Create requires `code` and at least one
+  active Store-locale translation. Delete cascades translations and sets
+  referencing Product `product_type_id` values to null.
+- Verification: Covered by a PostgreSQL-backed GraphQL lifecycle test for
+  translation generation, filtering, locale lookup, locking, authorization,
+  cross-Store isolation, update, deletion, and Product unlinking, plus schema,
+  documentation, formatting, and full-suite checks.
+
 ## 2026-08-20 - Product Types and Platform taxonomy classification
 
 - Changed: Added Store-local `product_types`/translations plus global

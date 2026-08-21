@@ -6,8 +6,8 @@ records. The source of truth is the thirteen migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
-The Brand slice includes Store-scoped models and REST CRUD services. Category
-and Product slices include Store-scoped models, transactional GraphQL
+The Brand slice includes Store-scoped models and REST CRUD services. Category,
+Product Type, and Product slices include Store-scoped models, transactional GraphQL
 queries/mutations, locale-aware manual translations, and durable automatic
 translation handlers. Options, variants, product files/fulfillment, custom
 fields, search projections, and administration screens remain persistence-only
@@ -535,9 +535,13 @@ Uniqueness is enforced exactly at `(product_type_id, locale)` and
 `(product_type_id, store_id)` foreign key rejects a translation attached to a
 product type from another Store. Parent or Store deletion cascades the row.
 
-Product Type administration remains persistence-only, but Product GraphQL
-create/update accepts an existing same-Store Product Type public ULID through
-`productTypeId`.
+Product Type GraphQL exposes Store-scoped list/detail/create/update/delete
+operations. Reads support bounded pagination, explicit filters/sorts, Product
+counts, all translations, and exact normalized-locale selection. Mutations
+require `manage products`, accept an optional global Platform-node ULID, and
+route name/description generation through the durable translation pipeline.
+Product create/update accepts an existing same-Store Product Type public ULID
+through `productTypeId`.
 
 ### `products`
 
@@ -1040,7 +1044,7 @@ must additionally enforce the remaining rules:
 - Platform taxonomy code/version/default lifecycle and node level/path consistency;
 - same-Store Product Type resolution plus global Platform-node resolution for Product writes;
 - normalized, collision-safe localized slugs;
-- product-type code normalization and administration workflows;
+- product-type code validation, Store-scoped CRUD, filtering, and sorting;
 - locale fallback to the Store default;
 - cycle prevention for category and collection parent trees;
 - collection-rule field/operator whitelists and typed operand validation;

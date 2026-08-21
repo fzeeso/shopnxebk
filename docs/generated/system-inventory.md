@@ -188,15 +188,20 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | --- | --- | --- | --- |
 | Mutation | `createCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `createProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `createProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `activeStore` | Sanctum guard | `Modules/Stores/graphql/schema.graphql` |
 | Query | `apiVersion` | Public | `graphql/schema.graphql` |
 | Query | `categories` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `category` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `product` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productTypes` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `products` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `viewer` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |
 | Query | `viewerStores` | Sanctum guard | `Modules/Authentication/graphql/schema.graphql` |

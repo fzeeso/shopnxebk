@@ -165,7 +165,7 @@ import, and AI writers must skip locked rows through
 flag on translation tables added later.
 
 Automatic translation is always asynchronous in Redis-backed environments.
-Brand, Category, Product, and Store-policy writes save the source and a Store-scoped
+Brand, Category, Product Type, Product, and Store-policy writes save the source and a Store-scoped
 `translation_requests` ledger row in one transaction. Only after commit may
 `TranslateContentJob` enter the dedicated `translations` queue. The external
 provider call runs without database locks or an open transaction; a short
@@ -195,8 +195,15 @@ Product, and translation relationships. `products.product_type_id` replaces
 the legacy free-text field; Product writes resolve Product Types by same-Store
 public ULID and may independently assign a global Platform node public ULID.
 
-Category and Product GraphQL
-queries require authenticated active Store membership; create/update/delete
+Product Type GraphQL exposes Store-scoped paginated list/detail reads and
+explicit create/update/delete mutations. It accepts public Platform taxonomy-
+node ULIDs, localized name/slug/description rows, manual translation locks,
+active/sort metadata, and a constrained stable code. Product Type names and
+descriptions participate in the same durable automatic translation workflow as
+Category and Product content.
+
+Category, Product Type, and Product GraphQL queries require authenticated
+active Store membership; create/update/delete
 mutations additionally require `manage products`. Explicit resolvers delegate
 to transactional Catalog services, accept only public ULIDs and allow-listed
 filters/sorts, enforce hierarchy/primary-category invariants, and expose all

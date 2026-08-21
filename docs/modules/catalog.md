@@ -2,10 +2,10 @@
 
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
 Store-local merchandising and product persistence foundation, Brand REST
-routes, Category/Product GraphQL schema, Catalog models,
+routes, Category/Product Type/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Options, variants, product files/fulfillment, custom fields, search
-projections, Product Type APIs, and admin screens remain follow-up work.
+projections, and admin screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
@@ -56,13 +56,13 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
-- Category and Product GraphQL reads require active Store membership. Their
+- Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,
   accept global Platform taxonomy-node ULIDs, validate Category cycles, and replace product
   category/primary assignments atomically. Lists use bounded pagination plus
   explicit filter and sort allow-lists.
-- Category and Product translation inputs accept only active Store locales.
+- Category, Product Type, and Product translation inputs accept only active Store locales.
   Manual `lock_it` values are preserved, source writes create durable
   translation requests, generated localized slugs remain Store/locale unique,
   and entity-specific handlers recheck stale snapshots and locked targets.
@@ -99,11 +99,11 @@ Product files still have no upload, scan, signing, or delivery workflow.
 
 - Catalog consumes Stores identity through internal bigint foreign keys and
   must use Stores middleware/context before future Store APIs access rows.
-- Product Type administration has no public operation yet. Product create and
-  update can nevertheless assign an existing Product Type using its public
-  ULID; PostgreSQL rejects cross-Store type assignments. Product writes may
-  independently assign a global Platform taxonomy-node ULID.
-- Catalog's Brand, Category, and Product services request automatic translation
+- Product Type list/detail queries support bounded pagination, explicit
+  filters/sorts, exact normalized-locale selection, Product counts, and public
+  ULIDs. Create/update/delete require `manage products`; deletion cascades its
+  translations and nulls Product references without deleting Products.
+- Catalog's Brand, Category, Product Type, and Product services request automatic translation
   through the shared `TranslationCoordinator`. Their handlers own only each
   entity's field, slug, locale, and locked-row behavior. They never perform an
   external AI call inside a Catalog write transaction.
