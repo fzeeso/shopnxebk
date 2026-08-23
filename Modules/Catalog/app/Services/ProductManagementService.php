@@ -23,6 +23,53 @@ final readonly class ProductManagementService
 {
     private const TRANSLATION_FIELDS = ['title', 'description', 'seo_title', 'seo_description'];
 
+    private const COMMERCE_ATTRIBUTE_MAP = [
+        'sku' => 'sku',
+        'downloadFile' => 'downloadfile',
+        'availability' => 'availability',
+        'price' => 'price',
+        'costPrice' => 'costprice',
+        'retailPrice' => 'retailprice',
+        'msrpPrice' => 'msrpprice',
+        'salePrice' => 'saleprice',
+        'calculatedPrice' => 'calculatedprice',
+        'sortOrder' => 'sortorder',
+        'isFeatured' => 'is_featured',
+        'currentInventory' => 'currentinv',
+        'lowInventory' => 'lowinv',
+        'warranty' => 'warranty',
+        'weight' => 'weight',
+        'width' => 'width',
+        'height' => 'height',
+        'productDepth' => 'proddepth',
+        'fixedShippingCost' => 'fixedshippingcost',
+        'freeShipping' => 'freeshipping',
+        'ratingTotal' => 'ratingtotal',
+        'numRatings' => 'numratings',
+        'numSold' => 'numsold',
+        'numViews' => 'numviews',
+        'allowPurchases' => 'allowpurchases',
+        'hidePrice' => 'hideprice',
+        'loginForPrice' => 'is_login_for_price',
+        'globalSearch' => 'is_global_search',
+        'condition' => 'condition',
+        'showCondition' => 'showcondition',
+        'preOrder' => 'pre_order',
+        'releaseDate' => 'releasedate',
+        'releaseDateRemove' => 'releasedateremove',
+        'minQuantity' => 'minqty',
+        'maxQuantity' => 'maxqty',
+        'taxClassId' => 'tax_class_id',
+        'showRelatedProduct' => 'show_related_product',
+        'productPoints' => 'prodpoints',
+        'reviewsOn' => 'reviews_on',
+        'upc' => 'upc',
+        'hsCode' => 'hs_code',
+        'gtin' => 'gtin',
+        'mpn' => 'mpn',
+        'bpn' => 'bpn',
+    ];
+
     public function __construct(
         private StoreContext $context,
         private CatalogAccessService $access,
@@ -39,11 +86,14 @@ final readonly class ProductManagementService
             'perPage' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'filter.search' => ['sometimes', 'nullable', 'string', 'max:200'],
             'filter.locale' => ['sometimes', 'nullable', 'string', 'max:35'],
+            'filter.sku' => ['sometimes', 'nullable', 'string', 'max:250'],
             'filter.status' => ['sometimes', 'nullable', 'in:draft,active,archived'],
             'filter.fulfillmentType' => ['sometimes', 'nullable', 'in:physical,digital,software,service'],
+            'filter.condition' => ['sometimes', 'nullable', 'in:New,Used,Refurbished'],
+            'filter.isFeatured' => ['sometimes', 'boolean'],
             'filter.brandId' => ['sometimes', 'nullable', 'ulid'],
             'filter.categoryId' => ['sometimes', 'nullable', 'ulid'],
-            'sortBy' => ['sometimes', 'in:createdAt,updatedAt,status,publishedAt'],
+            'sortBy' => ['sometimes', 'in:createdAt,updatedAt,status,publishedAt,price,sortOrder'],
             'sortDirection' => ['sometimes', 'in:ASC,DESC,asc,desc'],
         ])->validate();
         $filter = $data['filter'] ?? [];
@@ -61,17 +111,29 @@ final readonly class ProductManagementService
 
         if (($filter['search'] ?? null) !== null && trim((string) $filter['search']) !== '') {
             $search = trim((string) $filter['search']);
-            $query->whereHas('translations', function ($query) use ($filter, $search): void {
-                $query->where(function ($query) use ($search): void {
-                    $query->where('title', 'ILIKE', "%{$search}%")
-                        ->orWhere('slug', 'ILIKE', "%{$search}%");
-                });
-                if (($filter['locale'] ?? null) !== null) {
-                    $query->whereRaw('LOWER(locale) = ?', [$this->localeKey((string) $filter['locale'])]);
-                }
+            $query->where(function ($query) use ($filter, $search): void {
+                $query->where('sku', 'ILIKE', "%{$search}%")
+                    ->orWhere('upc', 'ILIKE', "%{$search}%")
+                    ->orWhere('gtin', 'ILIKE', "%{$search}%")
+                    ->orWhere('mpn', 'ILIKE', "%{$search}%")
+                    ->orWhereHas('translations', function ($query) use ($filter, $search): void {
+                        $query->where(function ($query) use ($search): void {
+                            $query->where('title', 'ILIKE', "%{$search}%")
+                                ->orWhere('slug', 'ILIKE', "%{$search}%");
+                        });
+                        if (($filter['locale'] ?? null) !== null) {
+                            $query->whereRaw('LOWER(locale) = ?', [$this->localeKey((string) $filter['locale'])]);
+                        }
+                    });
             });
         }
-        foreach (['status' => 'status', 'fulfillmentType' => 'fulfillment_type'] as $input => $column) {
+        foreach ([
+            'sku' => 'sku',
+            'status' => 'status',
+            'fulfillmentType' => 'fulfillment_type',
+            'condition' => 'condition',
+            'isFeatured' => 'is_featured',
+        ] as $input => $column) {
             if (($filter[$input] ?? null) !== null) {
                 $query->where($column, $filter[$input]);
             }
@@ -88,6 +150,8 @@ final readonly class ProductManagementService
             'updatedAt' => 'updated_at',
             'status' => 'status',
             'publishedAt' => 'published_at',
+            'price' => 'price',
+            'sortOrder' => 'sortorder',
             default => 'created_at',
         };
         $query->orderBy($sortColumn, strtolower((string) ($data['sortDirection'] ?? 'DESC')))
@@ -136,6 +200,7 @@ final readonly class ProductManagementService
                 'status' => $status,
                 'has_variants' => false,
                 'published_at' => $status === 'active' ? now() : null,
+                ...$this->commerceAttributes($data),
             ]);
             $this->syncCategories(
                 $product,
@@ -194,6 +259,7 @@ final readonly class ProductManagementService
                     $attributes[$column] = $data[$input];
                 }
             }
+            $attributes = [...$attributes, ...$this->commerceAttributes($data)];
             if (array_key_exists('brandId', $data)) {
                 $attributes['brand_id'] = $data['brandId'] === null
                     ? null
@@ -370,6 +436,50 @@ final readonly class ProductManagementService
             'fulfillmentType' => ['sometimes', 'in:physical,digital,software,service'],
             'trackInventory' => ['sometimes', 'boolean'],
             'status' => ['sometimes', 'in:draft,active,archived'],
+            'sku' => ['sometimes', 'string', 'max:250'],
+            'downloadFile' => ['sometimes', 'string', 'max:250'],
+            'availability' => ['sometimes', 'string', 'max:250'],
+            'price' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'costPrice' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'retailPrice' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'msrpPrice' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'salePrice' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'calculatedPrice' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'sortOrder' => ['sometimes', 'integer'],
+            'isFeatured' => ['sometimes', 'integer', 'between:0,1'],
+            'currentInventory' => ['sometimes', 'integer'],
+            'lowInventory' => ['sometimes', 'integer'],
+            'warranty' => ['sometimes', 'nullable', 'string'],
+            'weight' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'width' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'height' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'productDepth' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'fixedShippingCost' => ['sometimes', 'numeric', 'decimal:0,4', 'min:0', 'max:9999999999999999.9999'],
+            'freeShipping' => ['sometimes', 'integer', 'between:0,1'],
+            'ratingTotal' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'numRatings' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'numSold' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'numViews' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'allowPurchases' => ['sometimes', 'integer', 'between:0,1'],
+            'hidePrice' => ['sometimes', 'integer', 'between:0,1'],
+            'loginForPrice' => ['sometimes', 'integer', 'between:0,1'],
+            'globalSearch' => ['sometimes', 'integer', 'between:0,1'],
+            'condition' => ['sometimes', 'in:New,Used,Refurbished'],
+            'showCondition' => ['sometimes', 'integer', 'between:0,1'],
+            'preOrder' => ['sometimes', 'integer', 'between:0,1'],
+            'releaseDate' => ['sometimes', 'nullable', 'date'],
+            'releaseDateRemove' => ['sometimes', 'integer', 'between:0,1'],
+            'minQuantity' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'maxQuantity' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'taxClassId' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'showRelatedProduct' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'productPoints' => ['sometimes', 'integer', 'min:0', 'max:2147483647'],
+            'reviewsOn' => ['sometimes', 'integer', 'between:0,1'],
+            'upc' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'hsCode' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'gtin' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'mpn' => ['sometimes', 'nullable', 'string', 'max:32'],
+            'bpn' => ['sometimes', 'nullable', 'string', 'max:32'],
             'categoryIds' => ['sometimes', 'array', 'max:100'],
             'categoryIds.*' => ['required', 'ulid', 'distinct'],
             'primaryCategoryId' => ['sometimes', 'nullable', 'ulid'],
@@ -401,5 +511,18 @@ final readonly class ProductManagementService
     private function localeKey(string $locale): string
     {
         return strtolower(str_replace('-', '_', trim($locale)));
+    }
+
+    /** @param array<string, mixed> $data @return array<string, mixed> */
+    private function commerceAttributes(array $data): array
+    {
+        $attributes = [];
+        foreach (self::COMMERCE_ATTRIBUTE_MAP as $input => $column) {
+            if (array_key_exists($input, $data)) {
+                $attributes[$column] = $data[$input];
+            }
+        }
+
+        return $attributes;
     }
 }

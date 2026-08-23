@@ -1,13 +1,50 @@
 # Development log
 
+## 2026-08-23 - Nested Product image REST APIs
+
+- Changed: Added paginated list, create, detail, partial update, and delete
+  endpoints for Product image metadata nested beneath Store Products. Added
+  Store-scoped image/translation/variant models and public-ULID resources.
+- Reason: Product editors need a supported API for gallery locators,
+  dimensions, ordering, optional variant association, and localized alt text.
+- Data/configuration impact: No migration, dependency, or environment value is
+  added; the API uses the existing `product_images` and
+  `product_image_translations` tables.
+- Compatibility or rollout notes: Reads require active Store membership;
+  writes require `manage products`. Image and variant lookup is constrained to
+  the nested Product and Store. The API manages metadata only and does not
+  upload or delete underlying media objects. Alt text is not automatically
+  translated.
+- Verification: PostgreSQL feature coverage exercises nested CRUD,
+  pagination, Store isolation, permissions, locator validation, lock
+  preservation, and rejection of a variant owned by another Product.
+
+## 2026-08-23 - Fulfillment management and Product REST APIs
+
+- Changed: Expanded the Platform fulfillment catalog to list/detail/create/
+  update, added an active-only Store fulfillment list, and added Store-scoped
+  Product REST list/create/detail/update/delete endpoints. Product REST exposes
+  all current commerce fields and reuses Product translation/category logic.
+- Reason: Platform settings and Store product editors need supported REST
+  contracts instead of direct database access or GraphQL-only Product access.
+- Data/configuration impact: No migration or environment value is added.
+  Fulfillment codes are immutable; translations are upserted by locale.
+- Compatibility or rollout notes: Platform fulfillment reads require Platform
+  scope, writes require `manage platform settings`, Product reads require active
+  Store membership, and Product writes require `manage products`. Product REST
+  uses snake_case; Product GraphQL remains compatible and unchanged.
+- Verification: PostgreSQL feature coverage exercises fulfillment permission/
+  create/show/update and Store discovery plus Product REST commerce-field CRUD,
+  filtering, Store isolation, and permission enforcement.
+
 ## 2026-08-23 - Product commerce persistence fields
 
 - Changed: Added 44 requested Product columns covering SKU/download and
   availability metadata, decimal price/cost values, sort/featured state,
   inventory, warranty, dimensions/shipping, ratings/activity, purchase and
   price visibility, search, condition/preorder/release scheduling, quantity
-  bounds, tax classification, related-product display, product points, review
-  enablement, and external trade identifiers.
+  bounds, tax classification, related-product display count, product points,
+  review enablement, and external trade identifiers.
 - Reason: Product records need a product-level compatibility surface for the
   supplied commerce data before higher-level workflows expose it.
 - Data/configuration impact: Migrations `2026_08_23_000200`,

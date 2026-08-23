@@ -622,7 +622,7 @@ columns plus:
 | `releasedateremove` | `smallint` | Default `0` | Remove-on-release flag |
 | `minqty`, `maxqty` | `integer` | Default `0` | Per-purchase quantity bounds |
 | `tax_class_id` | `integer` | Default `0` | Legacy tax-class identifier |
-| `show_related_product` | `integer` | Default `0` | Related-product display flag |
+| `show_related_product` | `integer` | Default `0` | Related-product display count; `0` disables the block |
 | `prodpoints` | `integer` | Default `0` | Product-level points value |
 | `reviews_on` | `integer` | Default `0` | Product-review enablement flag |
 | `upc`, `hs_code`, `gtin`, `mpn`, `bpn` | `varchar(32)` | Nullable; default empty string | External product and trade identifiers |
@@ -632,8 +632,9 @@ Indexes cover `(store_id, status)`, `(store_id, fulfillment_type)`,
 `(store_id, product_type_id)`. A composite Product Type foreign key rejects a
 cross-Store assignment. The database does not automatically synchronize
 `status` with `published_at`, `has_variants` with child-row count, or
-`track_inventory` with variant quantities. The newly added commerce attributes
-are persistence-only and are not yet part of Product GraphQL inputs or output.
+`track_inventory` with variant quantities. The commerce attributes are exposed
+through Store-scoped Product REST CRUD but are not part of Product GraphQL
+inputs or output.
 MySQL `tinyint` declarations are stored as PostgreSQL `smallint`; the schema
 builder retains unsigned intent for quantity/tax fields, but PostgreSQL does
 not provide an unsigned integer type.
@@ -803,6 +804,13 @@ The circular variant/image link is intentional: an image may target a variant,
 and a variant may nominate one of the product's images as preferred. Composite
 keys keep both directions inside the same product and Store.
 
+Store REST exposes this metadata at
+`/api/v1/store/products/{product}/images`. Reads require active membership;
+creates, partial updates, and deletes require `manage products`. The nested
+lookup requires the Product, image, and optional variant to share one Store and
+Product. The API accepts root-relative or HTTP(S) locators and does not upload,
+transform, sign, or remove the referenced media object.
+
 ### `product_image_translations`
 
 | Column | Type | Null/default | Meaning |
@@ -811,9 +819,13 @@ keys keep both directions inside the same product and Store.
 | `image_id` | `bigint` | Required | Parent image |
 | `locale` | `varchar(35)` | Required | Translation locale |
 | `alt_text` | `varchar(255)` | Nullable | Localized accessibility/SEO text |
+| `lock_it` | `boolean` | Default `false` | Preserve merchant control for a future automated translation writer |
 | `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
 
 Primary key: `(image_id, locale)`.
+REST upserts supplied active Store locales, preserves an existing lock when
+`lock_it` is omitted, and does not currently enqueue automatic alt-text
+translation.
 
 ## 11. Digital assets
 

@@ -202,8 +202,14 @@ The Product row also carries default-backed commerce snapshots for identifiers,
 prices, stock thresholds, dimensions/shipping, ratings/activity, purchase and
 price visibility, search and related-product display, condition/preorder/release
 scheduling, review enablement, quantity bounds, product points, and legacy tax
-classification. Those attributes are database-only for now and are not
-accepted or returned by Product GraphQL.
+classification. Store Product REST CRUD validates and returns those attributes;
+Product GraphQL remains unchanged.
+
+Nested Product image REST CRUD exposes Store-scoped gallery locator metadata,
+pixel dimensions, position, optional same-product variant association, and
+localized alt text. Image reads require active membership and writes require
+`manage products`; Catalog does not yet own image upload or delivery for this
+resource.
 
 Product Type GraphQL exposes Store-scoped paginated list/detail reads and
 explicit create/update/delete mutations. It accepts public Platform taxonomy-
@@ -217,10 +223,10 @@ The global `fulfillment_types` reference catalog contains the stable codes
 `local_delivery`, and `digital`, ordered 1 through 6 and enabled by default.
 `fulfillment_type_translations` contains one localized name and description per
 Language-catalog locale; its locale foreign key keeps rows aligned when a
-Language locale is updated or removed. Platform-scoped Site Admin users may
-read the full catalog through REST, while creation and editing remain
-backend-owned. These records do not replace or constrain the legacy Product
-fulfillment enum in this release.
+Language locale is updated or removed. Platform accounts may read the catalog,
+Platform users with `manage platform settings` may create/update types and
+translations, and Store members may read active entries. These records do not
+replace or constrain the legacy Product fulfillment enum.
 
 Category, Product Type, and Product GraphQL queries require authenticated
 active Store membership; create/update/delete

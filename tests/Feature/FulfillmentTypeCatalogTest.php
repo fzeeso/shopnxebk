@@ -7,9 +7,11 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Modules\Authentication\Models\User;
+use Modules\Authentication\Services\ScopedRoleAssignmentService;
 use Modules\Catalog\Actions\EnsureFulfillmentTypeCatalog;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Modules\Settings\Models\Language;
+use Modules\Stores\Contracts\StoreProvisioner;
 use Tests\TestCase;
 
 final class FulfillmentTypeCatalogTest extends TestCase
@@ -77,5 +79,78 @@ final class FulfillmentTypeCatalogTest extends TestCase
             ->assertJsonPath('data.0.sort_order', 1)
             ->assertJsonPath('data.5.code', 'digital')
             ->assertJsonCount(Language::query()->count(), 'data.0.translations');
+    }
+
+    public function test_platform_admin_can_create_show_and_update_a_fulfillment_type(): void
+    {
+        app(EnsureLanguageCatalog::class)->ensure();
+        $viewer = User::factory()->platform()->create();
+        $admin = User::factory()->platform()->create();
+        app(ScopedRoleAssignmentService::class)->assignPlatformRole($admin, 'Super Admin');
+
+        $this->actingAs($viewer, 'web')
+            ->postJson('/api/v1/platform/settings/fulfillment-types', [
+                'code' => 'contract_fulfillment',
+                'translations' => [[
+                    'locale' => 'en',
+                    'name' => 'Contract fulfillment',
+                ]],
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($admin, 'web')
+            ->postJson('/api/v1/platform/settings/fulfillment-types', [
+                'code' => 'contract_fulfillment',
+                'sort_order' => 20,
+                'translations' => [[
+                    'locale' => 'en',
+                    'name' => 'Contract fulfillment',
+                    'description' => 'Fulfilled by a contracted partner.',
+                ]],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.code', 'contract_fulfillment')
+            ->assertJsonPath('data.translations.0.name', 'Contract fulfillment');
+
+        $this->actingAs($admin, 'web')
+            ->getJson('/api/v1/platform/settings/fulfillment-types/contract_fulfillment')
+            ->assertOk()
+            ->assertJsonPath('data.sort_order', 20);
+
+        $this->actingAs($admin, 'web')
+            ->patchJson('/api/v1/platform/settings/fulfillment-types/contract_fulfillment', [
+                'is_active' => false,
+                'sort_order' => 30,
+                'translations' => [[
+                    'locale' => 'en',
+                    'name' => 'Partner fulfillment',
+                ]],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false)
+            ->assertJsonPath('data.sort_order', 30)
+            ->assertJsonPath('data.translations.0.name', 'Partner fulfillment');
+    }
+
+    public function test_store_member_can_list_only_active_fulfillment_types(): void
+    {
+        app(EnsureLanguageCatalog::class)->ensure();
+        app(EnsureFulfillmentTypeCatalog::class)->ensure();
+        $owner = User::factory()->create();
+        config(['stores.platform_domain' => 'stores.example.test']);
+        $store = app(StoreProvisioner::class)->provision(
+            $owner,
+            'Fulfillment Store',
+            'fulfillment-store',
+            ['theme_template_key' => 'default'],
+        );
+
+        $this->actingAs($owner, 'web')
+            ->getJson('/api/v1/store/fulfillment-types', [
+                'X-Store-ID' => (string) $store->public_id,
+            ])
+            ->assertOk()
+            ->assertJsonCount(6, 'data')
+            ->assertJsonPath('data.0.code', 'merchant');
     }
 }

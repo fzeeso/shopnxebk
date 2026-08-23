@@ -242,3 +242,34 @@ query signature and does not accept a client-selected storage path. Use
 `multipart/form-data` when sending `image` or `banner`; JSON is accepted for
 metadata-only requests. The complete request/response schemas are published in
 [OpenAPI](openapi.yaml).
+
+Fulfillment Type REST contracts:
+
+| Method | URL | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/platform/settings/fulfillment-types` | List the global catalog or create a type; writes require `manage platform settings`. |
+| `GET/PATCH` | `/api/v1/platform/settings/fulfillment-types/{code}` | Read or update one type by immutable stable code; writes require `manage platform settings`. |
+| `GET` | `/api/v1/store/fulfillment-types` | List active types for an authenticated member of the selected Store. |
+
+Product REST contracts:
+
+| Method | URL | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/products` | Page/filter Products or create one with translations and commerce metadata. |
+| `GET/PATCH/DELETE` | `/api/v1/store/products/{product}` | Read, partially update, or delete a Product by public ULID. |
+| `GET/POST` | `/api/v1/store/products/{product}/images` | Page Product image metadata or add a gallery image locator. |
+| `GET/PATCH/DELETE` | `/api/v1/store/products/{product}/images/{image}` | Read, partially update, or delete nested image metadata by public ULID. |
+
+Product reads require active Store membership; writes require `manage
+products`. Create requires at least one active Store-locale translation. REST
+uses snake_case and exposes the Product's pricing, stock, shipping, identifier,
+condition/release, merchandising, points, and review fields. Category and
+classification IDs are public ULIDs. The Product service preserves the same
+Store isolation, primary-category invariant, publication lifecycle, manual
+translation locks, and after-commit translation behavior as GraphQL.
+
+Product image reads use the same membership boundary and image writes use the
+same `manage products` permission. The image contract accepts root-relative or
+HTTP(S) locators, dimensions, gallery position, an optional same-product
+variant public ULID, and active-Store-locale alt text with a manual lock. It is
+a metadata API, not a binary upload or storage-deletion API.

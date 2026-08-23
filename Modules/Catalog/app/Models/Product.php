@@ -25,6 +25,50 @@ use Modules\Stores\Models\Store;
     'status',
     'has_variants',
     'published_at',
+    'sku',
+    'downloadfile',
+    'availability',
+    'price',
+    'costprice',
+    'retailprice',
+    'msrpprice',
+    'saleprice',
+    'calculatedprice',
+    'sortorder',
+    'is_featured',
+    'currentinv',
+    'lowinv',
+    'warranty',
+    'weight',
+    'width',
+    'height',
+    'proddepth',
+    'fixedshippingcost',
+    'freeshipping',
+    'ratingtotal',
+    'numratings',
+    'numsold',
+    'numviews',
+    'allowpurchases',
+    'hideprice',
+    'is_login_for_price',
+    'is_global_search',
+    'condition',
+    'showcondition',
+    'pre_order',
+    'releasedate',
+    'releasedateremove',
+    'minqty',
+    'maxqty',
+    'tax_class_id',
+    'show_related_product',
+    'prodpoints',
+    'reviews_on',
+    'upc',
+    'hs_code',
+    'gtin',
+    'mpn',
+    'bpn',
 ])]
 final class Product extends Model
 {
@@ -61,6 +105,11 @@ final class Product extends Model
             ->withPivot(['store_id', 'sort_order', 'is_primary'])
             ->withTimestamps()
             ->orderByPivot('sort_order');
+    }
+
+    public function images(): HasMany
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('position')->orderBy('id');
     }
 
     public function statusValue(): string
@@ -103,6 +152,40 @@ final class Product extends Model
             'track_inventory' => 'boolean',
             'has_variants' => 'boolean',
             'published_at' => 'immutable_datetime',
+            'price' => 'decimal:4',
+            'costprice' => 'decimal:4',
+            'retailprice' => 'decimal:4',
+            'msrpprice' => 'decimal:4',
+            'saleprice' => 'decimal:4',
+            'calculatedprice' => 'decimal:4',
+            'sortorder' => 'integer',
+            'is_featured' => 'integer',
+            'currentinv' => 'integer',
+            'lowinv' => 'integer',
+            'weight' => 'decimal:4',
+            'width' => 'decimal:4',
+            'height' => 'decimal:4',
+            'proddepth' => 'decimal:4',
+            'fixedshippingcost' => 'decimal:4',
+            'freeshipping' => 'integer',
+            'ratingtotal' => 'integer',
+            'numratings' => 'integer',
+            'numsold' => 'integer',
+            'numviews' => 'integer',
+            'allowpurchases' => 'integer',
+            'hideprice' => 'integer',
+            'is_login_for_price' => 'integer',
+            'is_global_search' => 'integer',
+            'showcondition' => 'integer',
+            'pre_order' => 'integer',
+            'releasedate' => 'immutable_datetime',
+            'releasedateremove' => 'integer',
+            'minqty' => 'integer',
+            'maxqty' => 'integer',
+            'tax_class_id' => 'integer',
+            'show_related_product' => 'integer',
+            'prodpoints' => 'integer',
+            'reviews_on' => 'integer',
         ];
     }
 }

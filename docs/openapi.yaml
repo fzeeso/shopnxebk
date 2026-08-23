@@ -13,13 +13,15 @@ tags:
   - name: Store Users
     description: Member and role management inside one selected Store.
   - name: Platform Settings
-    description: Global SaaS language and currency configuration for the /admin/settings component.
+    description: Global SaaS language, currency, and fulfillment configuration for the /admin/settings component.
   - name: Themes
     description: Platform marketplace/releases/licenses and Store-installed Theme copies.
   - name: Store Policies
     description: Platform policy-type catalog, Store-local translations/version history, and published storefront reads.
   - name: Catalog Brands
     description: Store-scoped Brand identity, localized content, official website, and origin management.
+  - name: Catalog Products
+    description: Store-scoped Product lifecycle, localization, classification, pricing, inventory, and commerce metadata.
   - name: Translations
     description: Tenant-isolated status for durable after-commit automatic translation work.
 paths:
@@ -1094,6 +1096,70 @@ paths:
               schema: {$ref: '#/components/schemas/FulfillmentTypesResponse'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Platform Settings]
+      security: [{sanctum: []}]
+      summary: Create a global Fulfillment Type
+      description: Requires manage platform settings. The stable code is immutable after creation.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateFulfillmentTypeRequest'}}
+      responses:
+        '201':
+          description: Fulfillment Type created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/FulfillmentTypeResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/platform/settings/fulfillment-types/{fulfillmentType}:
+    parameters:
+      - {name: fulfillmentType, in: path, required: true, schema: {type: string, pattern: '^[a-z][a-z0-9_]*$'}, description: Stable Fulfillment Type code.}
+    get:
+      tags: [Platform Settings]
+      security: [{sanctum: []}]
+      summary: Read a global Fulfillment Type by code
+      responses:
+        '200':
+          description: Fulfillment Type with translations
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/FulfillmentTypeResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Fulfillment Type not found}
+    patch:
+      tags: [Platform Settings]
+      security: [{sanctum: []}]
+      summary: Update a global Fulfillment Type
+      description: Requires manage platform settings. Supplied translations are upserted by locale; omitted translations remain unchanged.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateFulfillmentTypeRequest'}}
+      responses:
+        '200':
+          description: Fulfillment Type updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/FulfillmentTypeResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Fulfillment Type not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/fulfillment-types:
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: List active Fulfillment Types for a Store editor
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      responses:
+        '200':
+          description: Active global Fulfillment Types ordered by sort_order
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/FulfillmentTypesResponse'}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
   /api/v1/stores:
     post:
       security: [{sanctum: []}]
@@ -1604,6 +1670,178 @@ paths:
         '200': {description: Store Theme published}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products:
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Page Products for the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+        - {name: sku, in: query, schema: {type: string, maxLength: 250}}
+        - {name: status, in: query, schema: {type: string, enum: [draft, active, archived]}}
+        - {name: fulfillment_type, in: query, schema: {type: string, enum: [physical, digital, software, service]}}
+        - {name: condition, in: query, schema: {type: string, enum: [New, Used, Refurbished]}}
+        - {name: is_featured, in: query, schema: {type: boolean}}
+        - {name: brand_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: category_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: sort_by, in: query, schema: {type: string, enum: [created_at, updated_at, status, published_at, price, sort_order], default: created_at}}
+        - {name: sort_direction, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
+      responses:
+        '200':
+          description: Paginated Store Products with commerce fields and translations
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductPageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Create a Product
+      description: Requires manage products and at least one active Store-locale translation. Translation work is recorded transactionally and dispatched after commit.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductRequest'}}
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read a Product from the selected Store
+      responses:
+        '200':
+          description: Product with commerce fields, classifications, categories, and translations
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Update a Product
+      description: Requires manage products. Omitted fields remain unchanged; supplied category IDs replace assignments atomically.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductRequest'}}
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete a Product
+      description: Requires manage products. Product-owned translations and relationships cascade; shared Catalog entities remain.
+      responses:
+        '204': {description: Product deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+  /api/v1/store/products/{product}/images:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Page image metadata for a Product
+      description: Returns image metadata ordered by position and identity. Requires active membership in the selected Store.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Paginated Product image metadata
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductImagePageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Add image metadata to a Product
+      description: Requires manage products. This writes a root-relative or HTTP(S) locator and metadata; it does not upload a binary object.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductImageRequest'}}
+      responses:
+        '201':
+          description: Product image metadata created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductImageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or supplied variant not found in the nested Store/Product boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/images/{image}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: image, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read nested Product image metadata
+      responses:
+        '200':
+          description: Product image metadata
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductImageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or image not found in the selected Store and nested Product boundary}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Partially update nested Product image metadata
+      description: Requires manage products. Omitted fields remain unchanged; variant_id null removes the variant association.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductImageRequest'}}
+      responses:
+        '200':
+          description: Product image metadata updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductImageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, image, or supplied variant not found in the nested Store/Product boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete nested Product image metadata
+      description: Requires manage products. This does not delete any media object referenced by url.
+      responses:
+        '204': {description: Product image metadata deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or image not found in the selected Store and nested Product boundary}
   /api/v1/store/brands:
     get:
       tags: [Catalog Brands]
@@ -1745,7 +1983,7 @@ components:
       properties:
         id: {$ref: '#/components/schemas/PublicUlid'}
         status_url: {type: string, description: Relative tenant-scoped polling URL; send the same authentication and X-Store-ID header.}
-        content_type: {type: string, enum: [brand, store_policy]}
+        content_type: {type: string, enum: [brand, category, product_type, product, store_policy]}
         source_locale: {type: string, maxLength: 35}
         target_locales: {type: array, items: {type: string, maxLength: 35}}
         status: {type: string, enum: [pending, processing, completed, failed, superseded, cancelled]}
@@ -1756,6 +1994,207 @@ components:
         completed_at: {type: [string, 'null'], format: date-time}
         created_at: {type: [string, 'null'], format: date-time}
         updated_at: {type: [string, 'null'], format: date-time}
+    ProductCommerceFields:
+      type: object
+      properties:
+        sku: {type: string, maxLength: 250, default: ''}
+        downloadfile: {type: string, maxLength: 250, default: ''}
+        availability: {type: string, maxLength: 250, default: ''}
+        price: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        costprice: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        retailprice: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        msrpprice: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        saleprice: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        calculatedprice: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        sortorder: {type: integer, default: 0}
+        is_featured: {type: integer, enum: [0, 1], default: 0}
+        currentinv: {type: integer, default: 0}
+        lowinv: {type: integer, default: 0}
+        warranty: {type: [string, 'null']}
+        weight: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        width: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        height: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        proddepth: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        fixedshippingcost: {type: [number, string], minimum: 0, multipleOf: 0.0001, default: 0}
+        freeshipping: {type: integer, enum: [0, 1], default: 0}
+        ratingtotal: {type: integer, minimum: 0, default: 0}
+        numratings: {type: integer, minimum: 0, default: 0}
+        numsold: {type: integer, minimum: 0, default: 0}
+        numviews: {type: integer, minimum: 0, default: 0}
+        allowpurchases: {type: integer, enum: [0, 1], default: 1}
+        hideprice: {type: integer, enum: [0, 1], default: 0}
+        is_login_for_price: {type: integer, enum: [0, 1], default: 0}
+        is_global_search: {type: integer, enum: [0, 1], default: 0}
+        condition: {type: string, enum: [New, Used, Refurbished], default: New}
+        showcondition: {type: integer, enum: [0, 1], default: 0}
+        pre_order: {type: integer, enum: [0, 1], default: 0}
+        releasedate: {type: [string, 'null'], format: date-time}
+        releasedateremove: {type: integer, enum: [0, 1], default: 0}
+        minqty: {type: integer, minimum: 0, default: 0}
+        maxqty: {type: integer, minimum: 0, default: 0}
+        tax_class_id: {type: integer, minimum: 0, default: 0}
+        show_related_product: {type: integer, minimum: 0, default: 0, description: Number of related Products to display; zero disables the block.}
+        prodpoints: {type: integer, minimum: 0, default: 0}
+        reviews_on: {type: integer, enum: [0, 1], default: 0}
+        upc: {type: [string, 'null'], maxLength: 32, default: ''}
+        hs_code: {type: [string, 'null'], maxLength: 32, default: ''}
+        gtin: {type: [string, 'null'], maxLength: 32, default: ''}
+        mpn: {type: [string, 'null'], maxLength: 32, default: ''}
+        bpn: {type: [string, 'null'], maxLength: 32, default: ''}
+    ProductTranslationWrite:
+      type: object
+      required: [locale, title, slug]
+      properties:
+        locale: {type: string, maxLength: 35}
+        title: {type: string, maxLength: 255}
+        slug: {type: string, maxLength: 255}
+        description: {type: [string, 'null']}
+        seo_title: {type: [string, 'null'], maxLength: 255}
+        seo_description: {type: [string, 'null']}
+        lock_it: {type: boolean, default: false}
+    ProductWriteRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductCommerceFields'}
+        - type: object
+          properties:
+            brand_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            platform_taxonomy_node_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            vendor: {type: [string, 'null'], maxLength: 255}
+            product_type_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            fulfillment_type: {type: string, enum: [physical, digital, software, service], default: physical}
+            track_inventory: {type: boolean, default: true}
+            status: {type: string, enum: [draft, active, archived], default: draft}
+            category_ids: {type: array, maxItems: 100, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
+            primary_category_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            translations:
+              type: array
+              minItems: 1
+              items: {$ref: '#/components/schemas/ProductTranslationWrite'}
+    CreateProductRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductWriteRequest'}
+        - type: object
+          required: [translations]
+    UpdateProductRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductWriteRequest'}
+        - type: object
+          minProperties: 1
+    ProductTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductTranslationWrite'}
+        - type: object
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductCategoryReference:
+      type: object
+      required: [id, sort_order, is_primary]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        sort_order: {type: integer, minimum: 0}
+        is_primary: {type: boolean}
+    Product:
+      allOf:
+        - {$ref: '#/components/schemas/ProductCommerceFields'}
+        - type: object
+          required: [id, fulfillment_type, track_inventory, status, has_variants, categories, translations]
+          properties:
+            id: {$ref: '#/components/schemas/PublicUlid'}
+            brand_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            platform_taxonomy_node_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            vendor: {type: [string, 'null']}
+            product_type_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            fulfillment_type: {type: string, enum: [physical, digital, software, service]}
+            track_inventory: {type: boolean}
+            status: {type: string, enum: [draft, active, archived]}
+            has_variants: {type: boolean, readOnly: true}
+            published_at: {type: [string, 'null'], format: date-time}
+            primary_category_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+            categories_count: {type: integer, minimum: 0}
+            categories: {type: array, items: {$ref: '#/components/schemas/ProductCategoryReference'}}
+            translations: {type: array, items: {$ref: '#/components/schemas/ProductTranslation'}}
+            translation_request:
+              oneOf:
+                - {$ref: '#/components/schemas/TranslationRequest'}
+                - {type: 'null'}
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Product'}
+    ProductPageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/Product'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
+    ProductImageTranslationWrite:
+      type: object
+      required: [locale]
+      properties:
+        locale: {type: string, maxLength: 35}
+        alt_text: {type: [string, 'null'], maxLength: 255}
+        lock_it: {type: boolean, default: false}
+    ProductImageWriteRequest:
+      type: object
+      properties:
+        variant_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        url: {type: string, maxLength: 500, pattern: '^(?:/|https?://)', description: Root-relative or HTTP(S) image locator.}
+        width: {type: [integer, 'null'], minimum: 1, maximum: 4294967295}
+        height: {type: [integer, 'null'], minimum: 1, maximum: 4294967295}
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductImageTranslationWrite'}
+    CreateProductImageRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductImageWriteRequest'}
+        - type: object
+          required: [url]
+    UpdateProductImageRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductImageWriteRequest'}
+        - type: object
+          minProperties: 1
+    ProductImageTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductImageTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductImage:
+      type: object
+      required: [id, product_id, url, position, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        variant_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        url: {type: string, maxLength: 500}
+        width: {type: [integer, 'null'], minimum: 1}
+        height: {type: [integer, 'null'], minimum: 1}
+        position: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/ProductImageTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductImageResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductImage'}
+    ProductImagePageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductImage'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
     BrandTranslationWrite:
       type: object
       required: [locale, name, slug]
@@ -2840,6 +3279,39 @@ components:
         data:
           type: array
           items: {$ref: '#/components/schemas/FulfillmentType'}
+    FulfillmentTypeResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/FulfillmentType'}
+    FulfillmentTypeTranslationWrite:
+      type: object
+      required: [locale, name]
+      properties:
+        locale: {type: string, maxLength: 10, description: Must exist in the Language catalog.}
+        name: {type: string, maxLength: 255}
+        description: {type: [string, 'null']}
+    CreateFulfillmentTypeRequest:
+      type: object
+      required: [code, translations]
+      properties:
+        code: {type: string, maxLength: 100, pattern: '^[a-z][a-z0-9_]*$'}
+        is_active: {type: boolean, default: true}
+        sort_order: {type: integer, minimum: 0, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/FulfillmentTypeTranslationWrite'}
+    UpdateFulfillmentTypeRequest:
+      type: object
+      minProperties: 1
+      properties:
+        is_active: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/FulfillmentTypeTranslationWrite'}
     CreateLanguageRequest:
       type: object
       required: [name, native_name, locale, direction]

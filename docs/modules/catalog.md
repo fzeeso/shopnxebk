@@ -2,7 +2,7 @@
 
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
 Store-local merchandising and product persistence foundation, the global
-localized fulfillment catalog, Brand and Fulfillment Type REST routes,
+localized fulfillment catalog, Brand/Fulfillment Type/Product REST routes,
 Category/Product Type/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Options, variants, product files/fulfillment, custom fields, search
@@ -65,12 +65,17 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Products retain product-level commerce snapshots for SKU and external trade
   identifiers, downloadable-file/availability metadata, six decimal price
   values, inventory thresholds, warranty, shipping dimensions/cost, rating and
-  activity counters, purchase/price/search/related-product switches,
-  condition/preorder/release controls, review enablement, quantity bounds,
-  product points, and a legacy tax-class identifier. Defaults make the
+  activity counters, purchase/price/search switches, a related-product display
+  count, condition/preorder/release controls, review enablement, quantity
+  bounds, product points, and a legacy tax-class identifier. Defaults make the
   migration safe for existing rows; `releasedate` and `warranty` are nullable.
-  These columns remain persistence-only until the Product API owns a
-  validation and authorization contract for them.
+  Store-scoped Product REST CRUD now validates and serializes these columns;
+  Product GraphQL remains unchanged.
+- Product image metadata has nested Store REST CRUD under each Product. It
+  exposes public image/variant ULIDs, locator, pixel dimensions, gallery
+  position, and active-Store-locale alt text. Reads require membership and
+  writes require `manage products`; the API does not own binary upload or
+  storage deletion.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,
@@ -100,8 +105,11 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 
 The global fulfillment catalog exposes `merchant`, `dropship`,
 `third_party_logistics`, `store_pickup`, `local_delivery`, and `digital` to
-authenticated Site Admin users through
-`GET /api/v1/platform/settings/fulfillment-types`.
+authenticated Platform users through
+`/api/v1/platform/settings/fulfillment-types`. Listing/detail are available to
+all Platform accounts; create/update require `manage platform settings`.
+Store members can list active types through
+`GET /api/v1/store/fulfillment-types`.
 The catalog is seeded for every Language row and is not yet a foreign key from
 Products. The existing Product fulfillment field still accepts `physical`,
 `digital`, `software`, and `service`. Digital assets may apply to a product or

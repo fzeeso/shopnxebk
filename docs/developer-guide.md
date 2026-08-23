@@ -122,10 +122,10 @@ component contracts under [Admin component guides](components.md).
 - Languages and Currencies are sections of the one Platform Settings shell.
 - Platform components never enter Store context; future Store Settings remains
   a separate Store-admin component.
-- Site Admin reads the global fulfillment catalog through
-  `GET /api/v1/platform/settings/fulfillment-types`. The route requires an
-  authenticated Platform-scoped account, never enters Store context, and
-  returns shared read-only master rows.
+- Platform accounts read the global fulfillment catalog through
+  `/api/v1/platform/settings/fulfillment-types`; users with `manage platform
+  settings` may create/update entries and translations. Store members read
+  active entries through `/api/v1/store/fulfillment-types` with Store context.
 
 When adding a global setting, extend `Modules/Settings`, add a Settings API
 section, and update the
@@ -335,10 +335,21 @@ stored as nullable bigint foreign keys. Product persistence additionally holds
 product-level SKU/trade identifiers, downloadable-file and availability
 metadata, four-decimal price/cost snapshots, inventory thresholds, warranty,
 dimensions/shipping cost, ratings/activity counters,
-purchase/visibility/search/related-product switches, condition/preorder/release
-settings, review enablement, quantity bounds, product points, and a legacy
-tax-class identifier. These default-backed columns are not yet exposed by the
-Product GraphQL contract.
+purchase/visibility/search switches, a related-product display count,
+condition/preorder/release settings, review enablement, quantity bounds,
+product points, and a legacy
+tax-class identifier. Store Product REST CRUD validates and returns these
+columns; the Product GraphQL contract remains unchanged.
+
+Product image metadata is available through nested routes in
+`routes/product-api.php`: `/api/v1/store/products/{product}/images`. The
+controller maps snake_case requests into `ProductImageManagementService`,
+which resolves the Product, image, and optional variant inside the selected
+Store and Product before writing. `ProductImageResource` returns only public
+ULIDs. Localized alt text is upserted for active Store languages and preserves
+an omitted `lock_it`; it does not currently request automatic translation.
+The `url` field is a validated root-relative or HTTP(S) locator, not an upload
+or object-storage lifecycle operation.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
 legacy logo reference. The Brand model now owns single-file `image` and

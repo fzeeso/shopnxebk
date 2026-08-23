@@ -73,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
         $this->loadRoutesFrom(base_path('routes/brand-api.php'));
         $this->loadRoutesFrom(base_path('routes/fulfillment-type-api.php'));
+        $this->loadRoutesFrom(base_path('routes/product-api.php'));
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {

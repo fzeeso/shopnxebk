@@ -30,6 +30,15 @@ The JSON envelope is standard GraphQL:
 
 All public entity IDs are ULIDs. Never send or persist ShopNXE's internal bigint primary keys in another application.
 
+Store Product REST requests use the same authentication and Store envelope:
+
+```http
+GET /api/v1/store/products?status=active&per_page=25
+Authorization: Bearer <store-bound-token>
+X-Store-ID: <store-public-ulid>
+Accept: application/json
+```
+
 ## 2. Request cycle
 
 ```mermaid
@@ -78,10 +87,17 @@ Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`.
 
 ### 3.1 Fulfillment Type REST catalog
 
-`GET /api/v1/platform/settings/fulfillment-types` returns the global, read-only
-fulfillment catalog for Site Admin settings. The request requires an
-authenticated Platform-scoped account; no Store context or write permission is
-required because this endpoint does not change the master catalog.
+`GET /api/v1/platform/settings/fulfillment-types` returns the complete global
+fulfillment catalog for Platform settings. Any authenticated Platform account
+may list or read a type by stable code. `POST` creates a type and `PATCH
+/api/v1/platform/settings/fulfillment-types/{code}` updates active/sort metadata
+or upserts supplied translations; both writes require `manage platform
+settings`. Stable codes are immutable after creation. Deactivation is the
+supported lifecycle operation, so no delete endpoint is exposed.
+
+`GET /api/v1/store/fulfillment-types` returns only active types to an
+authenticated member of the Store selected by `X-Store-ID`. It is read-only
+and intended for Store-admin selectors.
 
 The response is sorted by `sort_order`, then internal `id`. Each item contains
 `id`, `code`, `is_active`, `sort_order`, audit timestamps, and every seeded
@@ -93,8 +109,8 @@ sort orders 1 through 6. `DatabaseSeeder` creates one non-empty localized row
 for each fulfillment type and every row in `languages`.
 
 This catalog is separate from the existing `products.fulfillment_type`
-physical/digital/software/service field. No Product foreign key or input
-contract changes in this release.
+physical/digital/software/service field. The former describes the operational
+fulfillment method; the Product field describes the product delivery mode.
 
 ## 4. Product Type lifecycle
 
@@ -329,6 +345,67 @@ relationship. A Product Type from another Store is rejected. Deleting a
 product cascades its translations and category/tag/collection/options/variant-
 owned relationships according to the Catalog schema; it does not delete shared
 categories, Brands, Product Types, or Platform taxonomy nodes.
+
+### 6.1 Product REST lifecycle
+
+The same Product service is available through Store-scoped REST:
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/products` | Active Store membership |
+| `POST` | `/api/v1/store/products` | `manage products` |
+| `GET` | `/api/v1/store/products/{product}` | Active Store membership |
+| `PATCH` | `/api/v1/store/products/{product}` | `manage products` |
+| `DELETE` | `/api/v1/store/products/{product}` | `manage products` |
+
+The collection accepts `page`, `per_page`, `search`, `locale`, `sku`,
+`status`, `fulfillment_type`, `condition`, `is_featured`, `brand_id`, and
+`category_id`. Sort fields are `created_at`, `updated_at`, `status`,
+`published_at`, `price`, and `sort_order`; `sort_direction` is `asc` or `desc`.
+General search matches SKU, UPC, GTIN, MPN, and localized title/slug.
+
+REST write bodies use snake_case. Creation requires at least one complete
+active Store-locale translation. Updates are partial, but each supplied
+translation must include `locale`, `title`, and `slug`. Category assignment,
+same-Store Brand/Product Type resolution, global taxonomy-node resolution,
+publication timestamps, translation locks, and after-commit translation work
+behave exactly like GraphQL.
+
+The REST resource exposes the Product's commerce fields, including SKU and
+external identifiers, prices, inventory thresholds, warranty, dimensions and
+shipping cost, ratings/activity counters, purchase/visibility/search switches,
+condition/preorder/release settings, quantities, tax class, related-product
+count, points, and review enablement. Four-decimal values serialize as strings
+to avoid floating-point loss. Flag columns serialize as `0` or `1` because the
+database contract requested integer flags. Product and relationship IDs remain
+public ULIDs.
+
+### 6.2 Product image REST lifecycle
+
+Product gallery metadata is exposed as a nested Store-scoped resource:
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/products/{product}/images` | Active Store membership |
+| `POST` | `/api/v1/store/products/{product}/images` | `manage products` |
+| `GET` | `/api/v1/store/products/{product}/images/{image}` | Active Store membership |
+| `PATCH` | `/api/v1/store/products/{product}/images/{image}` | `manage products` |
+| `DELETE` | `/api/v1/store/products/{product}/images/{image}` | `manage products` |
+
+The collection accepts the standard bounded `page` and `per_page` query
+parameters and orders images by `position`, then creation identity. Create and
+update bodies accept a root-relative or HTTP(S) `url`, nullable positive pixel
+`width`/`height`, unsigned `position`, an optional same-product `variant_id`
+public ULID, and optional Store-language `translations` containing `locale`,
+nullable `alt_text`, and `lock_it`. Omitted update fields remain unchanged;
+submitting `variant_id: null` removes the variant association. An image or
+variant outside the selected Product and Store returns `404`.
+
+These endpoints manage image metadata and locators only. They do not upload,
+scan, transform, sign, or delete an underlying media object, and image alt text
+does not currently trigger automatic translation. Translation rows are
+upserted by locale, must use active Store languages, and preserve an existing
+`lock_it` value when the field is omitted.
 
 ## 7. Reading localized data
 
