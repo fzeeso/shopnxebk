@@ -39,6 +39,22 @@ X-Store-ID: <store-public-ulid>
 Accept: application/json
 ```
 
+### 1.1 Catalog API exposure matrix
+
+| Resource | REST exposure | GraphQL exposure |
+| --- | --- | --- |
+| Brands | Full Store CRUD plus signed Brand media delivery under `/api/v1/store/brands` | Not exposed |
+| Categories | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
+| Product Types | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
+| Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
+| Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
+| Fulfillment Types | Platform management plus active Store discovery through REST | Not exposed |
+
+There are currently no `/api/v1/store/categories` or
+`/api/v1/store/product-types` routes. REST clients that need those resources
+must use the Catalog GraphQL operations or wait for a separately versioned REST
+contract; database persistence alone does not imply REST exposure.
+
 ## 2. Request cycle
 
 ```mermaid

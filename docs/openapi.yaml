@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, and Plans & Pricing endpoints. GraphQL is documented by the Lighthouse schema.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, Product Image, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
 servers:
   - url: http://localhost:8000
 tags:

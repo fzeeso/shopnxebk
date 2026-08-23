@@ -6,14 +6,16 @@ Catalog consumes Store identity and future resolved Store context.
 
 ## Contract
 
-Every Catalog entity, translation, and relationship belongs to one internal
-`stores.id`. Addressable resources will accept and return the Store public ULID
-at process boundaries, while persistence keeps bigint keys. Composite foreign
+Every Store-owned Catalog entity, translation, and relationship belongs to one
+internal `stores.id`. Addressable resources accept and return public ULIDs at
+process boundaries, while persistence keeps bigint keys. Composite foreign
 keys include `store_id` so direct SQL cannot connect Catalog records from
 different Stores.
 
-Future Catalog APIs must run after Stores middleware resolves `X-Store-ID`,
-confirms active membership/token binding, and establishes the permission team.
-Catalog must then scope every query to that internal Store ID. Catalog never
-updates Store profiles, lifecycle, settings, domains, language selections,
-memberships, roles, or permissions.
+Store Catalog REST and GraphQL APIs run after Stores middleware resolves
+`X-Store-ID`, confirms active membership/token binding, and establishes the
+permission team. Catalog then scopes every query to that internal Store ID.
+Brands use REST, Categories and Product Types use GraphQL only, Products use
+both, and Product Images use nested REST. Catalog never updates Store profiles,
+lifecycle, settings, domains, language selections, memberships, roles, or
+permissions.

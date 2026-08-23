@@ -1,8 +1,8 @@
 # shopnxebk
 
-ShopNXE is an API-only Laravel 13 modular monolith for a multi-store SaaS commerce platform. It contains no customer or administration frontend. Authentication, Store context, Catalog persistence, Brand REST, and Category/Product Type/Product GraphQL are implemented; other commerce workflows remain intentionally incremental.
+ShopNXE is an API-only Laravel 13 modular monolith for a multi-store SaaS commerce platform. It contains no customer or administration frontend. Authentication, Store context, and Catalog persistence are implemented. The Catalog API split is Brand REST, Category/Product Type GraphQL, Product REST plus GraphQL, nested Product Image REST, and Fulfillment Type REST; other commerce workflows remain intentionally incremental.
 
-Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. The [API manual](docs/api-manual.md) is the client/developer handoff for authentication, Store context, Catalog GraphQL, translations, examples, and future implementation rules. Generated system and GraphQL references stay synchronized through the documentation commands and CI.
+Start with the [developer guide](docs/developer-guide.md) for the installed stack, boot sequence, information flows, execution commands, and safe change workflow. The [API manual](docs/api-manual.md) is the client/developer handoff for authentication, Store context, the Catalog REST/GraphQL exposure matrix, translations, examples, and future implementation rules. Generated system and GraphQL references stay synchronized through the documentation commands and CI.
 
 ## Prerequisites
 

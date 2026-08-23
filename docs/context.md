@@ -153,6 +153,14 @@ Plan administration is Platform-only and requires `manage plans`. `Super Admin` 
 
 ## Catalog persistence contract
 
+Catalog's public API surface is deliberately mixed: Brands use Store REST;
+Categories and Product Types use GraphQL only; Products use both Store REST and
+GraphQL; Product Images use nested Store REST metadata endpoints; and
+Fulfillment Types use Platform/Store REST. There are no Store REST routes for
+Categories or Product Types. A Catalog table or model is not public API
+exposure unless an explicit route or GraphQL field is registered and
+documented.
+
 Catalog owns global Platform taxonomies/nodes alongside Store-local brands,
 collections, categories, tags, product types, products, options, variants,
 the global localized fulfillment-type catalog, media/fulfillment metadata,

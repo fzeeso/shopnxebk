@@ -6,14 +6,18 @@ records. The source of truth is the eighteen migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
-The Brand slice includes Store-scoped models and REST CRUD services. Category,
-Product Type, and Product slices include Store-scoped models, transactional GraphQL
-queries/mutations, locale-aware manual translations, and durable automatic
+The Brand slice includes Store-scoped models and REST CRUD services. Category
+and Product Type lifecycle APIs are GraphQL-only. Products have both
+transactional GraphQL lifecycle operations and Store REST CRUD; Product Images
+have nested REST metadata CRUD only. Fulfillment Types use REST for Platform
+management and active Store discovery. Category, Product Type, and Product
+translations retain locale-aware manual editing and durable automatic
 translation handlers. Options, variants, product files/fulfillment, custom
 fields, search projections, and administration screens remain persistence-only
 or follow-up work. Product writes can assign both a global taxonomy-node ULID
-and a Store-local Product Type ULID. See the [API manual](api-manual.md) for the executable
-request cycle and examples.
+and a Store-local Product Type ULID. No `/api/v1/store/categories` or
+`/api/v1/store/product-types` route exists. See the [API manual](api-manual.md)
+for the executable request cycle and examples.
 
 ## 1. Migration order
 

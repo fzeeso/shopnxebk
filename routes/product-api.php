@@ -16,9 +16,13 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.me
             ->name('products.images.store');
         Route::get('products/{product}/images/{image}', [ProductImageController::class, 'show'])
             ->name('products.images.show');
-        Route::match(['put', 'patch'], 'products/{product}/images/{image}', [ProductImageController::class, 'update'])
+        Route::patch('products/{product}/images/{image}', [ProductImageController::class, 'update'])
             ->name('products.images.update');
         Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy'])
             ->name('products.images.destroy');
-        Route::apiResource('products', ProductController::class);
+        Route::get('products', [ProductController::class, 'index'])->name('products.index');
+        Route::post('products', [ProductController::class, 'store'])->name('products.store');
+        Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');
+        Route::patch('products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::delete('products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
     });

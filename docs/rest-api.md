@@ -209,6 +209,13 @@ write. Provider failures do not roll back source content. The write response's
 nullable `translation_request` can be polled at the generic status URL. See
 [Store policies](store-policies.md).
 
+Catalog API exposure is intentionally mixed. Brands, Products, nested Product
+Images, and Fulfillment Types have REST contracts. Categories and Product Types
+do not: their supported list/detail/create/update/delete contracts are GraphQL
+operations at `POST /graphql`. No `/api/v1/store/categories` or
+`/api/v1/store/product-types` route is registered. Products remain available
+through both REST and GraphQL.
+
 Store Brand REST contracts:
 
 Base API URL: `/api/v1/store/brands`

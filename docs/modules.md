@@ -9,7 +9,7 @@ Implemented modules:
 | Stores | Store profiles/settings, memberships/context, Store language selections, and isolation |
 | Themes | Marketplace publishers/categories/listings, immutable releases/review, Store licenses, and installed/customized Store copies |
 | Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
-| Catalog | Store-local brands, collections, taxonomy, products, variants, fulfillment metadata, and custom fields |
+| Catalog | Store-local brands, collections, taxonomy, products, variants, fulfillment metadata, custom fields, and explicitly split REST/GraphQL contracts |
 
 The following modules are planned but are not created:
 

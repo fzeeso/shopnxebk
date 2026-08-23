@@ -109,8 +109,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | `api.v1.platform.settings.currencies.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/settings/fulfillment-types` | `api.v1.platform.settings.fulfillment-types.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/fulfillment-types` | `api.v1.platform.settings.fulfillment-types.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
-| `GET\|HEAD` | `/api/v1/platform/settings/fulfillment-types/{fulfillment_type}` | `api.v1.platform.settings.fulfillment-types.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
-| `PUT\|PATCH` | `/api/v1/platform/settings/fulfillment-types/{fulfillment_type}` | `api.v1.platform.settings.fulfillment-types.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/settings/fulfillment-types/{fulfillmentType}` | `api.v1.platform.settings.fulfillment-types.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `PATCH` | `/api/v1/platform/settings/fulfillment-types/{fulfillmentType}` | `api.v1.platform.settings.fulfillment-types.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/settings/languages/{language}` | `api.v1.platform.settings.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -171,7 +171,12 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/store/products` | `api.v1.store.products.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/products/{product}` | `api.v1.store.products.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/products/{product}` | `api.v1.store.products.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
-| `PUT\|PATCH` | `/api/v1/store/products/{product}` | `api.v1.store.products.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/products/{product}` | `api.v1.store.products.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/images` | `api.v1.store.products.images.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/products/{product}/images` | `api.v1.store.products.images.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |

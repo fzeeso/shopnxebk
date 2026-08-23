@@ -84,14 +84,27 @@ final class ProductImageRestApiTest extends TestCase
                 'position' => 0,
                 'translations' => [[
                     'locale' => 'en',
-                    'alt_text' => null,
+                    'alt_text' => 'Updated Trail Runner front view',
                 ]],
             ], $headers)
             ->assertOk()
             ->assertJsonPath('data.url', 'https://cdn.example.test/trail-runner-front.webp')
             ->assertJsonPath('data.position', 0)
-            ->assertJsonPath('data.translations.0.alt_text', null)
+            ->assertJsonPath('data.translations.0.alt_text', 'Updated Trail Runner front view')
             ->assertJsonPath('data.translations.0.lock_it', true);
+
+        $this->actingAs($owner, 'web')
+            ->patchJson("/api/v1/store/products/{$productId}/images/{$imageId}", [
+                'translations' => [[
+                    'locale' => 'EN',
+                    'lock_it' => false,
+                ]],
+            ], $headers)
+            ->assertOk()
+            ->assertJsonCount(1, 'data.translations')
+            ->assertJsonPath('data.translations.0.locale', 'en')
+            ->assertJsonPath('data.translations.0.alt_text', 'Updated Trail Runner front view')
+            ->assertJsonPath('data.translations.0.lock_it', false);
 
         $otherProductId = $this->createProduct($owner, $headers, 'variant-owner', 'Variant Owner');
         $otherProduct = Product::query()->where('public_id', $otherProductId)->firstOrFail();

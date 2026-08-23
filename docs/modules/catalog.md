@@ -11,6 +11,20 @@ projections, and admin screens remain follow-up work.
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
 and query patterns are in the [Catalog schema reference](../catalog.md).
 
+## API exposure
+
+| Resource | Supported API surface |
+| --- | --- |
+| Brand | Store REST CRUD and signed media delivery; no GraphQL fields |
+| Category | GraphQL list/detail/create/update/delete only; no Store REST route |
+| Product Type | GraphQL list/detail/create/update/delete only; no Store REST route |
+| Product | Store REST and GraphQL lifecycle APIs |
+| Product Image | Nested Store REST metadata CRUD only |
+| Fulfillment Type | Platform/Store REST only |
+
+Models and tables not listed here remain persistence contracts until an
+explicit route or GraphQL field is implemented and documented.
+
 ## Owned persistence
 
 | Area | Tables |

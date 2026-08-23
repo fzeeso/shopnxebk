@@ -1,10 +1,31 @@
 # Development log
 
+## 2026-08-23 - Catalog API exposure documentation alignment
+
+- Changed: Added a consistent Catalog exposure matrix across the API manual,
+  REST, GraphQL, architecture, context, schema, developer, module, and OpenAPI
+  documentation.
+- Reason: Brand REST, Category/Product Type GraphQL, dual Product APIs, nested
+  Product Image REST, and Fulfillment Type REST were documented in separate
+  places and could be mistaken for equivalent REST coverage.
+- Data/configuration impact: Documentation only; no route, schema, migration,
+  dependency, or environment value changed.
+- Compatibility or rollout notes: Brands remain REST-only; Categories and
+  Product Types remain GraphQL-only; Products remain REST and GraphQL; Product
+  Images and Fulfillment Types remain REST-only. No Category or Product Type
+  Store REST endpoint was added.
+- Verification: Registered route inspection, Catalog GraphQL schema inspection,
+  OpenAPI consistency coverage, generated-documentation checks, and the full
+  PostgreSQL test suite confirm the documented boundary.
+
 ## 2026-08-23 - Nested Product image REST APIs
 
 - Changed: Added paginated list, create, detail, partial update, and delete
   endpoints for Product image metadata nested beneath Store Products. Added
   Store-scoped image/translation/variant models and public-ULID resources.
+  Catalog REST routes now expose only their documented verbs, and automated
+  route/OpenAPI and collection-query consistency guards cover Product,
+  Product-image, and Fulfillment Type APIs.
 - Reason: Product editors need a supported API for gallery locators,
   dimensions, ordering, optional variant association, and localized alt text.
 - Data/configuration impact: No migration, dependency, or environment value is
@@ -17,7 +38,10 @@
   translated.
 - Verification: PostgreSQL feature coverage exercises nested CRUD,
   pagination, Store isolation, permissions, locator validation, lock
-  preservation, and rejection of a variant owned by another Product.
+  preservation, and rejection of a variant owned by another Product. A focused
+  consistency test compares all 15 Catalog REST operations with OpenAPI, while
+  a query-budget test confirms Product and image collection query counts do not
+  grow between one and eleven returned rows.
 
 ## 2026-08-23 - Fulfillment management and Product REST APIs
 

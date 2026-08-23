@@ -186,7 +186,7 @@ final readonly class ProductImageManagementService
         $activeLocaleKeys = array_fill_keys($activeLocales, true);
         $existing = DB::table('product_image_translations')
             ->where('image_id', $image->getKey())
-            ->get(['locale', 'lock_it'])
+            ->get(['locale', 'alt_text', 'lock_it'])
             ->keyBy(fn (object $row): string => $this->localeKey((string) $row->locale));
         $seen = [];
         $rows = [];
@@ -209,8 +209,10 @@ final readonly class ProductImageManagementService
             $rows[] = [
                 'store_id' => $store->getKey(),
                 'image_id' => $image->getKey(),
-                'locale' => $locale,
-                'alt_text' => $translation['altText'] ?? null,
+                'locale' => (string) ($existing->get($localeKey)?->locale ?? $locale),
+                'alt_text' => Arr::has($translation, 'altText')
+                    ? $translation['altText']
+                    : $existing->get($localeKey)?->alt_text,
                 'lock_it' => Arr::has($translation, 'lockIt')
                     ? (bool) $translation['lockIt']
                     : (bool) ($existing->get($localeKey)?->lock_it ?? false),

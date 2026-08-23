@@ -306,6 +306,14 @@ Any Platform-scoped user may read `GET /api/v1/platform/settings/currencies`. Cr
 
 ### Catalog persistence foundation
 
+The Catalog API surface is intentionally split by resource. Brand lifecycle
+and signed media are REST-only. Category and Product Type lifecycle operations
+are GraphQL-only and have no `/api/v1/store/categories` or
+`/api/v1/store/product-types` routes. Product lifecycle is available through
+both GraphQL and Store REST. Product Image metadata is nested REST-only, and
+Fulfillment Types use Platform/Store REST. Treat models and migrations as
+persistence contracts, not evidence that an HTTP API exists.
+
 Catalog owns 38 normalized tables spanning global Platform taxonomies, brands,
 manual/rule/AI collections, strict Store category trees, tags, Product Types,
 products, translated content, product assignments, options/values, variants,
@@ -350,6 +358,13 @@ ULIDs. Localized alt text is upserted for active Store languages and preserves
 an omitted `lock_it`; it does not currently request automatic translation.
 The `url` field is a validated root-relative or HTTP(S) locator, not an upload
 or object-storage lifecycle operation.
+
+`CatalogRestApiConsistencyTest` keeps the implemented Product, Product image,
+and Fulfillment Type method/path pairs identical to `docs/openapi.yaml`.
+`CatalogRestApiQueryPerformanceTest` compares collection query counts with one
+and eleven rows and applies fixed query budgets, preventing per-result query
+growth from entering these editor APIs. Run both focused tests after changing
+Catalog REST routes, resources, or eager-loading behavior.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
 legacy logo reference. The Brand model now owns single-file `image` and
@@ -432,17 +447,17 @@ PostgreSQL makes localized slugs unique per Store and locale, permits one
 primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
-three-letter currency code. Catalog registers REST CRUD under
-`/api/v1/store/brands`; shared application classes own request validation, the
-Store-scoped model/resource, and image integration. Catalog owns the Brand
-controller and `BrandManagementService`. Its module-owned GraphQL schema
-exposes paginated/filterable Category/Product Type/Product queries and explicit
-mutations backed by `CategoryManagementService`,
-`ProductTypeManagementService`, and `ProductManagementService`. Reads
-require active Store membership; writes require `manage products`; Store-owned
-relationships accept same-Store ULIDs while Platform taxonomy nodes use global
-ULIDs. Options, variants, product file delivery, custom fields, and search
-indexing still lack APIs. See the
+three-letter currency code. Catalog registers REST for Brand CRUD/media,
+Product CRUD, nested Product Image metadata, and Fulfillment Types. Its
+module-owned GraphQL schema exposes paginated/filterable Category/Product
+Type/Product queries and explicit mutations backed by
+`CategoryManagementService`, `ProductTypeManagementService`, and
+`ProductManagementService`. Categories and Product Types deliberately have no
+REST routes; Brands and Product Images deliberately have no GraphQL fields.
+Reads require active Store membership; writes require `manage products`;
+Store-owned relationships accept same-Store ULIDs while Platform taxonomy
+nodes use global ULIDs. Options, variants, product file delivery, custom
+fields, and search indexing still lack APIs. See the
 [API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.
