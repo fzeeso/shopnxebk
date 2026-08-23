@@ -51,9 +51,12 @@ are a separate Store interface under `/api/v1/store/theme*`, require
 `X-Store-ID` plus `manage themes`, and never store merchant customization on
 the global Theme listing.
 
-Store Settings is a separate future Store-admin component. It will operate on
-one selected Store through Store-scoped routes and must not create or edit
-Platform master catalog rows. See the [admin component guides](components.md).
+Store Settings is a separate Store-admin component. It operates on one selected
+Store through Store-scoped routes and must not create or edit Platform master
+catalog rows. The global localized Fulfillment Types catalog belongs to Site
+Admin and is exposed read-only through
+`GET /api/v1/platform/settings/fulfillment-types`. See the
+[admin component guides](components.md).
 
 Supported Store languages and translated admin-interface locales are separate
 capabilities. Catalog changes update `EnsureLanguageCatalog`, bundled
@@ -152,8 +155,9 @@ Plan administration is Platform-only and requires `manage plans`. `Super Admin` 
 
 Catalog owns global Platform taxonomies/nodes alongside Store-local brands,
 collections, categories, tags, product types, products, options, variants,
-media/fulfillment metadata, software license-key pools, and typed custom
-fields. Addressable rows use bigint primary keys, public ULIDs, and timezone
+the global localized fulfillment-type catalog, media/fulfillment metadata,
+software license-key pools, and typed custom fields. Addressable rows use
+bigint primary keys, public ULIDs, and timezone
 timestamps; Store-owned rows additionally carry non-null indexed Store IDs. Translation and
 relationship rows retain Store IDs so composite foreign keys reject cross-Store
 associations at the database boundary.
@@ -194,6 +198,12 @@ slug per Store and locale, and matching Store ownership across Product Type,
 Product, and translation relationships. `products.product_type_id` replaces
 the legacy free-text field; Product writes resolve Product Types by same-Store
 public ULID and may independently assign a global Platform node public ULID.
+The Product row also carries default-backed commerce snapshots for identifiers,
+prices, stock thresholds, dimensions/shipping, ratings/activity, purchase and
+price visibility, search and related-product display, condition/preorder/release
+scheduling, review enablement, quantity bounds, product points, and legacy tax
+classification. Those attributes are database-only for now and are not
+accepted or returned by Product GraphQL.
 
 Product Type GraphQL exposes Store-scoped paginated list/detail reads and
 explicit create/update/delete mutations. It accepts public Platform taxonomy-
@@ -201,6 +211,16 @@ node ULIDs, localized name/slug/description rows, manual translation locks,
 active/sort metadata, and a constrained stable code. Product Type names and
 descriptions participate in the same durable automatic translation workflow as
 Category and Product content.
+
+The global `fulfillment_types` reference catalog contains the stable codes
+`merchant`, `dropship`, `third_party_logistics`, `store_pickup`,
+`local_delivery`, and `digital`, ordered 1 through 6 and enabled by default.
+`fulfillment_type_translations` contains one localized name and description per
+Language-catalog locale; its locale foreign key keeps rows aligned when a
+Language locale is updated or removed. Platform-scoped Site Admin users may
+read the full catalog through REST, while creation and editing remain
+backend-owned. These records do not replace or constrain the legacy Product
+fulfillment enum in this release.
 
 Category, Product Type, and Product GraphQL queries require authenticated
 active Store membership; create/update/delete

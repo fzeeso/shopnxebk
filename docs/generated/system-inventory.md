@@ -107,6 +107,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/currencies` | `api.v1.platform.settings.currencies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/settings/currencies/{currency}` | `api.v1.platform.settings.currencies.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
+| `GET\|HEAD` | `/api/v1/platform/settings/fulfillment-types` | `api.v1.platform.settings.fulfillment-types.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `GET\|HEAD` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `POST` | `/api/v1/platform/settings/languages` | `api.v1.platform.settings.languages.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
 | `PATCH` | `/api/v1/platform/settings/languages/{language}` | `api.v1.platform.settings.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:platform |
@@ -229,6 +230,11 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_17_000100_add_image_url_to_category_translations_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_20_000100_create_product_type_tables.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_20_000200_create_platform_taxonomy_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_23_000100_create_fulfillment_type_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_23_000200_add_commerce_fields_to_products_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_23_000300_add_show_related_product_to_products_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_23_000400_add_prodpoints_to_products_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_23_000500_add_reviews_on_to_products_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |

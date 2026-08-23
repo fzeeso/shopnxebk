@@ -2,7 +2,7 @@
 
 This document is the complete persistence contract for the Catalog module,
 including its global Platform classification tree and Store-local catalog
-records. The source of truth is the thirteen migrations under
+records. The source of truth is the eighteen migrations under
 `Modules/Catalog/database/migrations`; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
@@ -32,6 +32,11 @@ request cycle and examples.
 | 11 | `2026_08_17_000100_add_image_url_to_category_translations_table.php` | Optional localized category image locator before the banner field in application/API contracts |
 | 12 | `2026_08_20_000100_create_product_type_tables.php` | Store-local product-type identities and localized names, slugs, and descriptions |
 | 13 | `2026_08_20_000200_create_platform_taxonomy_tables.php` | Global Platform taxonomies/nodes, node custom-field assignments, and Product classification foreign keys |
+| 14 | `2026_08_23_000100_create_fulfillment_type_tables.php` | Global fulfillment-type identities and Language-catalog translations |
+| 15 | `2026_08_23_000200_add_commerce_fields_to_products_table.php` | Product-level commerce identifiers, prices, inventory, shipping, merchandising, release, and quantity fields |
+| 16 | `2026_08_23_000300_add_show_related_product_to_products_table.php` | Product-level related-product display flag |
+| 17 | `2026_08_23_000400_add_prodpoints_to_products_table.php` | Product-level points value |
+| 18 | `2026_08_23_000500_add_reviews_on_to_products_table.php` | Product-level review enablement flag |
 
 Rollback runs in the reverse order. Store deletion cascades Store-local Catalog
 rows; Platform taxonomies are global and survive Store deletion.
@@ -543,6 +548,43 @@ route name/description generation through the durable translation pipeline.
 Product create/update accepts an existing same-Store Product Type public ULID
 through `productTypeId`.
 
+### `fulfillment_types`
+
+Global, read-only fulfillment methods shared by every Store.
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal catalog primary key |
+| `code` | `varchar(100)` | Required, unique | Stable integration code |
+| `is_active` | `boolean` | Default `true` | Whether the method is available |
+| `sort_order` | `integer` | Default `0` | Global display order |
+| `created_at`, `updated_at` | `timestamptz` | Nullable | Audit timestamps |
+
+The active/sort index supports the Site Admin list. The seeded codes are
+`merchant`, `dropship`, `third_party_logistics`, `store_pickup`,
+`local_delivery`, and `digital`, with sort orders 1 through 6.
+
+### `fulfillment_type_translations`
+
+| Column | Type | Null/default | Meaning |
+| --- | --- | --- | --- |
+| `id` | `bigint` identity | Required, generated | Internal translation key |
+| `fulfillment_type_id` | `bigint` | Required | Cascading fulfillment-type parent |
+| `locale` | `varchar(10)` | Required | Settings Language-catalog locale |
+| `name` | `varchar(255)` | Required | Localized display name |
+| `description` | `text` | Nullable | Localized customer-facing explanation |
+
+`(fulfillment_type_id, locale)` is unique. `locale` references
+`languages.locale` with update/delete cascade, and parent deletion cascades all
+translations. Unlike merchant-authored Catalog translations, these global seed
+rows have no timestamps or `lock_it` flag. `DatabaseSeeder` upserts all six
+types and one translation for every existing Language row.
+
+The Platform Settings REST list requires an authenticated Platform-scoped
+account and returns all translations without entering Store context. The
+catalog does not yet replace or constrain the separate
+`products.fulfillment_type` enum.
+
 ### `products`
 
 Language-neutral product identity and lifecycle. It includes the shared entity
@@ -559,13 +601,42 @@ columns plus:
 | `status` | `varchar(20)` | Default `draft` | `draft`, `active`, or `archived` |
 | `has_variants` | `boolean` | Default `false` | Application-maintained variant-mode flag |
 | `published_at` | `timestamptz` | Nullable | Publication time |
+| `sku` | `varchar(250)` | Default empty string | Product-level stock-keeping identifier |
+| `downloadfile` | `varchar(250)` | Default empty string | Legacy downloadable-file locator |
+| `availability` | `varchar(250)` | Default empty string | Availability message or code |
+| `price`, `costprice`, `retailprice`, `msrpprice`, `saleprice`, `calculatedprice` | `decimal(20,4)` | Default `0.0000` | Product-level price snapshots |
+| `sortorder` | `integer` | Default `0` | Legacy product display order |
+| `is_featured` | `smallint` | Default `0` | Featured-product flag |
+| `currentinv`, `lowinv` | `integer` | Default `0` | Current and low-stock threshold snapshots |
+| `warranty` | `text` | Nullable | Warranty terms |
+| `weight`, `width`, `height`, `proddepth` | `decimal(20,4)` | Default `0.0000` | Shipping weight and dimensions |
+| `fixedshippingcost` | `decimal(20,4)` | Default `0.0000` | Fixed shipping charge |
+| `freeshipping` | `smallint` | Default `0` | Free-shipping flag |
+| `ratingtotal`, `numratings` | `integer` | Default `0` | Aggregate rating score and rating count |
+| `numsold`, `numviews` | `integer` | Default `0` | Sales and view counters |
+| `allowpurchases` | `integer` | Default `1` | Purchasing-enabled flag |
+| `hideprice`, `is_login_for_price`, `is_global_search` | `integer` | Default `0` | Price visibility/login and global-search flags |
+| `condition` | checked `varchar(255)` | Default `New` | `New`, `Used`, or `Refurbished` |
+| `showcondition`, `pre_order` | `smallint` | Default `0` | Condition-visibility and preorder flags |
+| `releasedate` | `timestamptz` | Nullable | Scheduled product release time |
+| `releasedateremove` | `smallint` | Default `0` | Remove-on-release flag |
+| `minqty`, `maxqty` | `integer` | Default `0` | Per-purchase quantity bounds |
+| `tax_class_id` | `integer` | Default `0` | Legacy tax-class identifier |
+| `show_related_product` | `integer` | Default `0` | Related-product display flag |
+| `prodpoints` | `integer` | Default `0` | Product-level points value |
+| `reviews_on` | `integer` | Default `0` | Product-review enablement flag |
+| `upc`, `hs_code`, `gtin`, `mpn`, `bpn` | `varchar(32)` | Nullable; default empty string | External product and trade identifiers |
 
 Indexes cover `(store_id, status)`, `(store_id, fulfillment_type)`,
 `(store_id, brand_id)`, `(store_id, platform_taxonomy_node_id)`, and
 `(store_id, product_type_id)`. A composite Product Type foreign key rejects a
 cross-Store assignment. The database does not automatically synchronize
 `status` with `published_at`, `has_variants` with child-row count, or
-`track_inventory` with variant quantities.
+`track_inventory` with variant quantities. The newly added commerce attributes
+are persistence-only and are not yet part of Product GraphQL inputs or output.
+MySQL `tinyint` declarations are stored as PostgreSQL `smallint`; the schema
+builder retains unsigned intent for quantity/tax fields, but PostgreSQL does
+not provide an unsigned integer type.
 
 ### `product_translations`
 

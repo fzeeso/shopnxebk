@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Modules\Authentication\Actions\EnsureAuthorizationCatalog;
 use Modules\Authentication\Actions\EnsureLocalPlatformAdmin;
 use Modules\Billing\Actions\EnsurePlanCatalog;
+use Modules\Catalog\Actions\EnsureFulfillmentTypeCatalog;
 use Modules\Settings\Actions\EnsureCurrencyCatalog;
 use Modules\Settings\Actions\EnsureLanguageCatalog;
 use Modules\Stores\Actions\EnsureLocalMerchant;
@@ -22,6 +23,7 @@ class DatabaseSeeder extends Seeder
         app(EnsureAuthorizationCatalog::class)->ensure();
         app(EnsureCurrencyCatalog::class)->ensure();
         app(EnsureLanguageCatalog::class)->ensure();
+        app(EnsureFulfillmentTypeCatalog::class)->ensure();
         app(EnsurePolicyTypeCatalog::class)->ensure();
         app(EnsureStoreLanguageDefaults::class)->ensure();
         app(EnsurePlanCatalog::class)->ensure();

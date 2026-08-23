@@ -76,6 +76,26 @@ Lists default to 20 records and permit at most 100. Category sorting is allow-li
 
 Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`. Product Type filters are `search`, `locale`, `code`, `platformTaxonomyNodeId`, and `isActive`. Product filters are `search`, `locale`, `status`, `fulfillmentType`, `brandId`, and `categoryId`. Search matches the entity's localized title/name or slug case-insensitively; `locale` restricts which translation is searched.
 
+### 3.1 Fulfillment Type REST catalog
+
+`GET /api/v1/platform/settings/fulfillment-types` returns the global, read-only
+fulfillment catalog for Site Admin settings. The request requires an
+authenticated Platform-scoped account; no Store context or write permission is
+required because this endpoint does not change the master catalog.
+
+The response is sorted by `sort_order`, then internal `id`. Each item contains
+`id`, `code`, `is_active`, `sort_order`, audit timestamps, and every seeded
+`{ id, locale, name, description }` translation. The numeric IDs are catalog
+reference values for this REST response; clients should use stable `code`
+values for integrations. The six defaults are `merchant`, `dropship`,
+`third_party_logistics`, `store_pickup`, `local_delivery`, and `digital` with
+sort orders 1 through 6. `DatabaseSeeder` creates one non-empty localized row
+for each fulfillment type and every row in `languages`.
+
+This catalog is separate from the existing `products.fulfillment_type`
+physical/digital/software/service field. No Product foreign key or input
+contract changes in this release.
+
 ## 4. Product Type lifecycle
 
 A Product Type is a reusable, Store-local classification such as `running-shoe`

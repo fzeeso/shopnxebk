@@ -13,8 +13,8 @@ use Modules\Stores\Http\Controllers\Api\V1\PolicyVersionController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreController;
 use Modules\Stores\Http\Controllers\Api\V1\StorefrontPolicyController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreLanguageController;
-use Modules\Stores\Http\Controllers\Api\V1\StorePolicyManagementController;
 use Modules\Stores\Http\Controllers\Api\V1\StorePolicyLocaleController;
+use Modules\Stores\Http\Controllers\Api\V1\StorePolicyManagementController;
 use Modules\Stores\Http\Controllers\Api\V1\StoreUserController;
 
 Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])

@@ -1,5 +1,49 @@
 # Development log
 
+## 2026-08-23 - Product commerce persistence fields
+
+- Changed: Added 44 requested Product columns covering SKU/download and
+  availability metadata, decimal price/cost values, sort/featured state,
+  inventory, warranty, dimensions/shipping, ratings/activity, purchase and
+  price visibility, search, condition/preorder/release scheduling, quantity
+  bounds, tax classification, related-product display, product points, review
+  enablement, and external trade identifiers.
+- Reason: Product records need a product-level compatibility surface for the
+  supplied commerce data before higher-level workflows expose it.
+- Data/configuration impact: Migrations `2026_08_23_000200`,
+  `2026_08_23_000300`, `2026_08_23_000400`, and `2026_08_23_000500` backfill
+  existing rows through non-null defaults. `releasedate` is a nullable
+  timezone-aware timestamp, `releasedateremove` defaults to `0`, and PostgreSQL
+  stores requested MySQL `tinyint` fields as `smallint`. No environment value
+  is added.
+- Compatibility or rollout notes: These fields are persistence-only; Product
+  GraphQL inputs and output are unchanged. The condition value is constrained
+  to `New`, `Used`, or `Refurbished`.
+- Verification: PostgreSQL feature coverage checks all columns, requested
+  defaults, nullable release/warranty fields, and condition enforcement.
+
+## 2026-08-23 - Localized Fulfillment Type catalog
+
+- Changed: Added global `fulfillment_types` and
+  `fulfillment_type_translations`, a rerunnable six-type seed catalog covering
+  every Settings Language row, and the authenticated read-only
+  `GET /api/v1/platform/settings/fulfillment-types` endpoint used by Site Admin
+  settings.
+- Reason: Platform operators need one visible, localized reference list for merchant,
+  dropship, third-party logistics, pickup, local delivery, and digital
+  fulfillment instead of duplicating labels in clients.
+- Data/configuration impact: Migration `2026_08_23_000100` adds both tables,
+  uniqueness/index/foreign-key rules, and no environment variables. The live
+  development database contains six type rows and 144 translations across 24
+  languages.
+- Compatibility or rollout notes: The catalog is global and read-only to
+  Platform-scoped users. It does not change the existing Product fulfillment enum or add a
+  Product foreign key. Deployments must run migrations and `php artisan
+  db:seed --force` so every existing Language receives translations.
+- Verification: PostgreSQL feature coverage checks schema, six defaults,
+  complete language coverage, Platform authentication, response
+  ordering, and translation serialization.
+
 ## 2026-08-20 - Product Type GraphQL lifecycle
 
 - Changed: Added Store-scoped `productTypes`/`productType` queries and explicit

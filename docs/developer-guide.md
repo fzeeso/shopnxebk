@@ -94,8 +94,9 @@ copies, and the Theme installer used by Store provisioning.
 
 `Modules/Catalog/` owns global Platform classification taxonomies plus
 Store-local brands, collections, categories, Product Types, products, options,
-variants, media/fulfillment metadata, license-key pools, and typed custom-field
-persistence. Brands expose Store-scoped CRUD services and REST routes.
+variants, the global localized fulfillment-type catalog, media/fulfillment
+metadata, license-key pools, and typed custom-field persistence. Brands expose
+Store-scoped CRUD services and REST routes.
 Categories, Product Types, and Products expose Store-scoped models,
 transactional services, GraphQL queries/mutations, and automatic-translation
 handlers; the remaining Catalog areas are still persistence-only. Localized
@@ -121,6 +122,10 @@ component contracts under [Admin component guides](components.md).
 - Languages and Currencies are sections of the one Platform Settings shell.
 - Platform components never enter Store context; future Store Settings remains
   a separate Store-admin component.
+- Site Admin reads the global fulfillment catalog through
+  `GET /api/v1/platform/settings/fulfillment-types`. The route requires an
+  authenticated Platform-scoped account, never enters Store context, and
+  returns shared read-only master rows.
 
 When adding a global setting, extend `Modules/Settings`, add a Settings API
 section, and update the
@@ -326,7 +331,14 @@ Writes validate Store locales, code format, sort/active metadata, and an
 optional global Platform-node ULID in one Store-scoped transaction. Product
 GraphQL accepts `productTypeId` and `platformTaxonomyNodeId` public ULIDs; the
 Product Type is resolved inside the selected Store and both relationships are
-stored as nullable bigint foreign keys.
+stored as nullable bigint foreign keys. Product persistence additionally holds
+product-level SKU/trade identifiers, downloadable-file and availability
+metadata, four-decimal price/cost snapshots, inventory thresholds, warranty,
+dimensions/shipping cost, ratings/activity counters,
+purchase/visibility/search/related-product switches, condition/preorder/release
+settings, review enablement, quantity bounds, product points, and a legacy
+tax-class identifier. These default-backed columns are not yet exposed by the
+Product GraphQL contract.
 
 Brand identity keeps optional `website_url` and `origin` values alongside its
 legacy logo reference. The Brand model now owns single-file `image` and

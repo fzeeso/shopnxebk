@@ -1,8 +1,9 @@
 # Catalog module
 
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
-Store-local merchandising and product persistence foundation, Brand REST
-routes, Category/Product Type/Product GraphQL schema, Catalog models,
+Store-local merchandising and product persistence foundation, the global
+localized fulfillment catalog, Brand and Fulfillment Type REST routes,
+Category/Product Type/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Options, variants, product files/fulfillment, custom fields, search
 projections, and admin screens remain follow-up work.
@@ -19,6 +20,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Categories and tags | `categories`, `category_translations`, `tags`, `product_tags`, `product_categories` |
 | Platform taxonomy | `platform_taxonomies`, `platform_taxonomy_nodes`, `platform_taxonomy_custom_fields` |
 | Product types | `product_types`, `product_type_translations` |
+| Fulfillment types | `fulfillment_types`, `fulfillment_type_translations` |
 | Products | `products`, `product_translations` |
 | Options and variants | `product_options`, `product_option_translations`, `product_option_values`, `product_option_value_translations`, `product_variants`, `product_variant_translations`, `variant_option_values` |
 | Media and fulfillment | `product_images`, `product_image_translations`, `product_digital_assets`, `product_digital_asset_translations`, `product_license_keys` |
@@ -46,6 +48,10 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
   translations use bigint `id`, unique `(product_type_id, locale)`, unique
   `(store_id, locale, slug)`, and a composite foreign key that rejects a parent
   from another Store.
+- Fulfillment types are a global read-only reference catalog with unique stable
+  codes, active state, and sort order. Each Language-catalog locale has one
+  translation row keyed by `(fulfillment_type_id, locale)`; deleting a parent
+  or Language cascades its localized row.
 - Brand reads require active Store membership. Brand writes require
   `manage products`; they accept localized identity/SEO data plus optional
   translation locks, managed image/banner uploads, a legacy logo locator,
@@ -56,6 +62,15 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
+- Products retain product-level commerce snapshots for SKU and external trade
+  identifiers, downloadable-file/availability metadata, six decimal price
+  values, inventory thresholds, warranty, shipping dimensions/cost, rating and
+  activity counters, purchase/price/search/related-product switches,
+  condition/preorder/release controls, review enablement, quantity bounds,
+  product points, and a legacy tax-class identifier. Defaults make the
+  migration safe for existing rows; `releasedate` and `warranty` are nullable.
+  These columns remain persistence-only until the Product API owns a
+  validation and authorization contract for them.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,
@@ -83,8 +98,14 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 
 ## Fulfillment and security boundaries
 
-`physical`, `digital`, `software`, and `service` are the supported fulfillment
-types. Digital assets may apply to a product or one variant. Software license
+The global fulfillment catalog exposes `merchant`, `dropship`,
+`third_party_logistics`, `store_pickup`, `local_delivery`, and `digital` to
+authenticated Site Admin users through
+`GET /api/v1/platform/settings/fulfillment-types`.
+The catalog is seeded for every Language row and is not yet a foreign key from
+Products. The existing Product fulfillment field still accepts `physical`,
+`digital`, `software`, and `service`. Digital assets may apply to a product or
+one variant. Software license
 rows hold a Store-local key pool and retain an opaque nullable future order ID;
 there is no Orders foreign key until that module owns a stable contract.
 
