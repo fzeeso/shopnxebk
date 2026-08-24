@@ -6,6 +6,8 @@ namespace Modules\Catalog\Models;
 
 use App\Models\Brand;
 use App\Models\Concerns\HasPublicId;
+use App\Models\Media;
+use App\Models\ProductMedia;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -110,6 +112,20 @@ final class Product extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('position')->orderBy('id');
+    }
+
+    public function media(): BelongsToMany
+    {
+        return $this->belongsToMany(Media::class, 'product_media')
+            ->using(ProductMedia::class)
+            ->withPivot(['id', 'store_id', 'sort_order', 'is_primary'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
+    public function primaryMedia(): BelongsToMany
+    {
+        return $this->media()->wherePivot('is_primary', true);
     }
 
     public function statusValue(): string

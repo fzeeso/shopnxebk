@@ -48,6 +48,7 @@ Accept: application/json
 | Product Types | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
+| Reusable Media | Upload/complete/list/detail/content/delete plus Product and Variant attachment under `/api/v1/store` | Not exposed |
 | Fulfillment Types | Platform management plus active Store discovery through REST | Not exposed |
 
 There are currently no `/api/v1/store/categories` or
@@ -422,6 +423,54 @@ scan, transform, sign, or delete an underlying media object, and image alt text
 does not currently trigger automatic translation. Translation rows are
 upserted by locale, must use active Store languages, and preserve an existing
 `lock_it` value when the field is omitted.
+
+### 6.3 Reusable media REST lifecycle
+
+The reusable media API is the binary/object workflow that complements the
+legacy Product Image locator API:
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `POST` | `/api/v1/store/media/uploads` | `manage products` |
+| `POST` | `/api/v1/store/media/{media}/complete` | `manage products` |
+| `GET` | `/api/v1/store/media` | Active Store membership |
+| `GET` | `/api/v1/store/media/{media}` | Active Store membership |
+| `GET` | `/api/v1/store/media/{media}/content?variant=thumbnail` | Active Store membership |
+| `DELETE` | `/api/v1/store/media/{media}` | `manage products` |
+| `POST` | `/api/v1/store/products/{product}/media` | `manage products` |
+| `DELETE` | `/api/v1/store/products/{product}/media/{media}` | `manage products` |
+| `PUT` | `/api/v1/store/products/{product}/media/{media}/primary` | `manage products` |
+| `POST` | `/api/v1/store/product-variants/{variant}/media` | `manage products` |
+| `DELETE` | `/api/v1/store/product-variants/{variant}/media/{media}` | `manage products` |
+
+Upload uses `multipart/form-data` with required `file`; optional fields are
+`disk`, `visibility`, `alt_text`, `title`, `caption`, and JSON `metadata`.
+Maximum size, allowed server-detected MIME types/extensions, and disks come from
+`config/media-management.php`. A successful upload returns `201` and a
+`pending` media resource. Completion returns `202`, changes the row to
+`processing`, and idempotently queues metadata extraction, optimization,
+derivative generation, and finalization. Clients poll detail until `ready` or
+`failed`.
+
+The list accepts `page`, `per_page`, `status`, `mime_type`, and `search` over
+original filename/title/alt text. It excludes logically deleted rows. The
+content route streams the original when `variant` is absent or one of
+`original`, `thumbnail`, `small`, `medium`, or `large`; Store authentication is
+always required.
+
+Product attachment JSON is `{ "media_id": "<media-ulid>", "sort_order": 0,
+"is_primary": false }`. Variant attachment accepts the same body but ignores
+`is_primary`. Only `ready` media from the selected Store can attach. One media
+asset may attach to several resources in that Store. Setting primary clears the
+former primary atomically. Deleting media is logical and recoverable: Product
+and Variant pivots are detached, the usage audit and physical objects remain,
+and the next ordered Product asset is promoted when necessary.
+
+Every lookup combines the selected Store's internal ID with the supplied public
+ULID. Cross-Store identifiers therefore return `404`; missing membership or
+permissions return `401`/`403`. Database composite foreign keys enforce the
+same rule. The full architecture and operational safety notes are in
+[Media management](media-management.md).
 
 ## 7. Reading localized data
 

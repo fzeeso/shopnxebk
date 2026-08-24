@@ -3,7 +3,8 @@
 This document is the complete persistence contract for the Catalog module,
 including its global Platform classification tree and Store-local catalog
 records. The source of truth is the eighteen migrations under
-`Modules/Catalog/database/migrations`; this reference explains their columns,
+`Modules/Catalog/database/migrations` plus the application-wide reusable media
+migration; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
 The Brand slice includes Store-scoped models and REST CRUD services. Category
@@ -41,6 +42,7 @@ for the executable request cycle and examples.
 | 16 | `2026_08_23_000300_add_show_related_product_to_products_table.php` | Product-level related-product display flag |
 | 17 | `2026_08_23_000400_add_prodpoints_to_products_table.php` | Product-level points value |
 | 18 | `2026_08_23_000500_add_reviews_on_to_products_table.php` | Product-level review enablement flag |
+| 19 | `database/migrations/2026_08_25_000100_expand_media_management_subsystem.php` | Existing-media extension, reusable Product/Variant media pivots, derivatives, usage, and AI-result boundaries |
 
 Rollback runs in the reverse order. Store deletion cascades Store-local Catalog
 rows; Platform taxonomies are global and survive Store deletion.
@@ -181,6 +183,14 @@ erDiagram
     PRODUCTS ||--o{ PRODUCT_IMAGES : displays
     PRODUCT_VARIANTS o|--o{ PRODUCT_IMAGES : narrows
     PRODUCT_IMAGES ||--o{ PRODUCT_IMAGE_TRANSLATIONS : translates
+    STORES ||--o{ MEDIA : owns
+    MEDIA ||--o{ MEDIA_VARIANTS : derives
+    PRODUCTS ||--o{ PRODUCT_MEDIA : attaches
+    MEDIA ||--o{ PRODUCT_MEDIA : reused_by
+    PRODUCT_VARIANTS ||--o{ PRODUCT_VARIANT_MEDIA : attaches
+    MEDIA ||--o{ PRODUCT_VARIANT_MEDIA : reused_by
+    MEDIA ||--o{ MEDIA_USAGES : records
+    MEDIA ||--o{ MEDIA_AI_RESULTS : analyzes
     PRODUCTS ||--o{ PRODUCT_DIGITAL_ASSETS : delivers
     PRODUCT_VARIANTS o|--o{ PRODUCT_DIGITAL_ASSETS : narrows
     PRODUCT_DIGITAL_ASSETS ||--o{ PRODUCT_DIGITAL_ASSET_TRANSLATIONS : translates
@@ -830,6 +840,24 @@ Primary key: `(image_id, locale)`.
 REST upserts supplied active Store locales, preserves an existing lock when
 `lock_it` is omitted, and does not currently enqueue automatic alt-text
 translation.
+
+### Reusable master media
+
+The application-wide master media subsystem extends the existing Spatie
+`media` table and leaves the legacy `product_images` contract above unchanged.
+New Product relationships use `product_media`; Product Variant relationships
+use `product_variant_media`. Both repeat `store_id` and use composite foreign
+keys, so neither can connect resources across Stores. A media row can be reused
+by multiple Products and Variants, and one partial unique index permits at most
+one primary media row per Product.
+
+`media_variants` records `original`, `thumbnail`, `small`, `medium`, and `large`.
+`media_usages` is the generic future-resource boundary, and
+`media_ai_results.operation` intentionally has no operation enum/check so new
+AI operations do not require a schema change. Media status and visibility are
+database checked. Logical deletion detaches active Catalog relationships but
+preserves master/storage/audit data. Complete columns, indexes, service flow,
+and rollback behavior are in [Media management](media-management.md).
 
 ## 11. Digital assets
 

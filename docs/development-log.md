@@ -1,5 +1,35 @@
 # Development log
 
+## 2026-08-25 - Reusable Store media management subsystem
+
+- Changed: Extended the existing Spatie `media` table into a reusable Store
+  master asset; added derivative, Product, Product Variant, usage, and
+  provider-neutral AI-result persistence; added secure REST upload/content/
+  attachment workflows, a registered policy, logical deletion, and queued
+  metadata/optimization/derivative processing.
+- Reason: Products, Variants, Collections, Pages, Blogs, Banners, Themes, and
+  future AI output need one storage identity without putting a Product ID on
+  the master asset or creating another media package/table.
+- Data/configuration impact: One additive PostgreSQL migration preserves every
+  existing Spatie column/path, backfills compatibility columns, and creates
+  five child/relationship tables with composite Store foreign keys. New
+  configuration allow-lists disks, image MIME/extensions, size, derivatives,
+  quality, and queue. No package, secret, or binary database storage is added.
+- Compatibility or rollout notes: The legacy `product_images` metadata API and
+  Brand media are unchanged. Public identifiers remain application-standard
+  ULIDs while Spatie's UUID remains. Deletion is recoverable. The exact live
+  deployment and migration rollback procedure is recorded in
+  `docs/media-management-rollout.md`. After explicit user authorization, the
+  live/local `shopnxe` database was backed up and the single migration was
+  applied as batch 36; all Store/Product/Variant/media counts remained
+  unchanged and both existing media objects were verified in storage.
+- Verification: The isolated `shopnxe_test` PostgreSQL suite covers upload,
+  processing and real derivative files, Store isolation, permissions, Product/
+  Variant reuse and detach, primary selection, checksums, uniqueness, logical
+  deletion, failure recording, and queue chaining. Migration rollback/reapply,
+  documentation generation/checks, Pint, full Larastan, existing Catalog/media
+  compatibility tests, and the complete 51-test suite passed.
+
 ## 2026-08-23 - Catalog API exposure documentation alignment
 
 - Changed: Added a consistent Catalog exposure matrix across the API manual,

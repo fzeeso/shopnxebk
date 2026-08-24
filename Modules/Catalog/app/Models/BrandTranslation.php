@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\Models;
 
+use App\Models\Brand;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;

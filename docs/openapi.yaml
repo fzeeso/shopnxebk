@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, Product Image, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
 servers:
   - url: http://localhost:8000
 tags:
@@ -22,6 +22,8 @@ tags:
     description: Store-scoped Brand identity, localized content, official website, and origin management.
   - name: Catalog Products
     description: Store-scoped Product lifecycle, localization, classification, pricing, inventory, and commerce metadata.
+  - name: Store Media
+    description: Reusable Store-owned uploads, processing, authenticated delivery, and Product or Variant attachment.
   - name: Translations
     description: Tenant-isolated status for durable after-commit automatic translation work.
 paths:
@@ -1670,6 +1672,163 @@ paths:
         '200': {description: Store Theme published}
         '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/media:
+    get:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Page non-deleted media for the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: status, in: query, schema: {type: string, enum: [pending, processing, ready, failed]}}
+        - {name: mime_type, in: query, schema: {type: string, enum: [image/jpeg, image/png, image/gif, image/webp, image/avif]}}
+        - {name: search, in: query, schema: {type: string, maxLength: 255}}
+      responses:
+        '200': {description: Paginated Store media, content locators, and derivatives, content: {application/json: {schema: {$ref: '#/components/schemas/MediaPageResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/media/uploads:
+    post:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Upload a pending reusable media object
+      description: Requires manage products. The server verifies actual MIME plus extension and writes through an allow-listed Laravel Storage disk.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data: {schema: {$ref: '#/components/schemas/CreateMediaUploadRequest'}}
+      responses:
+        '201': {description: Pending master media created, content: {application/json: {schema: {$ref: '#/components/schemas/MediaResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/media/{media}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Read one non-deleted media asset from the selected Store
+      responses:
+        '200': {description: Master media and derivatives, content: {application/json: {schema: {$ref: '#/components/schemas/MediaResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Media not found in the selected Store}
+    delete:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Logically delete media and detach active Product/Variant relationships
+      description: Requires manage products. The row, usages, original, and derivatives are retained for recovery.
+      responses:
+        '204': {description: Media marked deleted and detached}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Media not found in the selected Store}
+  /api/v1/store/media/{media}/complete:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Complete an upload and queue processing
+      description: Requires manage products. Idempotently queues metadata extraction, optimization, derivative generation, and finalization.
+      responses:
+        '202': {description: Media processing accepted, content: {application/json: {schema: {$ref: '#/components/schemas/MediaResponse'}}}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Media not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/media/{media}/content:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: variant, in: query, schema: {type: string, enum: [original, thumbnail, small, medium, large]}}
+    get:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Stream an original or generated media variant
+      responses:
+        '200': {description: Authenticated media bytes}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Media or variant not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/media:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Attach ready media to a Product
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AttachProductMediaRequest'}}}}
+      responses:
+        '201': {description: Product media attached}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or ready media not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/media/{media}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    delete:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Detach media from a Product
+      responses:
+        '204': {description: Product media detached}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, media, or attachment not found in the selected Store}
+  /api/v1/store/products/{product}/media/{media}/primary:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Make attached media the Product primary
+      responses:
+        '200': {description: Product primary media changed atomically}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, media, or attachment not found in the selected Store}
+  /api/v1/store/product-variants/{variant}/media:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: variant, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Attach ready media to a Product Variant
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/AttachVariantMediaRequest'}}}}
+      responses:
+        '201': {description: Product Variant media attached}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Variant or ready media not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/product-variants/{variant}/media/{media}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: variant, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: media, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    delete:
+      tags: [Store Media]
+      security: [{sanctum: []}]
+      summary: Detach media from a Product Variant
+      responses:
+        '204': {description: Product Variant media detached}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Variant, media, or attachment not found in the selected Store}
   /api/v1/store/products:
     get:
       tags: [Catalog Products]
@@ -1954,6 +2113,79 @@ components:
       description: Public Store ULID
       schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
   schemas:
+    CreateMediaUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file: {type: string, format: binary}
+        disk: {type: string, description: Must be in the deployment allow-list.}
+        visibility: {type: string, enum: [private, public], default: private}
+        alt_text: {type: [string, 'null'], maxLength: 5000}
+        title: {type: [string, 'null'], maxLength: 255}
+        caption: {type: [string, 'null'], maxLength: 10000}
+        metadata: {type: [object, 'null'], additionalProperties: true}
+    AttachVariantMediaRequest:
+      type: object
+      required: [media_id]
+      properties:
+        media_id: {$ref: '#/components/schemas/PublicUlid'}
+        sort_order: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+    AttachProductMediaRequest:
+      allOf:
+        - {$ref: '#/components/schemas/AttachVariantMediaRequest'}
+        - type: object
+          properties:
+            is_primary: {type: boolean, default: false}
+    MediaVariant:
+      type: object
+      required: [id, variant, mime_type, size, width, height, content_url]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        variant: {type: string, enum: [original, thumbnail, small, medium, large]}
+        mime_type: {type: string}
+        size: {type: integer, minimum: 0}
+        width: {type: integer, minimum: 1}
+        height: {type: integer, minimum: 1}
+        metadata: {type: [object, 'null'], additionalProperties: true}
+        content_url: {type: string}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    Media:
+      type: object
+      required: [id, original_filename, filename, mime_type, size, status, visibility, content_url, variants]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        original_filename: {type: string}
+        filename: {type: string}
+        extension: {type: [string, 'null']}
+        mime_type: {type: string}
+        size: {type: integer, minimum: 0}
+        width: {type: [integer, 'null'], minimum: 1}
+        height: {type: [integer, 'null'], minimum: 1}
+        duration: {type: [number, string, 'null']}
+        checksum: {type: [string, 'null']}
+        alt_text: {type: [string, 'null']}
+        title: {type: [string, 'null']}
+        caption: {type: [string, 'null']}
+        status: {type: string, enum: [pending, processing, ready, failed]}
+        visibility: {type: string, enum: [private, public]}
+        metadata: {type: [object, 'null'], additionalProperties: true}
+        content_url: {type: string}
+        variants: {type: array, items: {$ref: '#/components/schemas/MediaVariant'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    MediaResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Media'}
+    MediaPageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/Media'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
     PaginationLinks:
       type: object
       required: [first, last, prev, next]

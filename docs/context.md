@@ -250,6 +250,28 @@ Options, variants, files, fulfillment, and custom fields remain persistence-only
 until their owning APIs are implemented. See the [API manual](api-manual.md) and
 [Catalog schema reference](catalog.md).
 
+## Reusable media boundary
+
+`media` is the Store-owned master asset for Products, Product Variants,
+Collections, Pages, Blogs, Banners, Themes, and future AI-generated media.
+Binary objects live on Laravel Storage, never in PostgreSQL. Resource identity
+is the media public ULID and dated Store directory, never a Product ID.
+
+The existing Spatie Media Library table/package and existing Brand media remain
+authoritative infrastructure. The table is extended in place without removing
+package columns. The existing `product_images` API remains a compatible
+locator/translation surface; new reusable uploads attach through
+`product_media` and `product_variant_media`. All attachment rows repeat
+`store_id`, and composite foreign keys reject cross-Store Product/Variant/Media
+combinations. Reads require Store membership; mutation requires
+`manage products`.
+
+Media deletion is a recoverable lifecycle transition to `deleted`, not a row or
+object purge. Active attachments are removed, while the master row, generic
+usage history, original, and derivatives remain. External AI is not part of the
+media runtime; `media_ai_results` and `MediaAiService` are only an extensible
+persistence boundary. See [Media management](media-management.md).
+
 ## Store context and request flow
 
 ```mermaid

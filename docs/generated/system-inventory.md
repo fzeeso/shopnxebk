@@ -153,6 +153,12 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/store/fulfillment-types` | `api.v1.store.fulfillment-types.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/media` | `api.v1.store.media.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/media/uploads` | `api.v1.store.media.uploads.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/media/{media}` | `api.v1.store.media.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/media/{media}` | `api.v1.store.media.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/media/{media}/complete` | `api.v1.store.media.complete` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/media/{media}/content` | `api.v1.store.media.content` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies` | `api.v1.store.policies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/policies` | `api.v1.store.policies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/policies/{storePolicy}` | `api.v1.store.policies.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -167,6 +173,8 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/store/policies/{storePolicy}/versions` | `api.v1.store.policies.versions.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/policies/{storePolicy}/versions/{policyVersion}/restore` | `api.v1.store.policies.versions.restore` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policy-types` | `api.v1.store.policy-types.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/product-variants/{variant}/media` | `api.v1.store.product-variants.media.attach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/product-variants/{variant}/media/{media}` | `api.v1.store.product-variants.media.detach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/products` | `api.v1.store.products.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/products` | `api.v1.store.products.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/products/{product}` | `api.v1.store.products.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -177,6 +185,9 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `DELETE` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/products/{product}/media` | `api.v1.store.products.media.attach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/products/{product}/media/{media}` | `api.v1.store.products.media.detach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PUT` | `/api/v1/store/products/{product}/media/{media}/primary` | `api.v1.store.products.media.primary` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -276,6 +287,7 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Application foundation | `database/migrations/2026_07_22_000400_create_pulse_tables.php` |
 | Application foundation | `database/migrations/2026_07_22_000500_create_telescope_entries_table.php` |
 | Application foundation | `database/migrations/2026_08_13_000100_create_translation_requests_table.php` |
+| Application foundation | `database/migrations/2026_08_25_000100_expand_media_management_subsystem.php` |
 
 ## Composer commands
 
@@ -307,7 +319,7 @@ Safe placeholders live in `.env.example`; secrets belong only in an untracked `.
 | PostgreSQL | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_SSLMODE`, `DB_TIMEZONE`, `DB_POOL_URL`, `DB_DIRECT_URL` |
 | Redis, cache, session, and queue | `SESSION_DOMAIN`, `SESSION_SECURE_COOKIE`, `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PASSWORD`, `REDIS_PORT`, `REDIS_DB`, `REDIS_CACHE_DB`, `CACHE_STORE`, `SESSION_DRIVER`, `SESSION_CONNECTION`, `QUEUE_CONNECTION`, `REDIS_QUEUE_RETRY_AFTER` |
 | Search | `SCOUT_DRIVER`, `SCOUT_QUEUE_CONNECTION`, `SCOUT_QUEUE_NAME`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_REQUIRED` |
-| Files and media | `FILESYSTEM_DISK`, `MEDIA_DISK`, `MEDIA_CONVERSIONS_DISK`, `MEDIA_QUEUE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_URL` |
+| Files and media | `FILESYSTEM_DISK`, `MEDIA_DISK`, `MEDIA_CONVERSIONS_DISK`, `MEDIA_ALLOWED_DISKS`, `MEDIA_MAX_FILE_SIZE_KB`, `MEDIA_IMAGE_QUALITY`, `MEDIA_QUEUE`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`, `AWS_BUCKET`, `AWS_ENDPOINT`, `AWS_USE_PATH_STYLE_ENDPOINT`, `AWS_URL` |
 | Reverb and Octane | `BROADCAST_CONNECTION`, `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`, `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME`, `REVERB_SERVER_HOST`, `REVERB_SERVER_PORT`, `OCTANE_SERVER`, `OCTANE_HTTPS` |
 | Observability and GraphQL | `LIGHTHOUSE_QUERY_CACHE_MODE`, `HORIZON_CRITICAL_MAX_PROCESSES`, `HORIZON_MAX_PROCESSES`, `HORIZON_TRANSLATION_MAX_PROCESSES`, `HORIZON_HEAVY_MAX_PROCESSES`, `PULSE_ENABLED`, `PULSE_STORAGE_KEEP`, `INTERNAL_DASHBOARDS_ENABLED`, `INTERNAL_DASHBOARD_IP_ALLOW_LIST`, `TELESCOPE_ENABLED`, `GRAPHQL_INTROSPECTION_ENABLED`, `GRAPHQL_MAX_DEPTH`, `GRAPHQL_MAX_COMPLEXITY`, `LIGHTHOUSE_DEBUG` |
 | Logging, mail, and local administration | `LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_ENCRYPTION`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`, `PLATFORM_ADMIN_NAME`, `PLATFORM_ADMIN_EMAIL`, `PLATFORM_ADMIN_PASSWORD` |

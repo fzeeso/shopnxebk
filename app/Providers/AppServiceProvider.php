@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\Media;
+use App\Policies\MediaPolicy;
 use App\Support\InternalDashboardAccess;
 use App\Support\Translations\Contracts\TranslationContentHandler;
 use App\Support\Translations\OpenAiTranslationService;
@@ -92,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict($this->app->isLocal() || $this->app->runningUnitTests());
 
         Gate::before(fn ($user, string $ability): ?bool => $user->isPlatformSuperAdmin() ? true : null);
+        Gate::policy(Media::class, MediaPolicy::class);
         Gate::define('viewHorizon', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));
         Gate::define('viewPulse', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));
         Gate::define('viewTelescope', fn ($user): bool => InternalDashboardAccess::allows(request(), $user));

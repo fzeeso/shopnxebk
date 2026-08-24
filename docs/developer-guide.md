@@ -78,7 +78,11 @@ The generated inventory is the authoritative installed-package list.
 
 ## 3. Code ownership
 
-`app/` contains only application-wide infrastructure: request IDs, health checks, context cleanup, global provider configuration, media paths, and shared search support.
+`app/` contains application-wide infrastructure: request IDs, health checks,
+context cleanup, global provider configuration, shared search support, and the
+reusable Store media subsystem. Media is application-wide because Products,
+Variants, Collections, Pages, Blogs, Banners, Themes, and future AI workflows
+share one master asset boundary.
 
 `Modules/Authentication/` owns users, credentials, sessions, Sanctum tokens, password reset, email verification, resources, and authentication routes.
 
@@ -891,7 +895,21 @@ Store cache keys include a store prefix, preventing collisions.
 
 Future searchable documents include `store_id`; every search applies the active store filter. Meilisearch is a projection, while PostgreSQL remains authoritative.
 
-Media uses bigint morph keys, a package UUID where Media Library requires it, and public Store/media ULIDs in private paths. Development uses private local storage; staging and production use private S3-compatible storage and temporary URLs.
+Media uses bigint morph keys, a package UUID where Media Library requires it,
+and public Store/media ULIDs. Existing Spatie rows retain their paths; new
+master assets use
+`stores/{store_public_id}/media/{year}/{month}/{media_public_id}/`. PostgreSQL
+stores metadata and relationships only. Laravel Storage holds originals and
+derivatives on allowed local, S3, or S3-compatible/MinIO disks.
+
+The upload lifecycle is `pending` -> `processing` -> `ready`/`failed`.
+Completion dispatches metadata extraction, optimization, derivative generation,
+and finalization on the `media` queue. Product and Variant relationships use
+Store-bearing pivot rows and composite foreign keys; the master asset never
+stores a Product ID. Deletion sets `status=deleted`, removes active attachments,
+keeps usage history and storage objects, and is therefore recoverable. See
+[Media management](media-management.md) and the
+[rollout/rollback ledger](media-management-rollout.md).
 
 Reverb authorizes Store channels through `/api/broadcasting/auth`. It checks the user, active Store, membership, token Store, and `access store`. Public channel names use ULIDs. Events carry public identifiers and small summaries rather than full models.
 

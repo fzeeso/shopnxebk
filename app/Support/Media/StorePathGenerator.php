@@ -27,6 +27,11 @@ final class StorePathGenerator implements PathGenerator
 
     private function base(Media $media): string
     {
+        $directory = trim((string) $media->getAttribute('directory'), '/');
+        if ($directory !== '') {
+            return $directory;
+        }
+
         $storeId = $media->getAttribute('store_id');
         $storePublicId = $storeId === null ? null : Store::query()->whereKey($storeId)->value('public_id');
         $mediaPublicId = (string) $media->getAttribute('public_id');

@@ -28,6 +28,9 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/store/products/{product}/images/{image}',
             'PATCH /api/v1/store/products/{product}/images/{image}',
             'DELETE /api/v1/store/products/{product}/images/{image}',
+            'POST /api/v1/store/products/{product}/media',
+            'DELETE /api/v1/store/products/{product}/media/{media}',
+            'PUT /api/v1/store/products/{product}/media/{media}/primary',
         ];
         sort($expected);
 
@@ -76,7 +79,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
 
                 continue;
             }
-            if ($currentPath !== null && preg_match('/^    (get|post|patch|delete):$/', $line, $match) === 1) {
+            if ($currentPath !== null && preg_match('/^    (get|post|put|patch|delete):$/', $line, $match) === 1) {
                 $operations[] = strtoupper($match[1]).' '.$currentPath;
             }
         }
