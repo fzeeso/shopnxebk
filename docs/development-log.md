@@ -1,5 +1,48 @@
 # Development log
 
+## 2026-08-25 - Store Admin cross-Store mutation and schema-command guard
+
+- Changed: Store context/membership now precede route-model substitution; every
+  Store Admin route applies a bound-model `store_id` check; `StoreScoped`
+  save/delete events fail closed on an active Store mismatch; Media and
+  StoreTheme uses the shared scope, Media applies an equivalent active-Store
+  mutation check while retaining nullable Platform media, and Store/GraphQL
+  HTTP requests reject DDL and other schema commands before execution.
+- Reason: A Store administrator, including through an AI-backed feature, must
+  never read, update, or delete another Store's record or execute a command that
+  creates, alters, truncates, or drops database tables.
+- Data/configuration impact: Application middleware/model/provider behavior and
+  documentation only. No migration, stored row, Store setting, dependency, or
+  environment secret changed.
+- Compatibility or rollout notes: Cross-Store identifiers deliberately return
+  404. Normal permission-authorized deletes within the active Store continue to
+  work. Console migrations remain available under the repository's explicit
+  additive-migration policy; production must also use a least-privileged web
+  database role.
+- Verification: Added five non-database guard tests for schema SQL rejection,
+  same-Store/cross-Store binding, permitted Store-scoped deletes, and model
+  mutation rejection. Route, documentation, formatting, and existing unit
+  suites were checked without modifying database or Store data.
+
+## 2026-08-25 - Explicit additive table-creation permission
+
+- Changed: Narrowed the Codex database guardrail so an explicit user request may
+  authorize specifically named, pending create-table migrations in a `local` or
+  `testing` environment after source inspection confirms they do not change
+  existing rows or existing tables.
+- Reason: Permit controlled schema creation while keeping all existing Store
+  data and non-additive database operations protected.
+- Data/configuration impact: Applied only the three Product Modifier migrations
+  to the configured local database, creating 19 new Store-scoped tables. No
+  existing Store rows were inserted, updated, deleted, reset, or seeded.
+- Compatibility or rollout notes: Rollbacks, seeds, restores, imports, changes
+  to existing schema/data, and mutation-capable database-backed tests remain
+  prohibited. Every additive execution still requires an explicit user request,
+  local/testing environment verification, migration inspection, and exact paths.
+- Verification: Confirmed the application environment is `local`, inspected all
+  three `up()` methods, ran the migrations in dependency order, and confirmed
+  their migration status is `Ran`.
+
 ## 2026-08-25 - Reusable multi-language Product Modifier library
 
 - Changed: Added 19 normalized modifier/category/value/validation/pricing,
@@ -11,17 +54,15 @@
   localize or override its Product presentation, availability, requiredness,
   settings, defaults, and multi-currency price without duplicating catalog
   definitions.
-- Data/configuration impact: Three additive Catalog migrations are prepared but
-  were not executed. Translation/junction rows retain `store_id`, and two value
+- Data/configuration impact: Three additive Catalog migrations were applied to
+  the configured local database and created 19 tables. Translation/junction rows retain `store_id`, and two value
   junctions retain an internal `modifier_id`, to enforce cross-Store and
   wrong-definition rejection with composite foreign keys. No dependency or
   secret was added.
 - Compatibility or rollout notes: Cart, Orders, Sales Channels, and Customer
   Groups are not installed modules. Catalog exposes integration services, not
   cart/checkout HTTP routes; cart/order foreign keys are conditional; public
-  audience inputs remain prohibited until those modules expose ULIDs. A human
-  operator must review and execute migrations under the repository data-safety
-  policy.
+  audience inputs remain prohibited until those modules expose ULIDs.
 - Verification: Added 21 non-database unit/contract tests covering every
   requested behavior plus the 19-table/index/ULID schema contract without
   mutating PostgreSQL or Store data;
@@ -39,8 +80,9 @@
   Store data, application configuration, or runtime state was changed.
 - Compatibility or rollout notes: Codex may still prepare source and migration
   files, and may run read-only inspection, static analysis, formatting, builds,
-  and tests that perform no database writes. A human operator remains
-  responsible for executing any data-changing command.
+  and tests that perform no database writes. The later explicit additive
+  table-creation exception supersedes this entry only for qualifying named
+  migrations; all other mutation remains prohibited.
 - Verification: Repository instructions and generated documentation checks were
   reviewed without running database-backed tests or data-mutating commands.
 

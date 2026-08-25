@@ -13,6 +13,8 @@
 - Store ULID resolution from `X-Store-ID`;
 - request-scoped `StoreContext`;
 - active-membership and token/store enforcement;
+- Store-first route binding, bound-model ownership checks, Store-scoped
+  save/delete guards, and runtime HTTP schema-command rejection;
 - Store-scoped model, cache, queue, media, and search helpers;
 - automatic disabled Store-policy catalogs, localized policy content whose
   `lock_it` flag protects merchant-authored translations from automated
@@ -76,7 +78,9 @@ Theme marketplace/install/customize/publish routes are implemented by Themes.
    the active Owner membership/role and one disabled policy per master type.
 3. A submitted custom domain is recorded as the pending primary domain while the verified platform domain remains available as a non-primary domain.
 4. Creation returns `dashboard_url=<STORE_ADMIN_DASHBOARD_URL>?store=<store-public-ulid>`; the frontend accepts only an ID present in the authenticated Store-access profile.
-5. Existing Store routes resolve `X-Store-ID` and require an active membership.
+5. Existing Store routes resolve `X-Store-ID`, require an active membership,
+   bind models under that Store scope, and reject a bound model with another
+   `store_id` as not found.
 6. `GET /api/v1/store` and `GET /api/v1/store/settings` allow active members to view their own Store.
 7. `PATCH /api/v1/store/profile` calls `UpdateStoreProfileService`; the transactional `PATCH /api/v1/store/settings` controller flow persists contact/address and opt-in flag values in `store_settings`.
 8. Both write paths require `manage store`, use a transaction, and return public-safe resources.

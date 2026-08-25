@@ -8,7 +8,7 @@ use Modules\Catalog\Http\Controllers\Api\V1\ModifierLibraryController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductModifierController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductModifierGroupController;
 
-Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member'])
+Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {

@@ -9,7 +9,7 @@ Route::get('api/v1/store/brands/{brand}/media/{collection}', [BrandController::c
     ->middleware('signed:relative')
     ->name('api.v1.store.brands.media');
 
-Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member'])
+Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {

@@ -2,12 +2,14 @@
 
 ## Codex data-safety policy
 
-Codex must treat every database and all Store data as read-only. It must not run
-SQL, migrations, rollbacks, seeds, restores, imports, database-backed tests, or
-API/GraphQL/browser actions that create, update, delete, reset, or otherwise
-manipulate Store data. Implementation work may prepare source and migration
-files, but execution against any development, test, staging, or production
-database is left to an authorized human operator. Static checks, formatting,
+Codex must treat every database and all Store data as read-only, with one narrow
+exception for additive table creation. After an explicit user request, Codex may
+run specifically named pending migrations when the configured environment is
+`local` or `testing` and inspection confirms that each `up()` method only
+creates new tables without changing existing rows or tables. Dependency order
+must be preserved. SQL that changes existing schema, rollbacks, seeds, restores,
+imports, mutation-capable API/GraphQL/browser actions, and database-backed tests
+that write or reset data remain prohibited. Static checks, formatting,
 documentation generation, and tests with no database writes remain permitted.
 
 This is the working guide for developers extending the ShopNXE backend. It explains what is installed, why it exists, how information moves through the system, which process executes each kind of work, and how to make changes safely.
@@ -193,9 +195,17 @@ Permission resolution for a Store request is:
 3. Require an active `store_users` row for that user and Store.
 4. For bearer authentication, require `store:access` and the same token `store_id`.
 5. Set Spatie Permission's team to that internal `store_id`.
-6. Evaluate Store roles, permissions, and the model policy for the requested action.
+6. Substitute route models only after Store context is active, then return 404
+   when any bound model has a different `store_id`.
+7. Evaluate Store roles, permissions, and the model policy for the requested action.
+8. Reject cross-Store `StoreScoped` model saves/deletes and block schema-level
+   SQL from Store or GraphQL HTTP requests.
 
-Membership never substitutes for steps 5–6. For example, both Owner and Sales may have active `store_users` rows, while their assigned permissions expose different APIs.
+Membership never substitutes for steps 5–7. For example, both Owner and Sales may have active `store_users` rows, while their assigned permissions expose different APIs.
+
+AI media and translation calls do not expose tool calling, SQL, shell access,
+route dispatch, or delete operations to the provider. Provider output is
+validated as structured content before an owning Store service applies it.
 
 Domain entities use bigint `id` for primary keys, bigint `*_id` foreign keys for internal joins, and ULID `public_id` for REST, GraphQL, URLs, public events, and file paths. Middleware and actions resolve a public ULID once, then keep the internal bigint through the database flow. API resources and GraphQL fields serialize `public_id` as `id`; they must not expose bigint keys.
 

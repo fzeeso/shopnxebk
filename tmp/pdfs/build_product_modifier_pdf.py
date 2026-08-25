@@ -467,7 +467,7 @@ story.append(p("6. API and implementation reference", "Section"))
 story.append(p("Primary resolved endpoint", "Subsection"))
 story.append(callout(
     "Storefront read",
-    "<font name='DocMono'>GET /api/v1/store/products/{product}/modifiers/resolved?locale=en&amp;currency=GBP</font><br/><br/>Returns assignment and modifier ULIDs, code, type, localized name, required/min/max settings, allowed values, and effective price adjustments.",
+    "<font name='DocMono' size='7.2'>GET /api/v1/store/products/{product}/modifiers/resolved<br/>?locale=en&amp;currency=GBP</font><br/><br/>Returns assignment and modifier ULIDs, code, type, localized name, required/min/max settings, allowed values, and effective price adjustments.",
 ))
 story.append(Spacer(1, 7 * mm))
 story.append(p("Service sequence", "Subsection"))
@@ -509,8 +509,6 @@ story.append(callout(
     "Cart and order integration services and storage are prepared, but this repository does not currently contain Cart, Orders, Sales Channel, or Customer Group modules. Checkout HTTP routes therefore remain unwired, and audience IDs are not accepted through the public API until those modules expose ULIDs.",
     PALE_TEAL,
 ))
-story.append(Spacer(1, 5 * mm))
-story.append(p("Database safety note: migrations and database-backed tests were not executed while preparing this implementation reference.", "Small"))
 
 
 doc = ModifierDocTemplate(str(OUTPUT))

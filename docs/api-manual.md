@@ -619,6 +619,14 @@ Clients should:
 
 Common failures include missing `X-Store-ID`, inactive membership, token/Store mismatch, missing `manage products`, inactive translation locale, duplicate localized slug, invalid Product Type code, unknown taxonomy-node ULID, invalid category tree, and a primary category absent from `categoryIds`.
 
+Store Admin route models are bound only after Store resolution and membership.
+A ULID owned by another Store returns 404 for reads, updates, and deletes, and
+model-level guards independently reject cross-Store save/delete attempts.
+Store and GraphQL HTTP requests cannot execute schema SQL; an attempted
+`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, grant, or equivalent command is rejected
+with 403. AI media and translation endpoints expose fixed operations only and
+never pass database or deletion tools to the provider.
+
 ## 10. Adding another application or Catalog entity
 
 An external application should bootstrap in this order:

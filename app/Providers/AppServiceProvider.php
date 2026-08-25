@@ -13,6 +13,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +31,7 @@ use Modules\Catalog\Services\Translations\ProductTypeTranslationHandler;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Services\Translations\StorePolicyTranslationHandler;
+use Modules\Stores\Support\StoreRuntimeDatabaseGuard;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -72,6 +74,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        DB::connection()->beforeExecuting(function (string $query): void {
+            $request = $this->app->bound('request') ? $this->app->make('request') : null;
+            if ($request instanceof Request) {
+                $this->app->make(StoreRuntimeDatabaseGuard::class)->assertAllowed($request, $query);
+            }
+        });
+
         $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
         $this->loadRoutesFrom(base_path('routes/brand-api.php'));
         $this->loadRoutesFrom(base_path('routes/fulfillment-type-api.php'));

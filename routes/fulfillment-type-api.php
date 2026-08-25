@@ -19,7 +19,7 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:platform'])
             ->name('fulfillment-types.update');
     });
 
-Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member'])
+Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {

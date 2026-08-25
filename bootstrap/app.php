@@ -9,9 +9,11 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Http\Middleware\EnsureUserScope;
 use Modules\Stores\Http\Middleware\EnsureStoreMembership;
+use Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings;
 use Modules\Stores\Http\Middleware\ResolveOptionalStore;
 use Modules\Stores\Http\Middleware\ResolveStore;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
@@ -32,9 +34,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'store' => ResolveStore::class,
             'store.member' => EnsureStoreMembership::class,
+            'store.bindings' => EnsureStoreOwnedBindings::class,
             'store.optional' => ResolveOptionalStore::class,
             'user.scope' => EnsureUserScope::class,
         ]);
+        $middleware->prependToPriorityList(SubstituteBindings::class, ResolveStore::class);
+        $middleware->prependToPriorityList(SubstituteBindings::class, EnsureStoreMembership::class);
+        $middleware->appendToPriorityList(SubstituteBindings::class, EnsureStoreOwnedBindings::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

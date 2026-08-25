@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductImageController;
 
-Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member'])
+Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {

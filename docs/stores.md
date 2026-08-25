@@ -14,6 +14,15 @@ reset, Store listing, and account token management do not require the header.
 Missing required context is 400, unknown Store is 404, and
 non-member/suspended/token mismatch is 403.
 
+Store Admin REST binding is fail-closed. Middleware resolves Store context and
+membership before Laravel substitutes route models, then
+`EnsureStoreOwnedBindings` rejects every bound model whose `store_id` differs
+from the selected Store with a non-enumerating 404. `StoreScoped` also rejects
+save/delete events for a model owned by another active Store context, including
+models loaded without their normal global scope. Store and GraphQL HTTP
+requests cannot execute schema-level SQL such as `DROP`, `TRUNCATE`, `ALTER`,
+or `CREATE`; migrations remain a console/deployment concern.
+
 `RequestStoreContext` is container-scoped. `ClearRequestContext` and queue
 lifecycle hooks clear it, `Store::forgetCurrent()`, the active permission team,
 auth guards, locale, and log context after each request/job. Store-aware jobs
@@ -23,8 +32,9 @@ tables require bigint `id`, ULID `public_id`, a non-null bigint `store_id`, a
 foreign key/index, `StoreScoped`, and Store-local composite unique constraints.
 
 Store cache keys and search documents are filtered by internal `store_id`.
-Public events, media paths, and URLs use Store/entity ULIDs. Public storefront
-domain resolution and PostgreSQL RLS are future hardening work.
+Public events, media paths, and URLs use Store/entity ULIDs. The web database
+role should still be least-privileged in deployment. Public storefront domain
+resolution and PostgreSQL RLS are future hardening work.
 
 ## Domain, settings, and theme persistence
 

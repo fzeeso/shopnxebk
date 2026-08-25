@@ -8,6 +8,7 @@ use App\Enums\MediaStatus;
 use App\Enums\MediaVisibility;
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -94,8 +95,24 @@ final class Media extends BaseMedia
             }
         });
 
+        self::saving(function (self $media): void {
+            $storeId = app(StoreContext::class)->id();
+            if (! $media->exists && $media->store_id === null && $storeId !== null) {
+                $media->store_id = $storeId;
+            }
+            if ($storeId !== null && (int) $media->store_id !== $storeId) {
+                throw (new ModelNotFoundException)->setModel(self::class, [$media->getKey()]);
+            }
+        });
+
+        self::deleting(function (self $media): void {
+            $storeId = app(StoreContext::class)->id();
+            if ($storeId !== null && (int) $media->store_id !== $storeId) {
+                throw (new ModelNotFoundException)->setModel(self::class, [$media->getKey()]);
+            }
+        });
+
         self::creating(function (self $media): void {
-            $media->store_id ??= app(StoreContext::class)->id();
             $media->uuid ??= (string) Str::uuid();
             $media->status ??= MediaStatus::Ready;
             $media->visibility ??= MediaVisibility::Private;

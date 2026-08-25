@@ -18,17 +18,25 @@ credentials, or untracked `.env` values in documentation.
 
 ## Database and Store-data safety
 
-Treat every database and all Store data as read-only during Codex work.
+Treat every database and all Store data as read-only during Codex work, except
+for the narrow additive table-creation permission below.
 
-- Never execute SQL, Artisan, migration, rollback, seed, restore, import, API,
-  GraphQL, browser, or other commands that create, update, delete, truncate,
-  drop, alter, or otherwise manipulate database or Store data.
+- Codex may execute specifically named, pending migrations only when the user
+  explicitly requests database table creation, the configured application
+  environment is `local` or `testing`, and inspection confirms each migration's
+  `up()` method only creates new tables without changing existing rows or
+  existing tables. Run only the named migrations and preserve dependency order.
+- Never execute SQL, Artisan, rollback, seed, restore, import, API, GraphQL,
+  browser, or other commands that update, delete, truncate, drop, alter, or
+  otherwise manipulate existing database schema or Store data.
 - Do not run database-backed tests when they can insert, update, delete, reset,
   refresh, migrate, or otherwise mutate a database, including a test database.
 - Generic requests to implement, fix, test, verify, or deploy do not authorize
-  data mutation. If completion would require a mutation, stop and report it.
+  data mutation. Additive table creation requires the explicit request and
+  safeguards above; if any condition is not satisfied, stop and report it.
 - Read-only inspection, source/configuration edits, documentation generation,
   formatting, static analysis, unit tests with no database writes, and builds
   remain allowed.
-- Code or migration files may be prepared when requested, but Codex must not
-  execute them against any database or Store dataset.
+- Code or migration files may be prepared when requested. Only qualifying
+  additive create-table migrations may be executed under the explicit exception
+  above; all Store rows remain read-only.

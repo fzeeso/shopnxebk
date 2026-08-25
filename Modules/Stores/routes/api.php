@@ -23,7 +23,7 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
     ->group(function (): void {
         Route::post('stores', [StoreController::class, 'store'])->name('stores.store');
 
-        Route::middleware(['store', 'store.member'])->prefix('store')->name('store.')->group(function (): void {
+        Route::middleware(['store', 'store.member', 'store.bindings'])->prefix('store')->name('store.')->group(function (): void {
             Route::get('/', [StoreController::class, 'show'])->name('show');
             Route::patch('profile', [StoreController::class, 'updateProfile'])->name('profile.update');
             Route::get('settings', [StoreController::class, 'settings'])->name('settings.show');
