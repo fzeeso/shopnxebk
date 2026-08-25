@@ -108,7 +108,8 @@ copies, and the Theme installer used by Store provisioning.
 
 `Modules/Catalog/` owns global Platform classification taxonomies plus
 Store-local brands, collections, categories, Product Types, products, options,
-variants, the global localized fulfillment-type catalog, media/fulfillment
+variants, reusable multi-language Product Modifier definitions and Product
+assignments, the global localized fulfillment-type catalog, media/fulfillment
 metadata, license-key pools, and typed custom-field persistence. Brands expose
 Store-scoped CRUD services and REST routes.
 Categories, Product Types, and Products expose Store-scoped models,
@@ -117,6 +118,17 @@ handlers; the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
+
+Product modifiers have three deliberately separate runtime layers. The
+library service transactionally owns definitions, translations, values,
+validation, and library prices. The Product assignment service owns groups,
+availability/default/required/translation/settings overrides, reorder, and
+Product prices. `ProductModifierResolver` combines those layers into a
+frontend-safe ULID DTO by delegating locale selection to
+`ModifierTranslationResolver` and money selection to
+`ModifierPricingResolver`. Cart validation/writing and immutable order
+snapshots are separate integration services; controllers and theme/layout code
+must not reproduce their rules.
 
 Each future business module owns its migrations, models, Actions/services, policies, routes, GraphQL schema, events, jobs, factories, and tests. Cross-module behavior uses contracts or events instead of reaching directly into another module's models.
 

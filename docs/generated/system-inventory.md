@@ -162,6 +162,16 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/store/media/{media}/ai-results` | `api.v1.store.media.ai.history` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/media/{media}/complete` | `api.v1.store.media.complete` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/media/{media}/content` | `api.v1.store.media.content` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/modifier-library` | `api.v1.store.modifier-library.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/modifier-library` | `api.v1.store.modifier-library.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/modifier-library/categories` | `api.v1.store.modifier-library.categories.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/modifier-library/categories` | `api.v1.store.modifier-library.categories.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/modifier-library/categories/{category}` | `api.v1.store.modifier-library.categories.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/modifier-library/categories/{category}` | `api.v1.store.modifier-library.categories.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/modifier-library/{modifier}` | `api.v1.store.modifier-library.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/modifier-library/{modifier}` | `api.v1.store.modifier-library.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/modifier-library/{modifier}` | `api.v1.store.modifier-library.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/modifier-library/{modifier}/active` | `api.v1.store.modifier-library.active` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/policies` | `api.v1.store.policies.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `POST` | `/api/v1/store/policies` | `api.v1.store.policies.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/policies/{storePolicy}` | `api.v1.store.policies.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -191,6 +201,16 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `POST` | `/api/v1/store/products/{product}/media` | `api.v1.store.products.media.attach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `DELETE` | `/api/v1/store/products/{product}/media/{media}` | `api.v1.store.products.media.detach` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PUT` | `/api/v1/store/products/{product}/media/{media}/primary` | `api.v1.store.products.media.primary` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/modifier-groups` | `api.v1.store.products.modifier-groups.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/products/{product}/modifier-groups` | `api.v1.store.products.modifier-groups.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/products/{product}/modifier-groups/{group}` | `api.v1.store.products.modifier-groups.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/products/{product}/modifier-groups/{group}` | `api.v1.store.products.modifier-groups.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/modifiers` | `api.v1.store.products.modifiers.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `POST` | `/api/v1/store/products/{product}/modifiers` | `api.v1.store.products.modifiers.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/products/{product}/modifiers/reorder` | `api.v1.store.products.modifiers.reorder` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/modifiers/resolved` | `api.v1.store.products.modifiers.resolved` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `DELETE` | `/api/v1/store/products/{product}/modifiers/{assignment}` | `api.v1.store.products.modifiers.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
+| `PATCH` | `/api/v1/store/products/{product}/modifiers/{assignment}` | `api.v1.store.products.modifiers.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member |
@@ -263,6 +283,9 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Catalog | `Modules/Catalog/database/migrations/2026_08_23_000300_add_show_related_product_to_products_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_23_000400_add_prodpoints_to_products_table.php` |
 | Catalog | `Modules/Catalog/database/migrations/2026_08_23_000500_add_reviews_on_to_products_table.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_25_001000_create_modifier_library_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_25_001100_create_product_modifier_assignment_tables.php` |
+| Catalog | `Modules/Catalog/database/migrations/2026_08_25_001200_create_cart_and_order_modifier_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000700_create_language_tables.php` |
 | Settings | `Modules/Settings/database/migrations/2026_07_29_000800_create_currencies_table.php` |
 | Settings | `Modules/Settings/database/migrations/2026_08_07_000200_add_lang_icon_to_languages_table.php` |

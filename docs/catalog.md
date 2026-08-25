@@ -2,7 +2,7 @@
 
 This document is the complete persistence contract for the Catalog module,
 including its global Platform classification tree and Store-local catalog
-records. The source of truth is the eighteen migrations under
+records. The source of truth is the twenty-one migrations under
 `Modules/Catalog/database/migrations` plus the application-wide reusable media
 migration; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
@@ -14,7 +14,7 @@ have nested REST metadata CRUD only. Fulfillment Types use REST for Platform
 management and active Store discovery. Category, Product Type, and Product
 translations retain locale-aware manual editing and durable automatic
 translation handlers. Options, variants, product files/fulfillment, custom
-fields, search projections, and administration screens remain persistence-only
+fields and search projections remain persistence-only
 or follow-up work. Product writes can assign both a global taxonomy-node ULID
 and a Store-local Product Type ULID. No `/api/v1/store/categories` or
 `/api/v1/store/product-types` route exists. See the [API manual](api-manual.md)
@@ -43,6 +43,9 @@ for the executable request cycle and examples.
 | 17 | `2026_08_23_000400_add_prodpoints_to_products_table.php` | Product-level points value |
 | 18 | `2026_08_23_000500_add_reviews_on_to_products_table.php` | Product-level review enablement flag |
 | 19 | `database/migrations/2026_08_25_000100_expand_media_management_subsystem.php` | Existing-media extension, reusable Product/Variant media pivots, derivatives, usage, and AI-result boundaries |
+| 20 | `2026_08_25_001000_create_modifier_library_tables.php` | Reusable Store-level modifier categories, definitions, translations, values, validation, and library pricing |
+| 21 | `2026_08_25_001100_create_product_modifier_assignment_tables.php` | Product groups, reusable assignments, presentation/value/settings overrides, and Product pricing |
+| 22 | `2026_08_25_001200_create_cart_and_order_modifier_tables.php` | Server-priced cart selection rows and immutable localized order snapshots |
 
 Rollback runs in the reverse order. Store deletion cascades Store-local Catalog
 rows; Platform taxonomies are global and survive Store deletion.
@@ -125,6 +128,11 @@ Variant money uses integer minor units instead of decimal major units. For
 example, USD `1999` means `$19.99`; a zero-decimal currency interprets the same
 integer according to its Settings metadata. `currency_code` is required and is
 database-checked against `^[A-Z]{3}$`.
+
+Modifier price components follow the requested decimal-major-unit contract:
+`DECIMAL(18,4)` plus a Settings-owned three-letter `currency_code`. Product
+overrides replace matching library components, percentages use the Product
+base price, and the pricing resolver returns a four-decimal string.
 
 ### Store isolation
 
@@ -1069,6 +1077,10 @@ container and option to share `definition_id` and `store_id`.
 | `product_license_keys.max_activations` | Greater than zero |
 | `custom_field_definitions.field_type` | `text`, `number`, `boolean`, `select`, `multi_select`, `date`, `url` |
 | `product_custom_field_values` scalar storage | At most one of number, boolean, date, or select option is populated |
+| `modifier_definitions.type` | `select`, `radio`, `buttons`, `swatch`, `checkbox`, `checkbox_group`, `text`, `textarea`, `number`, `date`, `datetime`, `file`, `image_upload`, `toggle` |
+| Modifier validation rule type | `min_length`, `max_length`, `min_number`, `max_number`, `regex`, `allowed_file_extensions`, `max_file_size`, `max_files`, `min_date`, `max_date` |
+| Modifier price type | `fixed`, `percentage` |
+| Modifier selection ranges | Minimum cannot exceed maximum; a non-multiple modifier cannot have a maximum above one |
 
 ## 16. Uniqueness and primary-key reference
 
@@ -1095,6 +1107,11 @@ container and option to share `definition_id` and `store_id`.
 | `custom_field_options` | Unique `(id, definition_id, store_id)` |
 | `product_custom_field_values` | Unique `(id, definition_id, store_id)` and one definition/product/variant scope |
 | `product_custom_field_value_options` | Primary `(value_id, option_id)` |
+| Modifier library/category | Unique public ULID and Store-local code; modifier values are unique by `(modifier_id, code)` |
+| Modifier translations | One row per parent and locale |
+| Product modifier group | Unique public ULID and `(product_id, code)` |
+| Product modifier assignment | Unique public ULID and `(product_id, modifier_id)` |
+| Product modifier value assignment | Unique `(product_modifier_assignment_id, modifier_value_id)` |
 
 ## 17. Query-index reference
 
@@ -1124,6 +1141,17 @@ container and option to share `definition_id` and `store_id`.
 | `product_license_keys` | `assigned_to_order_id`; `(store_id, product_id, status)`; `(store_id, variant_id, status)` |
 | `product_custom_field_values` | `(store_id, product_id)`; `(store_id, variant_id)`; `(store_id, definition_id)` |
 | `product_custom_field_value_options` | `(store_id, definition_id)` |
+| `modifier_library_categories` | `(store_id, is_active, sort_order)` |
+| `modifier_definitions` | `(store_id, is_active)`; `(store_id, library_category_id, sort_order)` |
+| `modifier_values` | `(store_id, modifier_id, is_active)` |
+| `modifier_price_adjustments` | `(store_id, modifier_id, currency_code)`; audience filter |
+| `modifier_value_price_adjustments` | `(store_id, modifier_value_id, currency_code)`; audience filter |
+| `product_modifier_groups` | `(store_id, product_id, is_active)` |
+| `product_modifier_assignments` | `(store_id, product_id, is_active)` |
+| `product_modifier_value_assignments` | `(product_modifier_assignment_id, is_enabled)` |
+| Product modifier price overrides | Store/assignment/value/currency and audience filters |
+| `cart_item_modifier_selections` | `cart_item_id`; `(store_id, cart_item_id)` |
+| `order_item_modifier_snapshots` | `order_item_id`; `(store_id, order_item_id)` |
 
 ## 18. Deletion behavior
 
@@ -1146,13 +1174,18 @@ container and option to share `definition_id` and `store_id`.
 | Custom-field definition | Definition translations, options, and product values cascade |
 | Custom-field option | Option translations/multi-select assignments cascade; deletion is restricted while used as a scalar select value |
 | Custom-field value | Value translations and multi-select assignments cascade |
+| Modifier library category | Translations cascade; modifier references become null |
+| Modifier definition/value | Soft deletion hides active resolution without destroying relationships; physical deletion cascades Catalog children/assignments and ephemeral cart selections |
+| Product modifier group | Translations cascade; assignment group reference becomes null |
+| Product modifier assignment | Overrides/value controls/translations and ephemeral cart selections cascade |
+| Product/modifier/value referenced by order snapshot | Snapshot remains and the nullable source bigint becomes null |
 
 ## 19. Application-layer responsibilities
 
 PostgreSQL protects identity, Store/product/definition consistency, important
-uniqueness, enum membership, and selected numeric rules. `BrandService`
-currently enforces the Brand-specific subset below; future Catalog services
-must additionally enforce the remaining rules:
+uniqueness, enum membership, and selected numeric rules. Catalog services
+enforce the implemented API subsets below; future services must enforce the
+remaining rules:
 
 - authenticated Store context and `manage products` authorization;
 - ULID-only public contracts and no bigint leakage;
@@ -1323,3 +1356,70 @@ JOIN subtree
 WHERE product.store_id = :store_id
   AND product.status = 'active';
 ```
+
+## 22. Reusable Product Modifiers
+
+The modifier subsystem is normalized into three boundaries. Library tables
+define reusable Store catalog records; Product tables attach those records and
+store only Product overrides; cart/order tables persist selections and history.
+
+### Library tables
+
+| Table | Responsibility |
+| --- | --- |
+| `modifier_library_categories` / `_translations` | Optional reusable taxonomy, public category ULID, Store-local code/order/active state, localized name/description |
+| `modifier_definitions` / `modifier_translations` | Public modifier ULID, stable code/type/default selection/settings behavior, localized presentation and validation copy |
+| `modifier_values` / `_translations` | Public value ULID, same-modifier code/order/default/active state, color/icon/Store media/settings, localized copy |
+| `modifier_validation_rules` / `_translations` | Ordered extendable input constraints and localized failure message |
+| `modifier_price_adjustments` | Currency/date/audience-aware fixed or percentage whole-modifier library component |
+| `modifier_value_price_adjustments` | Equivalent library component for one modifier value |
+
+The initial modifier types are `select`, `radio`, `buttons`, `swatch`,
+`checkbox`, `checkbox_group`, `text`, `textarea`, `number`, `date`, `datetime`,
+`file`, `image_upload`, and `toggle`. Rule types are `min_length`,
+`max_length`, `min_number`, `max_number`, `regex`,
+`allowed_file_extensions`, `max_file_size`, `max_files`, `min_date`, and
+`max_date`. Check constraints reject unknown types, impossible min/max ranges,
+invalid single-choice maxima, invalid price types, and reversed date windows.
+
+### Product assignment tables
+
+| Table | Responsibility |
+| --- | --- |
+| `product_modifier_groups` / `_translations` | Product-local public group ULID, code/order/active/settings and localized headings |
+| `product_modifier_assignments` / `_translations` | Public assignment ULID linking one reusable definition to one Product, with group/order/active/selection/settings/presentation overrides |
+| `product_modifier_value_assignments` | Enabled/default/order/settings controls for values on one assignment |
+| `product_modifier_price_overrides` | Whole-modifier Product component replacing a matching library component |
+| `product_modifier_value_price_overrides` | Value Product component replacing a matching value-library component |
+
+`(product_id, modifier_id)` is unique, so one definition is attached at most
+once to a Product but may be shared by any number of Products. The value
+junctions carry a redundant internal `modifier_id` solely for composite foreign
+keys: both the assignment and value must resolve to that same Store-owned
+modifier. Translation and junction rows similarly carry internal `store_id` in
+accordance with the Catalog database-isolation convention. These internal
+columns are never API fields.
+
+### Resolution, cart, and order contracts
+
+`ProductModifierResolver` returns one frontend-safe DTO and hides library,
+override, translation, and pricing tables. Labels resolve through requested
+Product override, requested library translation, Store-default library
+translation, and code fallback. Values use requested locale, Store default,
+then code. Product price rows replace the corresponding library component;
+modifier and value components are added, exact audience rows outrank broad
+rows, and percentages use the Product base price.
+
+`cart_item_modifier_selections` stores one selected value per row, or typed
+`input_value` JSON for free-form modifiers, plus a server-calculated amount and
+currency. `order_item_modifier_snapshots` copies source public IDs, codes,
+localized names, input, price, currency, locale, and metadata once. Its
+catalog foreign keys use `SET NULL`, never cascade, and application code never
+updates snapshots.
+
+Cart and Orders do not yet exist as owning modules. The migration therefore
+adds `cart_item_id` and `order_item_id` plus required indexes and conditionally
+creates their foreign keys only if those tables already exist at migration
+time. Sales Channel and Customer Group tables are likewise absent; their
+nullable bigint audience columns are reserved but cannot be written through
+the public API until Store-scoped ULID resolvers exist.

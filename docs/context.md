@@ -250,6 +250,37 @@ Options, variants, files, fulfillment, and custom fields remain persistence-only
 until their owning APIs are implemented. See the [API manual](api-manual.md) and
 [Catalog schema reference](catalog.md).
 
+## Product modifier library contract
+
+Catalog owns reusable Store-level modifier categories, definitions, values,
+translations, validation rules, and currency price rows. A Product attaches a
+definition through `product_modifier_assignments`; it never receives a copied
+definition. The assignment and its optional group can override order,
+required/min/max selection rules, settings, translated labels/help text,
+available/default values, and modifier/value prices. Public routes accept and
+return ULIDs for categories, modifiers, values, groups, Products, and
+assignments. Every lookup combines the active Store bigint with the public
+ULID, while database relationships remain bigint composite foreign keys.
+
+The resolved storefront contract hides the normalized tables. Translation
+fallback is requested-locale Product override, requested-locale library row,
+Store-default library row, then a safe code label; values fall back from the
+requested locale to Store default to code. Pricing is server-owned: a matching
+Product component overrides its equivalent library component, modifier and
+value components are added, percentage rows use the Product base price, and
+currency/date/channel/customer-group matching is explicit.
+
+`CartModifierSelectionService` revalidates requiredness, selection bounds,
+value ownership, free-form input, Store-owned media, and validation rules; it
+recalculates all prices and writes one row per selected value.
+`OrderModifierSnapshotService` creates append-only localized order rows that do
+not depend on later catalog translations or prices. No Cart, Orders, Sales
+Channel, or Customer Group module currently owns public APIs or stable tables,
+so these are integration services rather than registered cart/checkout routes.
+The migration conditionally adds cart/order foreign keys when the owning tables
+exist, and the public modifier APIs prohibit internal audience IDs until public
+ULID resolvers exist.
+
 ## Reusable media boundary
 
 `media` is the Store-owned master asset for Products, Product Variants,

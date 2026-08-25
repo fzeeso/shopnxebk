@@ -49,6 +49,8 @@ Accept: application/json
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
 | Reusable Media | Upload/complete/list/detail/content/delete plus Product and Variant attachment under `/api/v1/store` | Not exposed |
+| Modifier Library | Store category/definition lifecycle with nested translations, values, validation, and pricing | Not exposed |
+| Product Modifiers | Nested group/assignment/reorder APIs and resolved storefront DTO | Not exposed |
 | Fulfillment Types | Platform management plus active Store discovery through REST | Not exposed |
 
 There are currently no `/api/v1/store/categories` or
@@ -491,6 +493,55 @@ ULID. Cross-Store identifiers therefore return `404`; missing membership or
 permissions return `401`/`403`. Database composite foreign keys enforce the
 same rule. The full architecture and operational safety notes are in
 [Media management](media-management.md).
+
+### 6.4 Reusable Product Modifier REST lifecycle
+
+All modifier routes use the normal Store authentication envelope. Reads
+require active membership; every write also requires `manage products`.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/modifier-library/categories` | List/create library categories |
+| `PATCH`, `DELETE` | `/api/v1/store/modifier-library/categories/{category}` | Edit/soft-delete a category |
+| `GET`, `POST` | `/api/v1/store/modifier-library` | Filter/list or transactionally create definitions |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/modifier-library/{modifier}` | Read/edit/soft-delete one definition |
+| `PATCH` | `/api/v1/store/modifier-library/{modifier}/active` | Activate/deactivate with `{ "is_active": true }` |
+| `GET`, `POST` | `/api/v1/store/products/{product}/modifier-groups` | List/create Product groups |
+| `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifier-groups/{group}` | Edit/soft-delete a group |
+| `GET`, `POST` | `/api/v1/store/products/{product}/modifiers` | List/attach reusable definitions |
+| `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifiers/{assignment}` | Override/remove an assignment |
+| `PATCH` | `/api/v1/store/products/{product}/modifiers/reorder` | Apply `{ "items": [{ "id": "<assignment-ulid>", "sort_order": 1 }] }` |
+| `GET` | `/api/v1/store/products/{product}/modifiers/resolved?locale=en&currency=GBP` | Frontend-safe resolved configuration |
+
+Library create/update bodies use snake_case and may atomically include
+`translations`, `values` (each with translations and price adjustments),
+`validation_rules`, and modifier `price_adjustments`. A supplied value `id` is
+its public ULID; a value omitted from an explicitly supplied `values` array is
+soft-deleted. Supported types are `select`, `radio`, `buttons`, `swatch`,
+`checkbox`, `checkbox_group`, `text`, `textarea`, `number`, `date`, `datetime`,
+`file`, `image_upload`, and `toggle`. Price rows use `fixed` or `percentage`, a
+three-letter `currency_code`, four-decimal `amount`, optional date bounds, and
+active state.
+
+Assignment bodies use a library `modifier_id` ULID and may include `group_id`,
+required/min/max/settings overrides, presentation `translations`,
+`value_assignments`, `price_overrides`, and `value_price_overrides`. Updating a
+definition or assignment with nested arrays replaces that nested collection in
+one transaction. An absent nested key leaves it unchanged. Cross-Store
+Products/modifiers/groups/media and values from the wrong definition return
+`404` or validation errors; no internal bigint is accepted or returned.
+
+The resolved response uses assignment/value ULIDs and camelCase frontend
+fields. It applies Product requested-locale translations before library
+requested/default translations, filters disabled values, applies default and
+required overrides, and returns server-calculated price objects. Clients must
+never submit those displayed amounts as authoritative cart prices.
+
+There are no installed Cart, Orders, Sales Channel, or Customer Group APIs.
+Consequently modifier cart validation and immutable checkout snapshots are
+available as Catalog integration services but are not exposed as HTTP routes.
+The nullable audience columns are also not writable through these APIs until
+those modules expose Store-scoped public ULIDs.
 
 ## 7. Reading localized data
 

@@ -114,6 +114,16 @@ final class Product extends Model
         return $this->hasMany(ProductImage::class)->orderBy('position')->orderBy('id');
     }
 
+    public function modifierGroups(): HasMany
+    {
+        return $this->hasMany(ProductModifierGroup::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function modifierAssignments(): HasMany
+    {
+        return $this->hasMany(ProductModifierAssignment::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'product_media')

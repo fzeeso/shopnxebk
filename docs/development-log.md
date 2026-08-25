@@ -1,5 +1,33 @@
 # Development log
 
+## 2026-08-25 - Reusable multi-language Product Modifier library
+
+- Changed: Added 19 normalized modifier/category/value/validation/pricing,
+  Product assignment/override, cart selection, and immutable order snapshot
+  tables; 19 Eloquent models; separated translation, pricing, storefront,
+  cart-validation, and snapshot services; 20 Store REST routes; and a resolved
+  frontend-safe Product modifier DTO.
+- Reason: Stores need to define a modifier once, reuse it across Products, and
+  localize or override its Product presentation, availability, requiredness,
+  settings, defaults, and multi-currency price without duplicating catalog
+  definitions.
+- Data/configuration impact: Three additive Catalog migrations are prepared but
+  were not executed. Translation/junction rows retain `store_id`, and two value
+  junctions retain an internal `modifier_id`, to enforce cross-Store and
+  wrong-definition rejection with composite foreign keys. No dependency or
+  secret was added.
+- Compatibility or rollout notes: Cart, Orders, Sales Channels, and Customer
+  Groups are not installed modules. Catalog exposes integration services, not
+  cart/checkout HTTP routes; cart/order foreign keys are conditional; public
+  audience inputs remain prohibited until those modules expose ULIDs. A human
+  operator must review and execute migrations under the repository data-safety
+  policy.
+- Verification: Added 21 non-database unit/contract tests covering every
+  requested behavior plus the 19-table/index/ULID schema contract without
+  mutating PostgreSQL or Store data;
+  checked route registration and PHP syntax, then ran Pint, static analysis,
+  and generated-document checks.
+
 ## 2026-08-25 - Codex database and Store-data read-only guardrail
 
 - Changed: Added a persistent repository instruction that prevents Codex from

@@ -1,7 +1,8 @@
 # Catalog module
 
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
-Store-local merchandising and product persistence foundation, the global
+Store-local merchandising and product persistence foundation, the reusable
+multi-language Product Modifier library, the global
 localized fulfillment catalog, Brand/Fulfillment Type/Product REST routes,
 Category/Product Type/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
@@ -20,6 +21,8 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Product Type | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product | Store REST and GraphQL lifecycle APIs |
 | Product Image | Nested Store REST metadata CRUD only |
+| Modifier Library | Store REST category/definition lifecycle; nested translations, values, rules, and prices |
+| Product Modifier | Nested Store REST groups/assignments/reorder plus resolved storefront DTO |
 | Fulfillment Type | Platform/Store REST only |
 
 Models and tables not listed here remain persistence contracts until an
@@ -36,6 +39,9 @@ explicit route or GraphQL field is implemented and documented.
 | Product types | `product_types`, `product_type_translations` |
 | Fulfillment types | `fulfillment_types`, `fulfillment_type_translations` |
 | Products | `products`, `product_translations` |
+| Modifier library | `modifier_library_categories`, `modifier_library_category_translations`, `modifier_definitions`, `modifier_translations`, `modifier_values`, `modifier_value_translations`, `modifier_validation_rules`, `modifier_validation_rule_translations`, `modifier_price_adjustments`, `modifier_value_price_adjustments` |
+| Product modifier assignments | `product_modifier_groups`, `product_modifier_group_translations`, `product_modifier_assignments`, `product_modifier_assignment_translations`, `product_modifier_value_assignments`, `product_modifier_price_overrides`, `product_modifier_value_price_overrides` |
+| Cart/order modifier integration | `cart_item_modifier_selections`, `order_item_modifier_snapshots` |
 | Options and variants | `product_options`, `product_option_translations`, `product_option_values`, `product_option_value_translations`, `product_variants`, `product_variant_translations`, `variant_option_values` |
 | Media and fulfillment | `product_images`, `product_image_translations`, `product_digital_assets`, `product_digital_asset_translations`, `product_license_keys` |
 | Custom fields | `custom_field_definitions`, `custom_field_definition_translations`, `custom_field_options`, `custom_field_option_translations`, `product_custom_field_values`, `product_custom_field_value_translations`, `product_custom_field_value_options` |
@@ -114,6 +120,25 @@ explicit route or GraphQL field is implemented and documented.
   and multi-select values. PostgreSQL enforces one value per
   definition/product/optional-variant scope and prevents mixed-definition
   option assignments.
+- Modifier definitions are Store-owned reusable catalog records, never copied
+  when attached to Products. Product assignments may override required/min/max
+  state, translated presentation, enabled/default values, settings, grouping,
+  ordering, and prices. Composite foreign keys carry the modifier identity
+  through Product/value junctions so a value from another modifier or Store is
+  rejected by PostgreSQL.
+- Translation resolution is field-by-field: requested-locale Product override,
+  requested-locale library translation, Store-default library translation,
+  then a code-derived safe label. Value names use requested locale, Store
+  default, then value code.
+- Price resolution independently chooses modifier and value components. A
+  matching Product override replaces its corresponding library component;
+  exact channel/customer-group rows outrank broader rows; active currency and
+  date windows are mandatory. Fixed amounts and Product-base-price percentages
+  are summed server-side. The cart writer never accepts a client price.
+- Multi-select carts persist one row per selected value. Free-form modifiers
+  persist typed JSON. Checkout copies names, codes, public IDs, locale,
+  currency, inputs, and calculated amount into append-only order snapshots.
+  Catalog edits never update those snapshots.
 
 ## Fulfillment and security boundaries
 
@@ -157,6 +182,13 @@ Product files still have no upload, scan, signing, or delivery workflow.
 - Inventory owns stock ledgers/reservations when implemented. The current
   variant quantity and policy are the requested sellability snapshot, not an
   Inventory module substitute.
+- Cart, Orders, Sales Channels, and Customer Groups are not installed modules.
+  Catalog therefore provides `CartModifierSelectionService` and
+  `OrderModifierSnapshotService` integration seams and nullable internal
+  audience columns, but no cart/checkout HTTP route. The migration adds
+  `cart_items`/`order_items` foreign keys only when those owning tables already
+  exist. Audience IDs are not accepted by the public modifier API until those
+  modules provide public ULIDs and Store-scoped resolvers.
 
 See [Catalog to Stores](../module-communication/catalog-to-stores.md),
 [Catalog to Settings](../module-communication/catalog-to-settings.md), and
