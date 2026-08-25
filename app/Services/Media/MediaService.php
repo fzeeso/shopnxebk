@@ -44,6 +44,18 @@ final readonly class MediaService
             ->where('status', '!=', MediaStatus::Deleted->value)
             ->when($filters['status'] ?? null, fn (Builder $query, mixed $status) => $query->where('status', $status))
             ->when($filters['mime_type'] ?? null, fn (Builder $query, mixed $mime) => $query->where('mime_type', $mime))
+            ->when($filters['source'] ?? null, function (Builder $query, mixed $source): void {
+                if ($source === 'ai_generated') {
+                    $query->where('metadata->source', 'ai_generated');
+
+                    return;
+                }
+
+                $query->where(function (Builder $query): void {
+                    $query->whereNull('metadata->source')
+                        ->orWhere('metadata->source', '!=', 'ai_generated');
+                });
+            })
             ->when($filters['search'] ?? null, function (Builder $query, mixed $search): void {
                 $value = '%'.addcslashes((string) $search, '%_\\').'%';
                 $query->where(function (Builder $query) use ($value): void {
@@ -133,6 +145,54 @@ final readonly class MediaService
         }
 
         return $media->load('variants.media');
+    }
+
+    /** @param array<string, mixed> $input */
+    public function createGeneratedImage(User $user, string $bytes, string $filename, array $input): Media
+    {
+        if ($bytes === '') {
+            throw ValidationException::withMessages(['image' => ['The generated image payload is empty.']]);
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'shopnxe-ai-media-');
+        if (! is_string($temporaryPath) || file_put_contents($temporaryPath, $bytes) === false) {
+            throw new RuntimeException('The generated image could not be prepared for storage.');
+        }
+
+        try {
+            $file = new UploadedFile(
+                $temporaryPath,
+                basename($filename),
+                null,
+                null,
+                true,
+            );
+            $media = $this->createUpload($user, $file, $input);
+
+            return $this->completeUpload($user, (string) $media->public_id);
+        } finally {
+            if (is_file($temporaryPath)) {
+                unlink($temporaryPath);
+            }
+        }
+    }
+
+    /** @return array{media: Media, bytes: string} */
+    public function readImage(User $user, string $publicId): array
+    {
+        $media = $this->get($user, $publicId, true);
+        if ($media->status !== MediaStatus::Ready || ! str_starts_with((string) $media->mime_type, 'image/')) {
+            throw ValidationException::withMessages([
+                'media' => ['Only ready image media can be processed with AI.'],
+            ]);
+        }
+
+        $bytes = Storage::disk($media->disk)->get($media->path);
+        if ($bytes === '') {
+            throw ValidationException::withMessages(['media' => ['The media object is empty.']]);
+        }
+
+        return ['media' => $media, 'bytes' => $bytes];
     }
 
     public function completeUpload(User $user, string $publicId): Media

@@ -62,15 +62,48 @@ attachments are removed and the next ordered Product asset becomes primary.
    `failed`.
 
 `checksum` is the SHA-256 of the merchant-supplied original before optimization
-so duplicate input detection remains stable. The `MediaAiService` is only a
-persistence boundary (`processing`, `completed`, or `failed` result rows); no
-external AI provider is called.
+so duplicate input detection remains stable.
+
+## AI generation and media operations
+
+`MediaAiService` authorizes the active Store, orchestrates the provider call,
+creates or updates Media records, and records `processing`, `completed`, or
+`failed` rows in `media_ai_results`. `OpenAiMediaService` is the only provider
+client. It reads `OPENAI_API_KEY` on the server and never returns that key to a
+frontend.
+
+- `POST /api/v1/store/media/ai/generate` sends the merchant prompt and selected
+  image settings to the OpenAI Image API. Each returned image becomes a private
+  Media record with `metadata.source=ai_generated`, then enters the normal
+  queued derivative lifecycle.
+- `POST /api/v1/store/media/{media}/ai` accepts `generate_alt_text`,
+  `generate_attributes`, `generate_tags`, `generate_seo_filename`,
+  `remove_background`, or `enhance_image`. The source must be a ready image from
+  the selected Store.
+- Metadata operations send the selected image to the OpenAI Responses API with
+  strict JSON Schema output and `store=false`. Alt text updates `media.alt_text`;
+  attributes, tags, and SEO filename suggestions are retained under
+  `metadata.ai`.
+- Background removal and enhancement send the selected image to the OpenAI
+  Image edits endpoint. They preserve the original and create a new private
+  Media record linked through `metadata.ai.source_media_id`.
+- Provider prompts, image bytes, and the API key are not logged. Safe request
+  IDs, HTTP status, provider error type, and provider error code may be logged
+  for operations. Provider rejections return a safe `502`; missing configuration
+  or connection failure returns `503`.
+
+Generation is limited to six requests per minute per Laravel throttle key and
+per-media operations to ten per minute. Provider calls are synchronous within
+the HTTP request and have a configurable long timeout; normal Media processing
+remains asynchronous. These calls consume the OpenAI API account associated
+with the configured key.
 
 ## Authorization and API boundary
 
 Every endpoint requires `auth:sanctum`, Store scope, `X-Store-ID`, and active
-membership. Reads require membership; upload, completion, deletion, attach,
-detach, and primary selection require `manage products`. Services always query
+membership. Reads and AI-result history require membership; upload, completion,
+deletion, AI generation/operations, attach, detach, and primary selection
+require `manage products`. Services always query
 the public media ID together with the active internal `store_id`. Private and
 public content are both delivered through the authenticated Store content
 route, which prevents a public locator from becoming a tenancy bypass.
@@ -87,6 +120,14 @@ from `config/filesystems.php`. Defaults are `private,public,s3`; deployments
 should set `MEDIA_ALLOWED_DISKS` to configured disks only. S3-compatible MinIO
 uses the existing `s3` driver and endpoint variables; no provider is hard-coded.
 
+OpenAI media behavior uses `OPENAI_MEDIA_IMAGE_MODEL` (default `gpt-image-2`),
+`OPENAI_MEDIA_ANALYSIS_MODEL` (default `gpt-5-mini`),
+`OPENAI_MEDIA_TIMEOUT` (default 240 seconds),
+`OPENAI_MEDIA_MAX_OUTPUT_TOKENS` (default 2,000),
+`OPENAI_MEDIA_QUALITY` (`low`, `medium`, or `high`; default `medium`), and
+`OPENAI_MEDIA_MAX_OUTPUT_BYTES` (default 20 MiB). All settings share the
+server-only `OPENAI_API_KEY` already used by automatic translation.
+
 ## Verification
 
 `tests/Feature/MediaManagementRestApiTest.php` covers Store uploads, cross-Store
@@ -95,6 +136,11 @@ reuse, primary selection, checksum lookup, variant uniqueness, recoverable
 deletion, terminal failure recording, the processing chain, and actual
 derivative files. Tests run only on
 the separate `shopnxe_test` PostgreSQL database from `.env.testing`.
+
+`tests/Feature/MediaAiRestApiTest.php` covers generation, source filtering,
+strict structured alt text, background-removed derivatives, safe provider
+failure recording, and cross-Store rejection. It uses `Http::fake`; the test
+suite does not call OpenAI or consume provider credits.
 
 Deployment and reversal steps are recorded in the
 [media rollout and rollback ledger](media-management-rollout.md).

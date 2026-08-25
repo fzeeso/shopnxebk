@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Api\V1\MediaAiController;
 use App\Http\Controllers\Api\V1\MediaAttachmentController;
 use App\Http\Controllers\Api\V1\MediaController;
 use Illuminate\Support\Facades\Route;
@@ -12,7 +13,15 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.me
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {
+        Route::post('media/ai/generate', [MediaAiController::class, 'generate'])
+            ->middleware('throttle:6,1')
+            ->name('media.ai.generate');
         Route::post('media/uploads', [MediaController::class, 'store'])->name('media.uploads.store');
+        Route::post('media/{media}/ai', [MediaAiController::class, 'run'])
+            ->middleware('throttle:10,1')
+            ->name('media.ai.run');
+        Route::get('media/{media}/ai-results', [MediaAiController::class, 'history'])
+            ->name('media.ai.history');
         Route::get('media/{media}/content', [MediaController::class, 'content'])->name('media.content');
         Route::post('media/{media}/complete', [MediaController::class, 'complete'])->name('media.complete');
         Route::get('media', [MediaController::class, 'index'])->name('media.index');

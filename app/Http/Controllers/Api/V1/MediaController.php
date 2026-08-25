@@ -22,7 +22,7 @@ final class MediaController extends Controller
 
         return MediaResource::collection($service->list(
             $this->user($request),
-            array_intersect_key($validated, array_flip(['status', 'mime_type', 'search'])),
+            array_intersect_key($validated, array_flip(['status', 'mime_type', 'source', 'search'])),
             (int) ($validated['page'] ?? 1),
             (int) ($validated['per_page'] ?? 25),
         ))->response();

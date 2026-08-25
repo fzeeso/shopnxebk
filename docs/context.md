@@ -268,9 +268,13 @@ combinations. Reads require Store membership; mutation requires
 
 Media deletion is a recoverable lifecycle transition to `deleted`, not a row or
 object purge. Active attachments are removed, while the master row, generic
-usage history, original, and derivatives remain. External AI is not part of the
-media runtime; `media_ai_results` and `MediaAiService` are only an extensible
-persistence boundary. See [Media management](media-management.md).
+usage history, original, and derivatives remain. Store-scoped AI media writes
+use the server-only OpenAI integration: prompts or selected image bytes are sent
+from Laravel, generated or edited images return as new Media records, and
+metadata operations update the selected record. `media_ai_results` records the
+provider, model, operation, status, safe result metadata, and failure state.
+Provider credentials never cross the Laravel boundary. See
+[Media management](media-management.md).
 
 ## Store context and request flow
 

@@ -405,6 +405,16 @@ use the OpenAI Responses API with strict JSON Schema output, disable response
 storage, preserve HTML, placeholders, URLs, numbers, names, and null fields, and
 do not log the API key or merchant content on failure.
 
+The same server-only key powers Store media AI without exposing credentials to
+Store Admin. `OpenAiMediaService` uses the Image API for prompt generation and
+image edits, and the Responses API with strict JSON Schema plus `store=false`
+for alt text, visible attributes, tags, and SEO filename suggestions. Configure
+`OPENAI_MEDIA_IMAGE_MODEL`, `OPENAI_MEDIA_ANALYSIS_MODEL`,
+`OPENAI_MEDIA_TIMEOUT`, `OPENAI_MEDIA_MAX_OUTPUT_TOKENS`,
+`OPENAI_MEDIA_QUALITY`, and `OPENAI_MEDIA_MAX_OUTPUT_BYTES` when deployment
+defaults are unsuitable. Provider-faked tests must be used for routine CI so
+verification does not transmit merchant data or consume API credits.
+
 `TranslationCoordinator` is the only HTTP write-path entry point for automatic
 translation. A Brand or default-language Store-policy transaction saves the
 source and a deduplicated, Store-scoped `translation_requests` row. Its
@@ -910,6 +920,13 @@ stores a Product ID. Deletion sets `status=deleted`, removes active attachments,
 keeps usage history and storage objects, and is therefore recoverable. See
 [Media management](media-management.md) and the
 [rollout/rollback ledger](media-management-rollout.md).
+
+Store media AI endpoints run only after `manage products` authorization and a
+Store-scoped Media lookup. New prompt generations and image edits create Media
+records with `metadata.source=ai_generated`; metadata operations update the
+selected ready image and persist provider-neutral history in
+`media_ai_results`. Laravel is the sole OpenAI caller, while the frontend uses
+only ShopNXE Store API routes.
 
 Reverb authorizes Store channels through `/api/broadcasting/auth`. It checks the user, active Store, membership, token Store, and `access store`. Public channel names use ULIDs. Events carry public identifiers and small summaries rather than full models.
 

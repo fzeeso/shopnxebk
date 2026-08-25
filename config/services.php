@@ -27,6 +27,12 @@ return [
         'translation_model' => env('OPENAI_TRANSLATION_MODEL', 'gpt-5-mini'),
         'translation_timeout' => (int) env('OPENAI_TRANSLATION_TIMEOUT', 180),
         'translation_max_output_tokens' => (int) env('OPENAI_TRANSLATION_MAX_OUTPUT_TOKENS', 16000),
+        'media_image_model' => env('OPENAI_MEDIA_IMAGE_MODEL', 'gpt-image-2'),
+        'media_analysis_model' => env('OPENAI_MEDIA_ANALYSIS_MODEL', 'gpt-5-mini'),
+        'media_timeout' => (int) env('OPENAI_MEDIA_TIMEOUT', 240),
+        'media_max_output_tokens' => (int) env('OPENAI_MEDIA_MAX_OUTPUT_TOKENS', 2000),
+        'media_quality' => env('OPENAI_MEDIA_QUALITY', 'medium'),
+        'media_max_output_bytes' => (int) env('OPENAI_MEDIA_MAX_OUTPUT_BYTES', 20971520),
     ],
 
     'ses' => [

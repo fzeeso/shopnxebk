@@ -1,5 +1,28 @@
 # Development log
 
+## 2026-08-25 - Store-scoped OpenAI media operations
+
+- Changed: Added Laravel-only OpenAI image generation, background removal,
+  enhancement, alt-text generation, visible attribute extraction, tags, and SEO
+  filename suggestions; added Store-scoped REST routes, result history, source
+  filtering, throttling, safe provider failures, and generated Media records.
+- Reason: Store Admin needs operational media AI while keeping provider
+  credentials and tenancy enforcement in Laravel instead of the browser.
+- Data/configuration impact: No migration or package change. The existing
+  `media_ai_results` table persists provider-neutral operation history. Added
+  optional image/analysis model, timeout, output, and quality environment
+  settings that share the existing server-only `OPENAI_API_KEY`.
+- Compatibility or rollout notes: Existing uploads and Product/Variant media
+  remain unchanged. Prompts and selected image bytes leave ShopNXE only when a
+  permitted merchant starts an AI operation; OpenAI API billing applies.
+  Generated/edited images are private, retain the original, and pass through
+  the existing Media processing queue. Deployment should confirm GPT Image
+  model access and align reverse-proxy timeouts with Laravel's 240-second
+  default.
+- Verification: Five PostgreSQL feature tests with 36 assertions fake every
+  OpenAI response and cover generation, source filtering, metadata, image edits,
+  provider failure, and Store isolation without consuming provider credits.
+
 ## 2026-08-25 - Reusable Store media management subsystem
 
 - Changed: Extended the existing Spatie `media` table into a reusable Store

@@ -23,6 +23,7 @@ final class ListMediaRequest extends FormRequest
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'status' => ['sometimes', Rule::enum(MediaStatus::class)->except(MediaStatus::Deleted)],
             'mime_type' => ['sometimes', 'string', Rule::in(array_keys((array) config('media-management.allowed_mime_types')))],
+            'source' => ['sometimes', 'string', Rule::in(['uploaded', 'ai_generated'])],
             'search' => ['sometimes', 'string', 'max:255'],
         ];
     }

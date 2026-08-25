@@ -437,6 +437,9 @@ legacy Product Image locator API:
 | `GET` | `/api/v1/store/media/{media}` | Active Store membership |
 | `GET` | `/api/v1/store/media/{media}/content?variant=thumbnail` | Active Store membership |
 | `DELETE` | `/api/v1/store/media/{media}` | `manage products` |
+| `POST` | `/api/v1/store/media/ai/generate` | `manage products`; throttled 6/minute |
+| `POST` | `/api/v1/store/media/{media}/ai` | `manage products`; throttled 10/minute |
+| `GET` | `/api/v1/store/media/{media}/ai-results` | Active Store membership |
 | `POST` | `/api/v1/store/products/{product}/media` | `manage products` |
 | `DELETE` | `/api/v1/store/products/{product}/media/{media}` | `manage products` |
 | `PUT` | `/api/v1/store/products/{product}/media/{media}/primary` | `manage products` |
@@ -452,11 +455,28 @@ Maximum size, allowed server-detected MIME types/extensions, and disks come from
 derivative generation, and finalization. Clients poll detail until `ready` or
 `failed`.
 
-The list accepts `page`, `per_page`, `status`, `mime_type`, and `search` over
-original filename/title/alt text. It excludes logically deleted rows. The
+The list accepts `page`, `per_page`, `status`, `mime_type`, `source`
+(`uploaded` or `ai_generated`), and `search` over original filename/title/alt
+text. It excludes logically deleted rows. The
 content route streams the original when `variant` is absent or one of
 `original`, `thumbnail`, `small`, `medium`, or `large`; Store authentication is
 always required.
+
+AI generation accepts JSON with required `prompt` and optional `image_type`,
+`style`, `aspect_ratio` (`1:1`, `4:5`, or `16:9`), `image_count` (1-4), and
+`quality` (`low`, `medium`, or `high`). It returns `201` with generated private
+Media resources in `data`; each has `metadata.source=ai_generated` and starts
+normal asynchronous Media processing.
+
+The per-media AI route accepts `{ "operation": "generate_alt_text" }`; other
+allowed values are `generate_attributes`, `generate_tags`,
+`generate_seo_filename`, `remove_background`, and `enhance_image`. Metadata
+operations return `200` with `data` (the completed AI result), `media` (the
+updated source), and `generated_media: null`. Image edits return `201` with the
+new derived Media resource in `generated_media`. Only a `ready` image in the
+selected Store is accepted. History returns the latest 50 AI results. Provider
+failure messages are safe and never contain the API key, prompt, image bytes,
+or provider response body.
 
 Product attachment JSON is `{ "media_id": "<media-ulid>", "sort_order": 0,
 "is_primary": false }`. Variant attachment accepts the same body but ignores
