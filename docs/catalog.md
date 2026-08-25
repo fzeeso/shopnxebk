@@ -10,11 +10,11 @@ relationships, constraints, indexes, deletion behavior, and intended use.
 The Brand slice includes Store-scoped models and REST CRUD services. Category
 and Product Type lifecycle APIs are GraphQL-only. Products have both
 transactional GraphQL lifecycle operations and Store REST CRUD; Product Images
-have nested REST metadata CRUD only. Fulfillment Types use REST for Platform
+and Product Options/Variants have nested REST CRUD. Fulfillment Types use REST for Platform
 management and active Store discovery. Category, Product Type, and Product
 translations retain locale-aware manual editing and durable automatic
-translation handlers. Options, variants, product files/fulfillment, custom
-fields and search projections remain persistence-only
+translation handlers. Product files/fulfillment, custom fields and search
+projections remain persistence-only
 or follow-up work. Product writes can assign both a global taxonomy-node ULID
 and a Store-local Product Type ULID. No `/api/v1/store/categories` or
 `/api/v1/store/product-types` route exists. See the [API manual](api-manual.md)
@@ -734,6 +734,15 @@ Additional unique key: `(id, product_id, store_id)`. The composite foreign key
 
 Primary key: `(option_value_id, locale)`.
 
+Store REST exposes ordered options and values below
+`/api/v1/store/products/{product}/options`. Reads require membership and writes
+require `manage products`. Creates and partial updates accept only active Store
+locales, upsert submitted locale rows without removing omitted languages, and
+preserve an existing `lock_it` when the field is absent. Option creation may
+include its initial translated values. Public ULIDs are used at every nested
+boundary. Adding or deleting an option dimension is rejected while the Product
+has variants; deleting a value selected by any variant is also rejected.
+
 ## 9. Variants and option selections
 
 ### `product_variants`
@@ -801,7 +810,14 @@ Primary key: `(variant_id, locale)`.
 Primary key: `(variant_id, option_value_id)`. Composite foreign keys require
 the variant and option value to share both `product_id` and `store_id`. The
 schema does not independently prevent selecting two values from the same
-option; the future variant service must enforce one value per option.
+option; `ProductVariantManagementService` enforces exactly one value from every
+current option, rejects incomplete/cross-Product/duplicate combinations, and
+serializes writes by locking the Product row. Store REST exposes paginated
+variant CRUD below `/api/v1/store/products/{product}/variants`; responses carry
+all localized option names, value labels, and optional variant titles. The
+service also resolves preferred images inside the same Product, returns
+Store-local duplicate SKUs as validation errors, and synchronizes
+`products.has_variants` when the first or last variant changes.
 
 ## 10. Product images
 
@@ -1198,9 +1214,7 @@ remaining rules:
 - collection-rule field/operator whitelists and typed operand validation;
 - safe AI job transitions, retry/idempotency, cost tracking, and pinned-row
   preservation during regeneration;
-- product status/publication and `has_variants` synchronization;
-- one option value per option in a variant and uniqueness of complete variant
-  combinations;
+- product status/publication synchronization;
 - currency availability and money conversion/rounding rules from Settings;
 - Inventory-module ownership of ledgers, reservations, and adjustments;
 - image/file upload validation, private object ownership, malware scanning,

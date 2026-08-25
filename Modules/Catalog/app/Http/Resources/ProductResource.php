@@ -73,6 +73,8 @@ final class ProductResource extends JsonResource
             'bpn' => $this->bpn,
             'primary_category_id' => $this->primaryCategoryPublicId(),
             'categories_count' => $this->whenCounted('categories'),
+            'options_count' => $this->whenCounted('options'),
+            'variants_count' => $this->whenCounted('variants'),
             'categories' => $this->whenLoaded('categories', fn () => $this->categories
                 ->map(static fn (Category $category): array => [
                     'id' => $category->public_id,
@@ -93,6 +95,14 @@ final class ProductResource extends JsonResource
                     'updated_at' => $translation->updated_at?->toIso8601String(),
                 ])
                 ->values()),
+            'options' => $this->whenLoaded(
+                'options',
+                fn () => ProductOptionResource::collection($this->options),
+            ),
+            'variants' => $this->whenLoaded(
+                'variants',
+                fn () => ProductVariantResource::collection($this->variants),
+            ),
             'translation_request' => $this->when(
                 $this->resource->relationLoaded('translationRequest'),
                 fn () => $this->resource->getRelation('translationRequest') === null

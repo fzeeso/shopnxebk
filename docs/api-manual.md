@@ -47,6 +47,7 @@ Accept: application/json
 | Categories | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Product Types | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
+| Product Options and Variants | Nested multilingual CRUD under `/api/v1/store/products/{product}` | Not exposed |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
 | Reusable Media | Upload/complete/list/detail/content/delete plus Product and Variant attachment under `/api/v1/store` | Not exposed |
 | Modifier Library | Store category/definition lifecycle with nested translations, values, validation, and pricing | Not exposed |
@@ -397,7 +398,79 @@ condition/preorder/release settings, quantities, tax class, related-product
 count, points, and review enablement. Four-decimal values serialize as strings
 to avoid floating-point loss. Flag columns serialize as `0` or `1` because the
 database contract requested integer flags. Product and relationship IDs remain
-public ULIDs.
+public ULIDs. Product list rows include `options_count` and `variants_count`.
+Product detail also embeds ordered `options` and `variants`, including every
+submitted translation, so an editor can render all active Store languages from
+one read.
+
+### 6.1.1 Product option and variant REST lifecycle
+
+Product options are variant dimensions such as Color or Size. Option values
+are the selectable translated choices; variants are the priced, inventoried
+combinations. These are separate from reusable Product Modifiers, which model
+customer-selected add-ons and inputs rather than SKU identity.
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/products/{product}/options` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/products/{product}/options/{option}` | Membership / `manage products` |
+| `GET`, `POST` | `/api/v1/store/products/{product}/options/{option}/values` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/products/{product}/options/{option}/values/{value}` | Membership / `manage products` |
+| `GET`, `POST` | `/api/v1/store/products/{product}/variants` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/products/{product}/variants/{variant}` | Membership / `manage products` |
+
+Option creation requires `translations` and may include initial `values`.
+Every translation locale must be active for the selected Store, duplicate
+locales are rejected case-insensitively, `name`/`value` is required, and an
+omitted `lock_it` preserves the current lock. Updates upsert only submitted
+locale rows; they do not erase other languages. Option/value responses return
+all stored translations in locale order.
+
+```json
+{
+  "position": 0,
+  "translations": [
+    {"locale": "en", "name": "Color", "lock_it": true},
+    {"locale": "ur", "name": "رنگ"}
+  ],
+  "values": [
+    {"position": 0, "translations": [
+      {"locale": "en", "value": "Red"},
+      {"locale": "ur", "value": "سرخ"}
+    ]}
+  ]
+}
+```
+
+Variant create requires non-negative `price_amount_minor` and an active
+three-letter uppercase `currency_code`. Optional fields cover SKU/barcode,
+comparison/MSRP/cost money, stock/policy, package measurements, shipping/tax/
+call-for-price switches, preferred same-product image, order, and nullable
+localized title overrides. `option_value_ids` contains public value ULIDs.
+
+```json
+{
+  "sku": "SHIRT-RED-S",
+  "price_amount_minor": 2499,
+  "currency_code": "USD",
+  "inventory_qty": 12,
+  "option_value_ids": ["01K...RED", "01K...SMALL"],
+  "translations": [
+    {"locale": "en", "title": "Red / Small"},
+    {"locale": "ur", "title": "سرخ / چھوٹا"}
+  ]
+}
+```
+
+Every variant must select exactly one value from every current option. Values
+from another Product/Store, incomplete selections, two values from one option,
+and duplicate complete combinations return `422`. A Store-local duplicate SKU
+also returns `422`. Option dimensions cannot be added or deleted while variants
+exist, and a selected value cannot be deleted. This prevents incomplete variant
+rows after option edits. Creating the first variant sets `has_variants`; deleting
+the last clears it. Variant responses include their title translations plus
+each selected value's `option_translations` and `translations`, allowing a
+client to compose a fallback label without numeric identifiers or extra reads.
 
 ### 6.2 Product image REST lifecycle
 

@@ -28,6 +28,21 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/store/products/{product}/images/{image}',
             'PATCH /api/v1/store/products/{product}/images/{image}',
             'DELETE /api/v1/store/products/{product}/images/{image}',
+            'GET /api/v1/store/products/{product}/options',
+            'POST /api/v1/store/products/{product}/options',
+            'GET /api/v1/store/products/{product}/options/{option}',
+            'PATCH /api/v1/store/products/{product}/options/{option}',
+            'DELETE /api/v1/store/products/{product}/options/{option}',
+            'GET /api/v1/store/products/{product}/options/{option}/values',
+            'POST /api/v1/store/products/{product}/options/{option}/values',
+            'GET /api/v1/store/products/{product}/options/{option}/values/{value}',
+            'PATCH /api/v1/store/products/{product}/options/{option}/values/{value}',
+            'DELETE /api/v1/store/products/{product}/options/{option}/values/{value}',
+            'GET /api/v1/store/products/{product}/variants',
+            'POST /api/v1/store/products/{product}/variants',
+            'GET /api/v1/store/products/{product}/variants/{variant}',
+            'PATCH /api/v1/store/products/{product}/variants/{variant}',
+            'DELETE /api/v1/store/products/{product}/variants/{variant}',
             'POST /api/v1/store/products/{product}/media',
             'DELETE /api/v1/store/products/{product}/media/{media}',
             'PUT /api/v1/store/products/{product}/media/{media}/primary',
@@ -52,6 +67,13 @@ final class CatalogRestApiConsistencyTest extends TestCase
     private function isCatalogRestRoute(Route $route): bool
     {
         $name = (string) $route->getName();
+
+        if (Str::startsWith($name, [
+            'api.v1.store.products.modifier-groups.',
+            'api.v1.store.products.modifiers.',
+        ])) {
+            return false;
+        }
 
         return Str::startsWith($name, [
             'api.v1.platform.settings.fulfillment-types.',

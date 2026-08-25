@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, multilingual Product Option/Variant, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
 servers:
   - url: http://localhost:8000
 tags:
@@ -2001,6 +2001,242 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Product or image not found in the selected Store and nested Product boundary}
+  /api/v1/store/products/{product}/options:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: List ordered multilingual option dimensions for a Product
+      responses:
+        '200':
+          description: Product options with all translated values
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Create a translated Product option and optional initial values
+      description: Requires manage products. Adding an option is rejected while variants exist.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductOptionRequest'}}
+      responses:
+        '201':
+          description: Product option created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/options/{option}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: option, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read a nested Product option with translated values
+      responses:
+        '200':
+          description: Product option
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or option not found in the nested Store/Product boundary}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Update option order or submitted locale rows
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductOptionRequest'}}
+      responses:
+        '200':
+          description: Product option updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or option not found in the nested Store/Product boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete an option when the Product has no variants
+      responses:
+        '204': {description: Product option deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or option not found in the nested Store/Product boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/options/{option}/values:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: option, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: List translated values for a Product option
+      responses:
+        '200':
+          description: Ordered Product option values
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionValueListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or option not found}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Add a translated value to a Product option
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductOptionValueRequest'}}
+      responses:
+        '201':
+          description: Product option value created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or option not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/options/{option}/values/{value}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: option, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: value, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read one translated Product option value
+      responses:
+        '200':
+          description: Product option value
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, option, or value not found in the nested boundary}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Update value order or submitted locale rows
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductOptionValueRequest'}}
+      responses:
+        '200':
+          description: Product option value updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductOptionValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, option, or value not found in the nested boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete an option value that no variant selects
+      responses:
+        '204': {description: Product option value deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, option, or value not found in the nested boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/variants:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Page multilingual sellable variants for a Product
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200':
+          description: Paginated Product variants
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductVariantPageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Create a complete Product variant combination
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductVariantRequest'}}
+      responses:
+        '201':
+          description: Product variant created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductVariantResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or preferred image not found in the nested boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/variants/{variant}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: variant, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read one multilingual Product variant
+      responses:
+        '200':
+          description: Product variant
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductVariantResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or variant not found in the nested boundary}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Update commerce fields, translations, or the complete selection
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductVariantRequest'}}
+      responses:
+        '200':
+          description: Product variant updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductVariantResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, variant, or preferred image not found in the nested boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete a Product variant and synchronize has_variants
+      responses:
+        '204': {description: Product variant deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or variant not found in the nested boundary}
   /api/v1/store/brands:
     get:
       tags: [Catalog Brands]
@@ -2344,8 +2580,12 @@ components:
             published_at: {type: [string, 'null'], format: date-time}
             primary_category_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
             categories_count: {type: integer, minimum: 0}
+            options_count: {type: integer, minimum: 0}
+            variants_count: {type: integer, minimum: 0}
             categories: {type: array, items: {$ref: '#/components/schemas/ProductCategoryReference'}}
             translations: {type: array, items: {$ref: '#/components/schemas/ProductTranslation'}}
+            options: {type: array, items: {$ref: '#/components/schemas/ProductOption'}}
+            variants: {type: array, items: {$ref: '#/components/schemas/ProductVariant'}}
             translation_request:
               oneOf:
                 - {$ref: '#/components/schemas/TranslationRequest'}
@@ -2362,6 +2602,220 @@ components:
       required: [data, links, meta]
       properties:
         data: {type: array, items: {$ref: '#/components/schemas/Product'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
+    ProductOptionTranslationWrite:
+      type: object
+      required: [locale, name]
+      properties:
+        locale: {type: string, maxLength: 35}
+        name: {type: string, maxLength: 100}
+        lock_it: {type: boolean, default: false}
+    ProductOptionValueTranslationWrite:
+      type: object
+      required: [locale, value]
+      properties:
+        locale: {type: string, maxLength: 35}
+        value: {type: string, maxLength: 100}
+        lock_it: {type: boolean, default: false}
+    ProductOptionValueWriteRequest:
+      type: object
+      properties:
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductOptionValueTranslationWrite'}
+    CreateProductOptionValueRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductOptionValueWriteRequest'}
+        - type: object
+          required: [translations]
+    UpdateProductOptionValueRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductOptionValueWriteRequest'}
+        - type: object
+          minProperties: 1
+    ProductOptionWriteRequest:
+      type: object
+      properties:
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductOptionTranslationWrite'}
+        values:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/CreateProductOptionValueRequest'}
+    CreateProductOptionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductOptionWriteRequest'}
+        - type: object
+          required: [translations]
+    UpdateProductOptionRequest:
+      type: object
+      minProperties: 1
+      properties:
+        position: {type: integer, minimum: 0, maximum: 4294967295}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductOptionTranslationWrite'}
+    ProductOptionTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductOptionTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductOptionValueTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductOptionValueTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductOptionValue:
+      type: object
+      required: [id, position, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        option_id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0}
+        option_translations: {type: array, items: {$ref: '#/components/schemas/ProductOptionTranslationWrite'}}
+        translations: {type: array, items: {$ref: '#/components/schemas/ProductOptionValueTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductOption:
+      type: object
+      required: [id, position, translations, values]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/ProductOptionTranslation'}}
+        values: {type: array, items: {$ref: '#/components/schemas/ProductOptionValue'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductOptionResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductOption'}
+    ProductOptionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductOption'}}
+    ProductOptionValueResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductOptionValue'}
+    ProductOptionValueListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductOptionValue'}}
+    ProductVariantTranslationWrite:
+      type: object
+      required: [locale]
+      properties:
+        locale: {type: string, maxLength: 35}
+        title: {type: [string, 'null'], maxLength: 255}
+        lock_it: {type: boolean, default: false}
+    ProductVariantWriteRequest:
+      type: object
+      properties:
+        sku: {type: [string, 'null'], maxLength: 100}
+        barcode: {type: [string, 'null'], maxLength: 100}
+        price_amount_minor: {type: integer, format: int64, minimum: 0}
+        compare_at_price_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        msrp_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        cost_per_item_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+        inventory_qty: {type: integer, default: 0}
+        inventory_policy: {type: string, enum: [deny, continue], default: deny}
+        weight_grams: {type: [integer, 'null'], minimum: 0}
+        height: {type: [number, 'null'], format: decimal}
+        width: {type: [number, 'null'], format: decimal}
+        depth: {type: [number, 'null'], format: decimal}
+        dimension_unit: {type: string, maxLength: 10, default: cm}
+        requires_shipping: {type: boolean, default: true}
+        taxable: {type: boolean, default: true}
+        call_for_price: {type: boolean, default: false}
+        image_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        option_value_ids:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductVariantTranslationWrite'}
+    CreateProductVariantRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductVariantWriteRequest'}
+        - type: object
+          required: [price_amount_minor, currency_code]
+    UpdateProductVariantRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductVariantWriteRequest'}
+        - type: object
+          minProperties: 1
+    ProductVariantTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductVariantTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductVariant:
+      type: object
+      required: [id, price_amount_minor, currency_code, inventory_qty, inventory_policy, requires_shipping, taxable, call_for_price, position, translations, option_values]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        sku: {type: [string, 'null']}
+        barcode: {type: [string, 'null']}
+        price_amount_minor: {type: integer, format: int64, minimum: 0}
+        compare_at_price_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        msrp_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        cost_per_item_amount_minor: {type: [integer, 'null'], format: int64, minimum: 0}
+        currency_code: {type: string, pattern: '^[A-Z]{3}$'}
+        inventory_qty: {type: integer}
+        inventory_policy: {type: string, enum: [deny, continue]}
+        weight_grams: {type: [integer, 'null'], minimum: 0}
+        height: {type: [string, 'null']}
+        width: {type: [string, 'null']}
+        depth: {type: [string, 'null']}
+        dimension_unit: {type: string}
+        requires_shipping: {type: boolean}
+        taxable: {type: boolean}
+        call_for_price: {type: boolean}
+        image_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        position: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/ProductVariantTranslation'}}
+        option_values: {type: array, items: {$ref: '#/components/schemas/ProductOptionValue'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductVariantResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductVariant'}
+    ProductVariantPageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductVariant'}}
         links: {$ref: '#/components/schemas/PaginationLinks'}
         meta: {$ref: '#/components/schemas/PaginationMeta'}
     ProductImageTranslationWrite:

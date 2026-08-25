@@ -155,7 +155,8 @@ Plan administration is Platform-only and requires `manage plans`. `Super Admin` 
 
 Catalog's public API surface is deliberately mixed: Brands use Store REST;
 Categories and Product Types use GraphQL only; Products use both Store REST and
-GraphQL; Product Images use nested Store REST metadata endpoints; and
+GraphQL; Product Options, Variants, and Product Images use nested Store REST
+endpoints; and
 Fulfillment Types use Platform/Store REST. There are no Store REST routes for
 Categories or Product Types. A Catalog table or model is not public API
 exposure unless an explicit route or GraphQL field is registered and
@@ -213,6 +214,15 @@ scheduling, review enablement, quantity bounds, product points, and legacy tax
 classification. Store Product REST CRUD validates and returns those attributes;
 Product GraphQL remains unchanged.
 
+Product option/value REST resources model SKU dimensions, not reusable
+modifiers. Their names and values are manual active-Store-locale translations
+with overwrite locks. Product variants select exactly one value from every
+option and expose integer-minor-unit pricing, stock/package behavior, optional
+localized title overrides, and every selected option/value translation. The
+write service rejects cross-Store/Product values, incomplete or duplicate
+combinations, and Store-local duplicate SKUs; it protects the option shape
+while variants exist and synchronizes `products.has_variants`.
+
 Nested Product image REST CRUD exposes Store-scoped gallery locator metadata,
 pixel dimensions, position, optional same-product variant association, and
 localized alt text. Image reads require active membership and writes require
@@ -246,9 +256,10 @@ carry independent nullable `image_url` and `banner_url` locators; these are
 validated manual metadata and are excluded from automatic language translation.
 Variant prices use
 non-negative integer minor units plus an uppercase three-letter currency code.
-Options, variants, files, fulfillment, and custom fields remain persistence-only
-until their owning APIs are implemented. See the [API manual](api-manual.md) and
-[Catalog schema reference](catalog.md).
+Options and variants now use nested multilingual Store REST contracts. Product
+digital assets, license delivery, and custom fields remain persistence-only
+until their owning APIs are implemented. See the [API manual](api-manual.md)
+and [Catalog schema reference](catalog.md).
 
 ## Product modifier library contract
 

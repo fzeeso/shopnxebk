@@ -78,7 +78,7 @@ final readonly class ProductManagementService
     ) {}
 
     /** @param array<string, mixed> $arguments */
-    public function list(User $user, array $arguments): LengthAwarePaginator
+    public function list(User $user, array $arguments, bool $withVariantSummary = false): LengthAwarePaginator
     {
         $store = $this->store($user, false);
         $data = Validator::make($arguments, [
@@ -108,6 +108,9 @@ final readonly class ProductManagementService
                 'categories.translations',
             ])
             ->withCount('categories');
+        if ($withVariantSummary) {
+            $query->withCount(['options', 'variants']);
+        }
 
         if (($filter['search'] ?? null) !== null && trim((string) $filter['search']) !== '') {
             $search = trim((string) $filter['search']);
@@ -160,18 +163,31 @@ final readonly class ProductManagementService
         return $query->paginate((int) ($data['perPage'] ?? 20), ['*'], 'page', (int) ($data['page'] ?? 1));
     }
 
-    public function show(User $user, string $publicId): Product
+    public function show(User $user, string $publicId, bool $withVariants = false): Product
     {
         $store = $this->store($user, false);
 
-        return $this->product($store, $publicId)->load([
+        $relations = [
             'brand',
             'platformTaxonomyNode',
             'productType',
             'translations',
             'categories.parent',
             'categories.translations',
-        ]);
+        ];
+        if ($withVariants) {
+            $relations = [
+                ...$relations,
+                'options.translations',
+                'options.values.translations',
+                'variants.preferredImage',
+                'variants.translations',
+                'variants.optionValues.translations',
+                'variants.optionValues.option.translations',
+            ];
+        }
+
+        return $this->product($store, $publicId)->load($relations);
     }
 
     /** @param array<string, mixed> $input */

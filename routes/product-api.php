@@ -8,6 +8,9 @@ use App\Http\Controllers\Api\V1\MediaController;
 use Illuminate\Support\Facades\Route;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductImageController;
+use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionController;
+use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionValueController;
+use Modules\Catalog\Http\Controllers\Api\V1\ProductVariantController;
 
 Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
     ->prefix('api/v1/store')
@@ -47,6 +50,36 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.me
             ->name('products.images.update');
         Route::delete('products/{product}/images/{image}', [ProductImageController::class, 'destroy'])
             ->name('products.images.destroy');
+        Route::get('products/{product}/options', [ProductOptionController::class, 'index'])
+            ->name('products.options.index');
+        Route::post('products/{product}/options', [ProductOptionController::class, 'store'])
+            ->name('products.options.store');
+        Route::get('products/{product}/options/{option}', [ProductOptionController::class, 'show'])
+            ->name('products.options.show');
+        Route::patch('products/{product}/options/{option}', [ProductOptionController::class, 'update'])
+            ->name('products.options.update');
+        Route::delete('products/{product}/options/{option}', [ProductOptionController::class, 'destroy'])
+            ->name('products.options.destroy');
+        Route::get('products/{product}/options/{option}/values', [ProductOptionValueController::class, 'index'])
+            ->name('products.options.values.index');
+        Route::post('products/{product}/options/{option}/values', [ProductOptionValueController::class, 'store'])
+            ->name('products.options.values.store');
+        Route::get('products/{product}/options/{option}/values/{value}', [ProductOptionValueController::class, 'show'])
+            ->name('products.options.values.show');
+        Route::patch('products/{product}/options/{option}/values/{value}', [ProductOptionValueController::class, 'update'])
+            ->name('products.options.values.update');
+        Route::delete('products/{product}/options/{option}/values/{value}', [ProductOptionValueController::class, 'destroy'])
+            ->name('products.options.values.destroy');
+        Route::get('products/{product}/variants', [ProductVariantController::class, 'index'])
+            ->name('products.variants.index');
+        Route::post('products/{product}/variants', [ProductVariantController::class, 'store'])
+            ->name('products.variants.store');
+        Route::get('products/{product}/variants/{variant}', [ProductVariantController::class, 'show'])
+            ->name('products.variants.show');
+        Route::patch('products/{product}/variants/{variant}', [ProductVariantController::class, 'update'])
+            ->name('products.variants.update');
+        Route::delete('products/{product}/variants/{variant}', [ProductVariantController::class, 'destroy'])
+            ->name('products.variants.destroy');
         Route::get('products', [ProductController::class, 'index'])->name('products.index');
         Route::post('products', [ProductController::class, 'store'])->name('products.store');
         Route::get('products/{product}', [ProductController::class, 'show'])->name('products.show');

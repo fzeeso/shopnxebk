@@ -1,5 +1,30 @@
 # Development log
 
+## 2026-08-26 - Multilingual Product options and variants
+
+- Changed: Added nested Store REST CRUD for ordered Product option dimensions,
+  translated option values, and paginated sellable variants. Product detail
+  now embeds the multilingual structure and list rows expose option/variant
+  counts. Variant resources include translated option names, values, and
+  optional localized title overrides.
+- Reason: Merchants need to define SKU combinations such as Color/Size while
+  viewing and editing every active Store language without confusing variant
+  identity with reusable customer-selected Product Modifiers.
+- Data/configuration impact: Application models, services, validation,
+  resources, routes, OpenAPI, tests, and documentation only. The existing
+  Catalog option/variant tables are reused; no migration or Store row was
+  executed by Codex.
+- Compatibility or rollout notes: Every variant must select one value from each
+  current option. Duplicate combinations and Store-local SKUs are rejected;
+  options cannot be added/deleted while variants exist, selected values cannot
+  be deleted, and first/last variant changes synchronize `has_variants`.
+  Product option/variant APIs are REST-only and manual translations do not
+  enqueue automatic translation.
+- Verification: PHP syntax, route registration, static analysis, formatting,
+  generated-documentation checks, OpenAPI route consistency, and safe
+  non-database tests were run. PostgreSQL-backed feature coverage was added but
+  not executed because repository safety policy forbids database mutation.
+
 ## 2026-08-25 - Multilingual modifier flags, labels, and errors
 
 - Changed: Resolved Product modifier responses now include selected/available

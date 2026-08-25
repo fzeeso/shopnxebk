@@ -104,7 +104,7 @@ final class ProductController extends Controller
             'filter' => $filter,
             'sortBy' => $sortBy,
             'sortDirection' => $data['sort_direction'] ?? 'desc',
-        ]))->response();
+        ], true))->response();
     }
 
     public function store(ProductWriteRequest $request, ProductManagementService $service): JsonResponse
@@ -119,7 +119,7 @@ final class ProductController extends Controller
     public function show(Request $request, string $product, ProductManagementService $service): JsonResponse
     {
         return response()->json([
-            'data' => new ProductResource($service->show($this->user($request), $product)),
+            'data' => new ProductResource($service->show($this->user($request), $product, true)),
         ]);
     }
 

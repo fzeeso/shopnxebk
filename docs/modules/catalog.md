@@ -6,7 +6,7 @@ multi-language Product Modifier library, the global
 localized fulfillment catalog, Brand/Fulfillment Type/Product REST routes,
 Category/Product Type/Product GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
-boundary. Options, variants, product files/fulfillment, custom fields, search
+boundary. Product files/fulfillment, custom fields, search
 projections, and admin screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
@@ -20,6 +20,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Category | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product Type | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product | Store REST and GraphQL lifecycle APIs |
+| Product Option and Variant | Nested Store REST multilingual CRUD; no GraphQL fields |
 | Product Image | Nested Store REST metadata CRUD only |
 | Modifier Library | Store REST category/definition lifecycle; nested translations, values, rules, and prices |
 | Product Modifier | Nested Store REST groups/assignments/reorder plus resolved storefront DTO |
@@ -112,6 +113,13 @@ explicit route or GraphQL field is implemented and documented.
 - Variant prices use non-negative integer minor units plus a three-letter
   uppercase currency code. A Store-local partial unique index rejects duplicate
   non-null SKUs.
+- Product option/value REST writes accept only active Store locales and preserve
+  omitted language rows and translation locks. Variant writes require exactly
+  one same-product value per current option and reject duplicate combinations.
+  Option dimensions cannot be added or deleted while variants exist, selected
+  values cannot be deleted, and the first/last variant synchronizes
+  `products.has_variants`. Variant reads carry all option/value and optional
+  title translations for a multi-language editor without bigint leakage.
 - Product/option/variant composite foreign keys ensure a variant cannot select
   an option value from another product. Equivalent constraints keep product
   images, digital assets, license keys, and variant-level custom fields attached

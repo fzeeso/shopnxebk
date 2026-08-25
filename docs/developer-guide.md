@@ -118,7 +118,8 @@ metadata, license-key pools, and typed custom-field persistence. Brands expose
 Store-scoped CRUD services and REST routes.
 Categories, Product Types, and Products expose Store-scoped models,
 transactional services, GraphQL queries/mutations, and automatic-translation
-handlers; the remaining Catalog areas are still persistence-only. Localized
+handlers. Product options/values and variants expose nested Store REST
+management; the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
@@ -413,8 +414,21 @@ an omitted `lock_it`; it does not currently request automatic translation.
 The `url` field is a validated root-relative or HTTP(S) locator, not an upload
 or object-storage lifecycle operation.
 
-`CatalogRestApiConsistencyTest` keeps the implemented Product, Product image,
-and Fulfillment Type method/path pairs identical to `docs/openapi.yaml`.
+Product options and variants are managed through the adjacent nested routes in
+`routes/product-api.php`. `ProductOptionManagementService` owns ordered option
+dimensions, translated names, ordered translated values, and deletion guards.
+`ProductVariantManagementService` owns minor-unit commerce/package fields,
+same-product preferred images, optional translated titles, exact one-value-per-
+option selection, duplicate-combination rejection, Store-local SKU validation,
+and `has_variants` synchronization. Both services resolve every public ULID
+inside the selected Store/Product and accept only active Store locales through
+`LocalizedTranslationWriter`. Management resources return all translations so
+the admin may change its language view without losing structural context.
+These endpoints do not request automatic translation.
+
+`CatalogRestApiConsistencyTest` keeps the implemented Product, Product option,
+Product variant, Product image, media-attachment, and Fulfillment Type
+method/path pairs identical to `docs/openapi.yaml`.
 `CatalogRestApiQueryPerformanceTest` compares collection query counts with one
 and eleven rows and applies fixed query budgets, preventing per-result query
 growth from entering these editor APIs. Run both focused tests after changing
@@ -512,16 +526,16 @@ primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
 three-letter currency code. Catalog registers REST for Brand CRUD/media,
-Product CRUD, nested Product Image metadata, and Fulfillment Types. Its
+Product CRUD, nested Product Option/Variant/Image metadata, and Fulfillment Types. Its
 module-owned GraphQL schema exposes paginated/filterable Category/Product
 Type/Product queries and explicit mutations backed by
 `CategoryManagementService`, `ProductTypeManagementService`, and
 `ProductManagementService`. Categories and Product Types deliberately have no
-REST routes; Brands and Product Images deliberately have no GraphQL fields.
+REST routes; Brands, Product Options, Product Variants, and Product Images deliberately have no GraphQL fields.
 Reads require active Store membership; writes require `manage products`;
 Store-owned relationships accept same-Store ULIDs while Platform taxonomy
-nodes use global ULIDs. Options, variants, product file delivery, custom
-fields, and search indexing still lack APIs. See the
+nodes use global ULIDs. Product file delivery, custom fields, and search
+indexing still lack APIs. See the
 [API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.
