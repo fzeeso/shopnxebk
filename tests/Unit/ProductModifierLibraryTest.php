@@ -253,6 +253,120 @@ final class ProductModifierLibraryTest extends TestCase
         self::assertStringNotContainsString('tenant_id', $source);
     }
 
+    public function test_22_admin_api_exposes_complete_nested_management_contract(): void
+    {
+        $routes = (string) file_get_contents(dirname(__DIR__, 2).'/routes/modifier-api.php');
+
+        foreach ([
+            "modifier-library/categories/{category}'",
+            "modifier-library/{modifier}/translations'",
+            "modifier-library/{modifier}/values'",
+            "modifier-library/{modifier}/values/{value}'",
+            "modifier-library/{modifier}/validation-rules'",
+            "modifier-library/{modifier}/price-adjustments'",
+            "products/{product}/modifier-groups/{group}'",
+            "products/{product}/modifiers/{assignment}'",
+            "products/{product}/modifiers/{assignment}/translations'",
+            "products/{product}/modifiers/{assignment}/value-assignments'",
+            "products/{product}/modifiers/{assignment}/price-overrides'",
+            "products/{product}/modifiers/{assignment}/value-price-overrides'",
+        ] as $endpoint) {
+            self::assertStringContainsString($endpoint, $routes);
+        }
+
+        self::assertStringContainsString("'store.bindings'", $routes);
+        self::assertStringNotContainsString('cart-items', $routes);
+        self::assertStringNotContainsString('order-items', $routes);
+    }
+
+    public function test_23_nested_management_endpoints_are_allowlisted_and_transactional(): void
+    {
+        $libraryController = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Http/Controllers/Api/V1/ModifierLibraryController.php');
+        $assignmentController = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Http/Controllers/Api/V1/ProductModifierController.php');
+        $libraryService = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Services/ModifierLibraryService.php');
+        $assignmentService = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Services/ProductModifierAssignmentService.php');
+
+        self::assertStringContainsString("\$request->validate([\$key => ['required', 'array']])", $libraryController);
+        self::assertStringContainsString("\$request->validate([\$key => ['required', 'array']])", $assignmentController);
+        self::assertStringContainsString('DB::transaction(function () use ($data, $store, $modifier)', $libraryService);
+        self::assertStringContainsString('DB::transaction(function () use ($data, $store, $product, $assignment)', $assignmentService);
+        self::assertStringContainsString("where('store_id', \$store->getKey())", $libraryService);
+        self::assertStringContainsString("where('store_id', \$store->getKey())", $assignmentService);
+    }
+
+    public function test_24_modifier_value_crud_uses_public_ids_and_parent_store_scope(): void
+    {
+        $routes = (string) file_get_contents(dirname(__DIR__, 2).'/routes/modifier-api.php');
+        $controller = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Http/Controllers/Api/V1/ModifierValueController.php');
+        $service = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Services/ModifierLibraryService.php');
+        $resource = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Http/Resources/ModifierValueResource.php');
+
+        foreach (['index', 'store', 'show', 'update', 'destroy'] as $action) {
+            self::assertStringContainsString("ModifierValueController::class, '{$action}'", $routes);
+        }
+        self::assertStringContainsString('createValue(', $controller);
+        self::assertStringContainsString('updateValue(', $controller);
+        self::assertStringContainsString('deleteValue(', $controller);
+        self::assertStringContainsString("where('modifier_id', \$modifier->getKey())", $service);
+        self::assertStringContainsString("where('public_id', \$publicId)", $service);
+        self::assertStringContainsString("'id' => \$this->public_id", $resource);
+        self::assertStringNotContainsString("'store_id'", $resource);
+        self::assertStringNotContainsString("'modifier_id'", $resource);
+    }
+
+    public function test_25_required_and_generic_selection_errors_use_localized_copy(): void
+    {
+        $validator = new ModifierSelectionValidator;
+        $required = $validator->validate([
+            'type' => 'radio',
+            'required' => true,
+            'supportsMultiple' => false,
+            'requiredMessage' => 'یہ انتخاب ضروری ہے۔',
+            'validationMessage' => 'انتخاب درست نہیں ہے۔',
+            'values' => [],
+        ], []);
+        $invalid = $validator->validate([
+            'type' => 'radio',
+            'required' => false,
+            'supportsMultiple' => false,
+            'validationMessage' => 'انتخاب درست نہیں ہے۔',
+            'values' => [],
+        ], [['value_id' => '01KAAAAAAAAAAAAAAAAAAAAAAA']]);
+
+        self::assertContains('یہ انتخاب ضروری ہے۔', $required['selections']);
+        self::assertSame('انتخاب درست نہیں ہے۔', $invalid['selections.0.value_id'][0]);
+    }
+
+    public function test_26_empty_rule_message_falls_back_to_localized_validation_message(): void
+    {
+        $errors = (new ModifierSelectionValidator)->validate([
+            'type' => 'text',
+            'required' => false,
+            'supportsMultiple' => false,
+            'validationMessage' => 'متن درست نہیں ہے۔',
+            'validationRules' => [[
+                'type' => 'min_length',
+                'value' => ['value' => 5],
+                'message' => '',
+            ]],
+        ], [['input_value' => ['text' => 'abc']]]);
+
+        self::assertSame('متن درست نہیں ہے۔', $errors['selections.0.input_value.text'][0]);
+    }
+
+    public function test_27_resolved_api_returns_active_language_flags_and_direction(): void
+    {
+        $controller = (string) file_get_contents(dirname(__DIR__, 2).'/Modules/Catalog/app/Http/Controllers/Api/V1/ProductModifierController.php');
+        $languages = (string) file_get_contents(dirname(__DIR__, 2).'/app/Support/Translations/StoreTranslationLanguages.php');
+
+        self::assertStringContainsString("'language' => \$language", $controller);
+        self::assertStringContainsString("'available_languages' => \$availableLanguages", $controller);
+        self::assertStringContainsString('The locale must be active for this Store.', $controller);
+        foreach (['lang_icon', 'lang_image', 'native_name', 'direction', 'is_default'] as $field) {
+            self::assertStringContainsString("'{$field}'", $languages);
+        }
+    }
+
     /** @return array{Store, Product, ProductModifierAssignment} */
     private function fixture(): array
     {

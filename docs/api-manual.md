@@ -502,14 +502,23 @@ require active membership; every write also requires `manage products`.
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | `GET`, `POST` | `/api/v1/store/modifier-library/categories` | List/create library categories |
-| `PATCH`, `DELETE` | `/api/v1/store/modifier-library/categories/{category}` | Edit/soft-delete a category |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/modifier-library/categories/{category}` | Read/edit/soft-delete a category |
 | `GET`, `POST` | `/api/v1/store/modifier-library` | Filter/list or transactionally create definitions |
 | `GET`, `PATCH`, `DELETE` | `/api/v1/store/modifier-library/{modifier}` | Read/edit/soft-delete one definition |
 | `PATCH` | `/api/v1/store/modifier-library/{modifier}/active` | Activate/deactivate with `{ "is_active": true }` |
+| `PUT` | `/api/v1/store/modifier-library/{modifier}/translations` | Replace library translations |
+| `GET`, `POST`, `PUT` | `/api/v1/store/modifier-library/{modifier}/values` | List/create values or replace the complete value collection |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/modifier-library/{modifier}/values/{value}` | Read/edit/soft-delete one public-ULID value; PATCH may replace its translations/prices |
+| `PUT` | `/api/v1/store/modifier-library/{modifier}/validation-rules` | Replace validation rules and messages |
+| `PUT` | `/api/v1/store/modifier-library/{modifier}/price-adjustments` | Replace whole-modifier library prices |
 | `GET`, `POST` | `/api/v1/store/products/{product}/modifier-groups` | List/create Product groups |
-| `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifier-groups/{group}` | Edit/soft-delete a group |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifier-groups/{group}` | Read/edit/soft-delete a group |
 | `GET`, `POST` | `/api/v1/store/products/{product}/modifiers` | List/attach reusable definitions |
-| `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifiers/{assignment}` | Override/remove an assignment |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/products/{product}/modifiers/{assignment}` | Read/override/remove an assignment |
+| `PUT` | `/api/v1/store/products/{product}/modifiers/{assignment}/translations` | Replace presentation overrides |
+| `PUT` | `/api/v1/store/products/{product}/modifiers/{assignment}/value-assignments` | Replace enabled/default/value settings |
+| `PUT` | `/api/v1/store/products/{product}/modifiers/{assignment}/price-overrides` | Replace Product modifier prices |
+| `PUT` | `/api/v1/store/products/{product}/modifiers/{assignment}/value-price-overrides` | Replace Product value prices |
 | `PATCH` | `/api/v1/store/products/{product}/modifiers/reorder` | Apply `{ "items": [{ "id": "<assignment-ulid>", "sort_order": 1 }] }` |
 | `GET` | `/api/v1/store/products/{product}/modifiers/resolved?locale=en&currency=GBP` | Frontend-safe resolved configuration |
 
@@ -531,11 +540,45 @@ one transaction. An absent nested key leaves it unchanged. Cross-Store
 Products/modifiers/groups/media and values from the wrong definition return
 `404` or validation errors; no internal bigint is accepted or returned.
 
+The dedicated `PUT` routes accept an object whose single top-level property
+matches the collection name (`translations`, `values`, `validation_rules`,
+`price_adjustments`, `value_assignments`, `price_overrides`, or
+`value_price_overrides`). They use full-replacement semantics. In particular,
+omitting an existing modifier value from `values` soft-deletes it, while an
+empty assignment translation/price/value collection removes all rows in that
+collection. Each replacement is Store-scoped, validated, and committed in one
+transaction; unrelated parent fields in the request are ignored.
+
+Individual modifier-value `POST`/`PATCH` bodies use the same value shape as the
+aggregate `values` collection: `code`, ordering/default/active/presentation
+fields, Store media `image_id`, settings, `translations`, and nested
+`price_adjustments`. Create requires `code` and at least one active-Store
+translation. PATCH changes only supplied fields; supplying translations or
+prices replaces that value's corresponding collection. The `{value}` ULID is
+always resolved beneath both the active Store and parent `{modifier}`.
+
 The resolved response uses assignment/value ULIDs and camelCase frontend
 fields. It applies Product requested-locale translations before library
 requested/default translations, filters disabled values, applies default and
 required overrides, and returns server-calculated price objects. Clients must
 never submit those displayed amounts as authoritative cart prices.
+
+The requested `locale` must be one of the active Store languages. The resolved
+response includes `meta.language` and `meta.available_languages`; each language
+descriptor contains its public ULID, locale, administrative/native names,
+render-ready `lang_image` and `lang_icon` flag URLs, `ltr`/`rtl` direction, and
+default flag. This is the same language presentation contract exposed by
+`GET /api/v1/store/languages`, so admin translation tabs should key labels,
+help text, required errors, validation errors, and validation-rule messages by
+`locale` and render the matching language flag.
+
+Server-side modifier selection errors resolve from the requested locale. A
+localized `required_message` is used for missing required selections;
+rule-specific localized messages take precedence for their rules; the
+localized `validation_message` is the fallback for selection shape, type,
+availability, file/media, and otherwise generic validation failures. Store
+default-language copy and safe English internal messages remain the final
+fallbacks when translated copy is absent.
 
 There are no installed Cart, Orders, Sales Channel, or Customer Group APIs.
 Consequently modifier cart validation and immutable checkout snapshots are

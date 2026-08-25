@@ -23,6 +23,11 @@ final class ModifierLibraryCategoryController extends Controller
         return response()->json(['data' => new ModifierLibraryCategoryResource($service->createCategory($this->user($request), $request->all()))], 201);
     }
 
+    public function show(Request $request, string $category, ModifierLibraryService $service): JsonResponse
+    {
+        return response()->json(['data' => new ModifierLibraryCategoryResource($service->showCategory($this->user($request), $category))]);
+    }
+
     public function update(Request $request, string $category, ModifierLibraryService $service): JsonResponse
     {
         return response()->json(['data' => new ModifierLibraryCategoryResource($service->updateCategory($this->user($request), $category, $request->all()))]);

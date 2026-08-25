@@ -126,10 +126,19 @@ explicit route or GraphQL field is implemented and documented.
   ordering, and prices. Composite foreign keys carry the modifier identity
   through Product/value junctions so a value from another modifier or Store is
   rejected by PostgreSQL.
+- Modifier REST writes support both aggregate parent updates and explicit
+  full-collection `PUT` operations for translations, values, rules, and library
+  or Product pricing. The latter accept only their named collection, run through
+  the same Store-scoped service transaction, and never expose internal row IDs.
+  Public-ULID modifier values also have parent-scoped CRUD for concurrency-safe
+  single-value changes, including nested translation and value-price updates.
 - Translation resolution is field-by-field: requested-locale Product override,
   requested-locale library translation, Store-default library translation,
   then a code-derived safe label. Value names use requested locale, Store
-  default, then value code.
+  default, then value code. Resolved responses expose the active language flag,
+  native name, direction, and all active Store language options. Localized
+  required/rule messages and the generic validation message drive server-side
+  modifier selection errors.
 - Price resolution independently chooses modifier and value components. A
   matching Product override replaces its corresponding library component;
   exact channel/customer-group rows outrank broader rows; active currency and

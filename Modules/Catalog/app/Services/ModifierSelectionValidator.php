@@ -23,38 +23,39 @@ final class ModifierSelectionValidator
         $max = $configuration['maxSelections'] ?? null;
         $type = (string) ($configuration['type'] ?? '');
         $count = count($selections);
+        $validationMessage = $this->message($configuration, 'The modifier selection is invalid.');
 
         if ($required && $this->isEmpty($selections)) {
-            $errors['selections'][] = (string) ($configuration['requiredMessage'] ?? 'This modifier is required.');
+            $errors['selections'][] = $this->message($configuration, 'This modifier is required.', 'requiredMessage');
         }
         if ($count < (int) $min) {
-            $errors['selections'][] = "Select at least {$min} option(s).";
+            $errors['selections'][] = $this->message($configuration, "Select at least {$min} option(s).");
         }
         if ($max !== null && $count > (int) $max) {
-            $errors['selections'][] = "Select no more than {$max} option(s).";
+            $errors['selections'][] = $this->message($configuration, "Select no more than {$max} option(s).");
         }
         if (! (bool) ($configuration['supportsMultiple'] ?? false) && $count > 1) {
-            $errors['selections'][] = 'This modifier accepts only one selection.';
+            $errors['selections'][] = $validationMessage;
         }
 
         if (in_array($type, self::VALUE_TYPES, true)) {
             $allowed = array_fill_keys(array_map(static fn (array $value): string => (string) $value['id'], $configuration['values'] ?? []), true);
             $selectedIds = array_map(static fn (array $selection): string => (string) ($selection['value_id'] ?? ''), $selections);
             if (count($selectedIds) !== count(array_unique($selectedIds))) {
-                $errors['selections'][] = 'The same modifier value cannot be selected more than once.';
+                $errors['selections'][] = $validationMessage;
             }
             foreach ($selections as $index => $selection) {
                 $valueId = (string) ($selection['value_id'] ?? '');
                 if ($valueId === '' || ! isset($allowed[$valueId])) {
-                    $errors["selections.{$index}.value_id"][] = 'The selected modifier value is not available.';
+                    $errors["selections.{$index}.value_id"][] = $validationMessage;
                 }
             }
         } else {
             foreach ($selections as $index => $selection) {
                 if (($selection['value_id'] ?? null) !== null) {
-                    $errors["selections.{$index}.value_id"][] = 'This modifier accepts input rather than a catalogue value.';
+                    $errors["selections.{$index}.value_id"][] = $validationMessage;
                 }
-                $this->validateInput($type, $selection['input_value'] ?? null, $configuration['validationRules'] ?? [], $index, $errors);
+                $this->validateInput($type, $selection['input_value'] ?? null, $configuration['validationRules'] ?? [], $index, $errors, $validationMessage);
             }
         }
 
@@ -73,7 +74,7 @@ final class ModifierSelectionValidator
     }
 
     /** @param mixed $input @param list<array<string, mixed>> $rules @param array<string, list<string>> $errors */
-    private function validateInput(string $type, mixed $input, array $rules, int $index, array &$errors): void
+    private function validateInput(string $type, mixed $input, array $rules, int $index, array &$errors, string $validationMessage): void
     {
         $input = is_array($input) ? $input : [];
         $key = match ($type) {
@@ -88,24 +89,24 @@ final class ModifierSelectionValidator
         $path = "selections.{$index}.input_value.{$key}";
 
         if (in_array($type, ['text', 'textarea'], true) && $value !== null && ! is_string($value)) {
-            $errors[$path][] = 'The text input must be a string.';
+            $errors[$path][] = $validationMessage;
         } elseif ($type === 'number' && $value !== null && ! is_numeric($value)) {
-            $errors[$path][] = 'The number input must be numeric.';
+            $errors[$path][] = $validationMessage;
         } elseif (in_array($type, ['date', 'datetime'], true) && $value !== null) {
             try {
                 CarbonImmutable::parse((string) $value);
             } catch (\Throwable) {
-                $errors[$path][] = 'The date input is invalid.';
+                $errors[$path][] = $validationMessage;
 
                 return;
             }
         } elseif (in_array($type, ['file', 'image_upload'], true)) {
             if (! is_array($value)) {
-                $errors[$path][] = 'The file input must contain asset IDs.';
+                $errors[$path][] = $validationMessage;
             } else {
                 foreach ($value as $assetId) {
                     if (! is_string($assetId) || preg_match('/^[0-9A-HJKMNP-TV-Z]{26}$/i', $assetId) !== 1) {
-                        $errors[$path][] = 'Every asset ID must be a ULID.';
+                        $errors[$path][] = $validationMessage;
                         break;
                     }
                 }
@@ -115,7 +116,7 @@ final class ModifierSelectionValidator
         foreach ($rules as $rule) {
             $ruleType = (string) ($rule['type'] ?? $rule['rule_type'] ?? '');
             $ruleValue = $rule['value'] ?? $rule['rule_value'] ?? null;
-            $message = (string) ($rule['message'] ?? 'The modifier input is invalid.');
+            $message = trim((string) ($rule['message'] ?? '')) ?: $validationMessage;
             $invalid = match ($ruleType) {
                 'min_length' => is_string($value) && mb_strlen($value) < (int) $this->scalar($ruleValue),
                 'max_length' => is_string($value) && mb_strlen($value) > (int) $this->scalar($ruleValue),
@@ -136,6 +137,14 @@ final class ModifierSelectionValidator
     private function scalar(mixed $value): mixed
     {
         return is_array($value) ? ($value['value'] ?? reset($value)) : $value;
+    }
+
+    /** @param array<string, mixed> $configuration */
+    private function message(array $configuration, string $fallback, string $key = 'validationMessage'): string
+    {
+        $message = trim((string) ($configuration[$key] ?? ''));
+
+        return $message !== '' ? $message : $fallback;
     }
 
     private function outsideDateRange(string $value, string $boundary, bool $minimum): bool

@@ -37,6 +37,14 @@ final readonly class ProductModifierAssignmentService
             ->with($this->relations())->orderBy('sort_order')->orderBy('id')->get()->all();
     }
 
+    public function show(User $user, string $productPublicId, string $assignmentPublicId): ProductModifierAssignment
+    {
+        $store = $this->store($user, false);
+        $product = $this->product($store, $productPublicId);
+
+        return $this->assignment($store, $product, $assignmentPublicId)->load($this->relations());
+    }
+
     /** @param array<string, mixed> $input */
     public function assign(User $user, string $productPublicId, array $input): ProductModifierAssignment
     {
@@ -100,7 +108,7 @@ final readonly class ProductModifierAssignmentService
         $store = $this->store($user, true);
         $product = $this->product($store, $productPublicId);
         $data = Validator::make(['items' => $items], [
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['required', 'array', 'list', 'min:1'],
             'items.*.id' => ['required', 'ulid', 'distinct'],
             'items.*.sort_order' => ['required', 'integer'],
         ])->validate()['items'];
@@ -123,6 +131,14 @@ final readonly class ProductModifierAssignmentService
 
         return ProductModifierGroup::query()->where('store_id', $store->getKey())->where('product_id', $product->getKey())
             ->with('translations')->orderBy('sort_order')->orderBy('id')->get()->all();
+    }
+
+    public function showGroup(User $user, string $productPublicId, string $groupPublicId): ProductModifierGroup
+    {
+        $store = $this->store($user, false);
+        $product = $this->product($store, $productPublicId);
+
+        return $this->group($store, $product, $groupPublicId)->load('translations');
     }
 
     /** @param array<string, mixed> $input */
@@ -188,22 +204,22 @@ final readonly class ProductModifierAssignmentService
             'min_selections_override' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'max_selections_override' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'settings_override' => ['sometimes', 'nullable', 'array'],
-            'translations' => ['sometimes', 'array'],
+            'translations' => ['sometimes', 'array', 'list'],
             'translations.*.locale' => ['required', 'string', 'max:35'],
             'translations.*.name_override' => ['nullable', 'string', 'max:255'],
             'translations.*.description_override' => ['nullable', 'string'],
             'translations.*.placeholder_override' => ['nullable', 'string', 'max:500'],
             'translations.*.help_text_override' => ['nullable', 'string'],
             'translations.*.lock_it' => ['sometimes', 'boolean'],
-            'value_assignments' => ['sometimes', 'array'],
+            'value_assignments' => ['sometimes', 'array', 'list'],
             'value_assignments.*.value_id' => ['required', 'ulid', 'distinct'],
             'value_assignments.*.is_enabled' => ['sometimes', 'boolean'],
             'value_assignments.*.is_default_override' => ['sometimes', 'nullable', 'boolean'],
             'value_assignments.*.sort_order' => ['sometimes', 'nullable', 'integer'],
             'value_assignments.*.settings_override' => ['sometimes', 'nullable', 'array'],
-            'price_overrides' => ['sometimes', 'array'],
+            'price_overrides' => ['sometimes', 'array', 'list'],
             'price_overrides.*' => $this->priceRules(false),
-            'value_price_overrides' => ['sometimes', 'array'],
+            'value_price_overrides' => ['sometimes', 'array', 'list'],
             'value_price_overrides.*' => $this->priceRules(true),
         ])->validate();
         $min = array_key_exists('min_selections_override', $data) ? $data['min_selections_override'] : $existing?->min_selections_override;
@@ -225,7 +241,7 @@ final readonly class ProductModifierAssignmentService
             'sort_order' => ['sometimes', 'integer'],
             'is_active' => ['sometimes', 'boolean'],
             'settings' => ['sometimes', 'nullable', 'array'],
-            'translations' => [$required, 'array', 'min:1'],
+            'translations' => [$required, 'array', 'list', 'min:1'],
             'translations.*.locale' => ['required', 'string', 'max:35'],
             'translations.*.name' => ['required', 'string', 'max:255'],
             'translations.*.description' => ['nullable', 'string'],

@@ -1,5 +1,43 @@
 # Development log
 
+## 2026-08-25 - Multilingual modifier flags, labels, and errors
+
+- Changed: Resolved Product modifier responses now include selected/available
+  Store language descriptors with flag image/icon URLs, native names,
+  direction, and default state; inactive requested locales are rejected.
+  Required, generic validation, rule, and file/media selection failures now use
+  requested-locale modifier copy with existing fallback behavior.
+- Reason: The multilingual Store admin and storefront need the same active
+  language/flag context for modifier labels, help text, and error messages.
+- Data/configuration impact: Application response, validation, tests, and
+  documentation only. No schema or Store row was changed.
+- Compatibility or rollout notes: Existing resolved `data` is unchanged and
+  receives a new `meta` object. Clients should prefer `lang_image` and retain
+  `lang_icon` as fallback. The generic English messages remain safe fallbacks.
+- Verification: Added non-database multilingual validation and API contract
+  tests; formatting, static analysis, route isolation, documentation, and the
+  full Unit suite were checked without mutating Store data.
+
+## 2026-08-25 - Complete Product Modifier management APIs
+
+- Changed: Expanded the Store REST surface from 20 to 36 routes with category,
+  group, and assignment detail reads plus explicit transactional replacement
+  endpoints for modifier translations, values, validation rules, library
+  prices, and Product translation/value/pricing overrides. Added nested
+  public-ULID list/create/read/edit/soft-delete routes for individual values.
+- Reason: Admin clients need independently callable APIs for every modifier
+  management operation without sending unrelated parent fields or addressing
+  internal translation, pricing, validation, or junction rows.
+- Data/configuration impact: Application routes, controllers, services, tests,
+  and documentation only. No schema or Store row was changed.
+- Compatibility or rollout notes: Existing aggregate create/PATCH contracts
+  remain supported. New `PUT` routes have full-collection semantics; omitted
+  modifier values are soft-deleted. Cart/order HTTP routes remain deferred until
+  their owning modules provide Store-scoped public resource identifiers.
+- Verification: Added non-database API contract checks; route registration,
+  formatting, static analysis, documentation generation, and unit tests were
+  run without mutating database or Store data.
+
 ## 2026-08-25 - Store Admin cross-Store mutation and schema-command guard
 
 - Changed: Store context/membership now precede route-model substitution; every

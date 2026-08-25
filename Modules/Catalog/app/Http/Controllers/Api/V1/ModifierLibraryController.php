@@ -35,6 +35,26 @@ final class ModifierLibraryController extends Controller
         return response()->json(['data' => new ModifierDefinitionResource($service->update($this->user($request), $modifier, $request->all()))]);
     }
 
+    public function replaceTranslations(Request $request, string $modifier, ModifierLibraryService $service): JsonResponse
+    {
+        return $this->replaceCollection($request, $modifier, 'translations', $service);
+    }
+
+    public function replaceValues(Request $request, string $modifier, ModifierLibraryService $service): JsonResponse
+    {
+        return $this->replaceCollection($request, $modifier, 'values', $service);
+    }
+
+    public function replaceValidationRules(Request $request, string $modifier, ModifierLibraryService $service): JsonResponse
+    {
+        return $this->replaceCollection($request, $modifier, 'validation_rules', $service);
+    }
+
+    public function replacePriceAdjustments(Request $request, string $modifier, ModifierLibraryService $service): JsonResponse
+    {
+        return $this->replaceCollection($request, $modifier, 'price_adjustments', $service);
+    }
+
     public function destroy(Request $request, string $modifier, ModifierLibraryService $service): JsonResponse
     {
         $service->delete($this->user($request), $modifier);
@@ -55,5 +75,14 @@ final class ModifierLibraryController extends Controller
         $user = $request->user();
 
         return $user;
+    }
+
+    private function replaceCollection(Request $request, string $modifier, string $key, ModifierLibraryService $service): JsonResponse
+    {
+        $data = $request->validate([$key => ['required', 'array']]);
+
+        return response()->json(['data' => new ModifierDefinitionResource(
+            $service->update($this->user($request), $modifier, [$key => $data[$key]]),
+        )]);
     }
 }

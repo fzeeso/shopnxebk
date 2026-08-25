@@ -23,6 +23,11 @@ final class ProductModifierGroupController extends Controller
         return response()->json(['data' => new ProductModifierGroupResource($service->createGroup($this->user($request), $product, $request->all()))], 201);
     }
 
+    public function show(Request $request, string $product, string $group, ProductModifierAssignmentService $service): JsonResponse
+    {
+        return response()->json(['data' => new ProductModifierGroupResource($service->showGroup($this->user($request), $product, $group))]);
+    }
+
     public function update(Request $request, string $product, string $group, ProductModifierAssignmentService $service): JsonResponse
     {
         return response()->json(['data' => new ProductModifierGroupResource($service->updateGroup($this->user($request), $product, $group, $request->all()))]);

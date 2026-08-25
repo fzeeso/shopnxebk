@@ -24,6 +24,8 @@ final readonly class ModifierLibraryService
 
     public const RULE_TYPES = ['min_length', 'max_length', 'min_number', 'max_number', 'regex', 'allowed_file_extensions', 'max_file_size', 'max_files', 'min_date', 'max_date'];
 
+    private const VALUE_TYPES = ['select', 'radio', 'buttons', 'swatch', 'checkbox', 'checkbox_group', 'toggle'];
+
     public function __construct(
         private StoreContext $context,
         private CatalogAccessService $access,
@@ -120,6 +122,76 @@ final readonly class ModifierLibraryService
         return $modifier->load($this->relations());
     }
 
+    /** @return list<ModifierValue> */
+    public function values(User $user, string $modifierPublicId): array
+    {
+        $store = $this->store($user, false);
+        $modifier = $this->modifier($store, $modifierPublicId);
+
+        return ModifierValue::query()
+            ->where('store_id', $store->getKey())
+            ->where('modifier_id', $modifier->getKey())
+            ->with($this->valueRelations())
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->all();
+    }
+
+    public function showValue(User $user, string $modifierPublicId, string $valuePublicId): ModifierValue
+    {
+        $store = $this->store($user, false);
+        $modifier = $this->modifier($store, $modifierPublicId);
+
+        return $this->value($store, $modifier, $valuePublicId)->load($this->valueRelations());
+    }
+
+    /** @param array<string, mixed> $input */
+    public function createValue(User $user, string $modifierPublicId, array $input): ModifierValue
+    {
+        $store = $this->store($user, true);
+        $modifier = $this->modifier($store, $modifierPublicId);
+        $data = $this->validateValue($input, true, $modifier);
+        $this->ensureValueCodeAvailable($store, $modifier, (string) $data['code']);
+        $this->ensureSingleDefaultValue($modifier, $data);
+
+        return DB::transaction(function () use ($data, $modifier, $store): ModifierValue {
+            $value = new ModifierValue(['store_id' => $store->getKey(), 'modifier_id' => $modifier->getKey()]);
+            $this->saveValue($store, $value, $data, true);
+
+            return $value->load($this->valueRelations());
+        });
+    }
+
+    /** @param array<string, mixed> $input */
+    public function updateValue(User $user, string $modifierPublicId, string $valuePublicId, array $input): ModifierValue
+    {
+        $store = $this->store($user, true);
+        $modifier = $this->modifier($store, $modifierPublicId);
+        $value = $this->value($store, $modifier, $valuePublicId);
+        $data = $this->validateValue($input, false, $modifier);
+        if ($data === []) {
+            throw ValidationException::withMessages(['input' => ['At least one field must be supplied.']]);
+        }
+        if (isset($data['code'])) {
+            $this->ensureValueCodeAvailable($store, $modifier, (string) $data['code'], (int) $value->getKey());
+        }
+        $this->ensureSingleDefaultValue($modifier, $data, $value);
+
+        return DB::transaction(function () use ($data, $store, $value): ModifierValue {
+            $this->saveValue($store, $value, $data, false);
+
+            return $value->refresh()->load($this->valueRelations());
+        });
+    }
+
+    public function deleteValue(User $user, string $modifierPublicId, string $valuePublicId): void
+    {
+        $store = $this->store($user, true);
+        $modifier = $this->modifier($store, $modifierPublicId);
+        $this->value($store, $modifier, $valuePublicId)->delete();
+    }
+
     /** @return list<ModifierLibraryCategory> */
     public function categories(User $user): array
     {
@@ -127,6 +199,11 @@ final readonly class ModifierLibraryService
 
         return ModifierLibraryCategory::query()->where('store_id', $store->getKey())
             ->with('translations')->orderBy('sort_order')->orderBy('id')->get()->all();
+    }
+
+    public function showCategory(User $user, string $publicId): ModifierLibraryCategory
+    {
+        return $this->category($this->store($user, false), $publicId)->load('translations');
     }
 
     /** @param array<string, mixed> $input */
@@ -190,7 +267,7 @@ final readonly class ModifierLibraryService
             'max_selections' => ['sometimes', 'nullable', 'integer', 'min:1'],
             'sort_order' => ['sometimes', 'integer'],
             'settings' => ['sometimes', 'nullable', 'array'],
-            'translations' => [$required, 'array', 'min:1'],
+            'translations' => [$required, 'array', 'list', 'min:1'],
             'translations.*.locale' => ['required', 'string', 'max:35'],
             'translations.*.name' => ['required', 'string', 'max:255'],
             'translations.*.description' => ['nullable', 'string'],
@@ -199,7 +276,7 @@ final readonly class ModifierLibraryService
             'translations.*.required_message' => ['nullable', 'string', 'max:500'],
             'translations.*.validation_message' => ['nullable', 'string', 'max:500'],
             'translations.*.lock_it' => ['sometimes', 'boolean'],
-            'values' => ['sometimes', 'array'],
+            'values' => ['sometimes', 'array', 'list'],
             'values.*.id' => ['sometimes', 'ulid'],
             'values.*.code' => ['required', 'string', 'max:100', 'distinct', 'regex:/^[a-z0-9]+(?:_[a-z0-9]+)*$/'],
             'values.*.sort_order' => ['sometimes', 'integer'],
@@ -209,23 +286,23 @@ final readonly class ModifierLibraryService
             'values.*.image_id' => ['nullable', 'ulid'],
             'values.*.icon' => ['nullable', 'string', 'max:255'],
             'values.*.settings' => ['nullable', 'array'],
-            'values.*.translations' => ['required', 'array', 'min:1'],
+            'values.*.translations' => ['required', 'array', 'list', 'min:1'],
             'values.*.translations.*.locale' => ['required', 'string', 'max:35'],
             'values.*.translations.*.name' => ['required', 'string', 'max:255'],
             'values.*.translations.*.description' => ['nullable', 'string'],
             'values.*.translations.*.lock_it' => ['sometimes', 'boolean'],
-            'values.*.price_adjustments' => ['sometimes', 'array'],
+            'values.*.price_adjustments' => ['sometimes', 'array', 'list'],
             'values.*.price_adjustments.*' => $this->priceRules(),
-            'validation_rules' => ['sometimes', 'array'],
+            'validation_rules' => ['sometimes', 'array', 'list'],
             'validation_rules.*.rule_type' => ['required', 'in:'.implode(',', self::RULE_TYPES)],
             'validation_rules.*.rule_value' => ['nullable', 'array'],
             'validation_rules.*.sort_order' => ['sometimes', 'integer'],
             'validation_rules.*.is_active' => ['sometimes', 'boolean'],
-            'validation_rules.*.translations' => ['sometimes', 'array'],
+            'validation_rules.*.translations' => ['sometimes', 'array', 'list'],
             'validation_rules.*.translations.*.locale' => ['required', 'string', 'max:35'],
             'validation_rules.*.translations.*.message' => ['required', 'string', 'max:500'],
             'validation_rules.*.translations.*.lock_it' => ['sometimes', 'boolean'],
-            'price_adjustments' => ['sometimes', 'array'],
+            'price_adjustments' => ['sometimes', 'array', 'list'],
             'price_adjustments.*' => $this->priceRules(),
         ])->validate();
         $min = array_key_exists('min_selections', $data) ? $data['min_selections'] : $existing?->min_selections;
@@ -241,10 +318,10 @@ final readonly class ModifierLibraryService
         if ($type === 'checkbox_group' && ! $multiple) {
             throw ValidationException::withMessages(['supports_multiple' => ['Checkbox-group modifiers must support multiple selections.']]);
         }
-        if (isset($data['values']) && ! in_array($type, ['select', 'radio', 'buttons', 'swatch', 'checkbox', 'checkbox_group', 'toggle'], true) && $data['values'] !== []) {
+        if (isset($data['values']) && ! in_array($type, self::VALUE_TYPES, true) && $data['values'] !== []) {
             throw ValidationException::withMessages(['values' => ['Free-form modifiers cannot define catalogue values.']]);
         }
-        if (! isset($data['values']) && $existing !== null && ! in_array($type, ['select', 'radio', 'buttons', 'swatch', 'checkbox', 'checkbox_group', 'toggle'], true) && $existing->values()->exists()) {
+        if (! isset($data['values']) && $existing !== null && ! in_array($type, self::VALUE_TYPES, true) && $existing->values()->exists()) {
             throw ValidationException::withMessages(['values' => ['Remove catalogue values when converting a modifier to a free-form type.']]);
         }
         if (isset($data['values']) && ! $multiple && collect($data['values'])->where('is_default', true)->count() > 1) {
@@ -264,7 +341,7 @@ final readonly class ModifierLibraryService
             'code' => [$required, 'string', 'max:100', 'regex:/^[a-z0-9]+(?:_[a-z0-9]+)*$/'],
             'sort_order' => ['sometimes', 'integer'],
             'is_active' => ['sometimes', 'boolean'],
-            'translations' => [$required, 'array', 'min:1'],
+            'translations' => [$required, 'array', 'list', 'min:1'],
             'translations.*.locale' => ['required', 'string', 'max:35'],
             'translations.*.name' => ['required', 'string', 'max:255'],
             'translations.*.description' => ['nullable', 'string'],
@@ -342,6 +419,56 @@ final readonly class ModifierLibraryService
             $kept[] = (int) $value->getKey();
         }
         $modifier->values()->whereNotIn('id', $kept)->delete();
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function validateValue(array $input, bool $creating, ModifierDefinition $modifier): array
+    {
+        if (! in_array($modifier->type, self::VALUE_TYPES, true)) {
+            throw ValidationException::withMessages(['modifier' => ['Free-form modifiers cannot define catalogue values.']]);
+        }
+        $required = $creating ? 'required' : 'sometimes';
+
+        return Validator::make($input, [
+            'code' => [$required, 'string', 'max:100', 'regex:/^[a-z0-9]+(?:_[a-z0-9]+)*$/'],
+            'sort_order' => ['sometimes', 'integer'],
+            'is_default' => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
+            'colour_value' => ['sometimes', 'nullable', 'string', 'max:50'],
+            'image_id' => ['sometimes', 'nullable', 'ulid'],
+            'icon' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'settings' => ['sometimes', 'nullable', 'array'],
+            'translations' => [$required, 'array', 'list', 'min:1'],
+            'translations.*.locale' => ['required', 'string', 'max:35'],
+            'translations.*.name' => ['required', 'string', 'max:255'],
+            'translations.*.description' => ['nullable', 'string'],
+            'translations.*.lock_it' => ['sometimes', 'boolean'],
+            'price_adjustments' => ['sometimes', 'array', 'list'],
+            'price_adjustments.*' => $this->priceRules(),
+        ])->validate();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function saveValue(Store $store, ModifierValue $value, array $data, bool $creating): void
+    {
+        $attributes = Arr::only($data, ['code', 'sort_order', 'is_default', 'is_active', 'colour_value', 'icon', 'settings']);
+        if (array_key_exists('image_id', $data)) {
+            $attributes['image_id'] = $data['image_id'] === null ? null : Media::query()
+                ->where('store_id', $store->getKey())->where('public_id', $data['image_id'])->value('id');
+            if ($data['image_id'] !== null && $attributes['image_id'] === null) {
+                throw ValidationException::withMessages(['image_id' => ['The modifier value image does not belong to this Store.']]);
+            }
+        }
+        $value->fill($attributes)->save();
+        if ($creating || array_key_exists('translations', $data)) {
+            $this->replaceTranslations($value->translations(), $store, $data['translations']);
+        }
+        if (array_key_exists('price_adjustments', $data)) {
+            $value->priceAdjustments()->delete();
+            foreach ($data['price_adjustments'] as $price) {
+                $value->priceAdjustments()->create(['store_id' => $store->getKey(), ...$price]);
+            }
+        }
     }
 
     /** @param mixed $relation @param list<array<string, mixed>> $rows */
@@ -427,6 +554,15 @@ final readonly class ModifierLibraryService
         return ModifierLibraryCategory::query()->where('store_id', $store->getKey())->where('public_id', $publicId)->firstOrFail();
     }
 
+    private function value(Store $store, ModifierDefinition $modifier, string $publicId): ModifierValue
+    {
+        return ModifierValue::query()
+            ->where('store_id', $store->getKey())
+            ->where('modifier_id', $modifier->getKey())
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+    }
+
     private function ensureModifierCodeAvailable(Store $store, string $code, ?int $exceptId = null): void
     {
         $query = ModifierDefinition::withTrashed()->where('store_id', $store->getKey())->where('code', $code);
@@ -447,6 +583,41 @@ final readonly class ModifierLibraryService
         if ($query->exists()) {
             throw ValidationException::withMessages(['code' => ['The modifier category code is already in use for this Store.']]);
         }
+    }
+
+    private function ensureValueCodeAvailable(Store $store, ModifierDefinition $modifier, string $code, ?int $exceptId = null): void
+    {
+        $query = ModifierValue::withTrashed()
+            ->where('store_id', $store->getKey())
+            ->where('modifier_id', $modifier->getKey())
+            ->where('code', $code);
+        if ($exceptId !== null) {
+            $query->whereKeyNot($exceptId);
+        }
+        if ($query->exists()) {
+            throw ValidationException::withMessages(['code' => ['The modifier value code is already in use for this modifier.']]);
+        }
+    }
+
+    /** @param array<string, mixed> $data */
+    private function ensureSingleDefaultValue(ModifierDefinition $modifier, array $data, ?ModifierValue $existing = null): void
+    {
+        if ($modifier->supports_multiple || ($data['is_default'] ?? false) !== true) {
+            return;
+        }
+        $query = $modifier->values()->where('is_default', true);
+        if ($existing !== null) {
+            $query->whereKeyNot($existing->getKey());
+        }
+        if ($query->exists()) {
+            throw ValidationException::withMessages(['is_default' => ['A single-choice modifier can have only one default value.']]);
+        }
+    }
+
+    /** @return list<string> */
+    private function valueRelations(): array
+    {
+        return ['translations', 'image', 'priceAdjustments'];
     }
 
     /** @param list<array<string, mixed>> $rules */

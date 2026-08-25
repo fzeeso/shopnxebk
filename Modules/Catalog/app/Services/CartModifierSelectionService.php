@@ -102,24 +102,32 @@ final readonly class CartModifierSelectionService
         $ids = collect($selections)->flatMap(fn (array $selection): array => (array) ($selection['input_value']['asset_ids'] ?? []))->unique()->values();
         $media = Media::query()->where('store_id', $store->getKey())->where('status', 'ready')->whereIn('public_id', $ids)->get()->keyBy('public_id');
         if ($media->count() !== $ids->count()) {
-            return ['selections' => ['Every selected asset must belong to this Store.']];
+            return ['selections' => [$this->validationMessage($configuration, 'Every selected asset must belong to this Store.')]];
         }
         $errors = [];
         foreach ($media as $asset) {
             if (($configuration['type'] ?? null) === 'image_upload' && ! str_starts_with((string) $asset->mime_type, 'image/')) {
-                $errors['selections'][] = 'Image-upload modifiers only accept image assets.';
+                $errors['selections'][] = $this->validationMessage($configuration, 'Image-upload modifiers only accept image assets.');
             }
             foreach ($configuration['validationRules'] ?? [] as $rule) {
                 $value = (array) ($rule['value'] ?? []);
                 if (($rule['type'] ?? null) === 'allowed_file_extensions' && ! in_array(strtolower((string) $asset->extension), array_map('strtolower', (array) ($value['extensions'] ?? [])), true)) {
-                    $errors['selections'][] = (string) ($rule['message'] ?? 'The selected file extension is not allowed.');
+                    $errors['selections'][] = trim((string) ($rule['message'] ?? '')) ?: $this->validationMessage($configuration, 'The selected file extension is not allowed.');
                 }
                 if (($rule['type'] ?? null) === 'max_file_size' && (int) $asset->size > (int) ($value['bytes'] ?? 0)) {
-                    $errors['selections'][] = (string) ($rule['message'] ?? 'The selected file is too large.');
+                    $errors['selections'][] = trim((string) ($rule['message'] ?? '')) ?: $this->validationMessage($configuration, 'The selected file is too large.');
                 }
             }
         }
 
         return $errors;
+    }
+
+    /** @param array<string, mixed> $configuration */
+    private function validationMessage(array $configuration, string $fallback): string
+    {
+        $message = trim((string) ($configuration['validationMessage'] ?? ''));
+
+        return $message !== '' ? $message : $fallback;
     }
 }

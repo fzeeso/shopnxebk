@@ -261,6 +261,13 @@ available/default values, and modifier/value prices. Public routes accept and
 return ULIDs for categories, modifiers, values, groups, Products, and
 assignments. Every lookup combines the active Store bigint with the public
 ULID, while database relationships remain bigint composite foreign keys.
+The REST management surface includes detail reads plus explicit transactional
+collection-replacement endpoints for library translations, values, validation,
+library pricing, and Product translation/value/pricing overrides. Internal
+translation, validation, junction, and pricing rows remain non-addressable and
+do not expose bigint identifiers. Modifier values additionally expose nested
+public-ULID CRUD beneath their Store-owned parent modifier, so a client can edit
+one value without replacing its siblings.
 
 The resolved storefront contract hides the normalized tables. Translation
 fallback is requested-locale Product override, requested-locale library row,
@@ -269,6 +276,10 @@ requested locale to Store default to code. Pricing is server-owned: a matching
 Product component overrides its equivalent library component, modifier and
 value components are added, percentage rows use the Product base price, and
 currency/date/channel/customer-group matching is explicit.
+Resolved modifier responses also carry the active language descriptor and the
+Store's active language list, including native name, flag image/icon URLs,
+direction, and default state. Required, generic validation, and rule errors use
+the requested-locale translation before Store-default and safe internal copy.
 
 `CartModifierSelectionService` revalidates requiredness, selection bounds,
 value ownership, free-form input, Store-owned media, and validation rules; it
