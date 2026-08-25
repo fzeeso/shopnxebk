@@ -1,5 +1,21 @@
 # Development log
 
+## 2026-08-25 - Codex database and Store-data read-only guardrail
+
+- Changed: Added a persistent repository instruction that prevents Codex from
+  executing database or Store-data mutation commands, mutation-capable API or
+  browser flows, and database-backed tests that write or reset data.
+- Reason: Database and Store records must remain protected from accidental
+  deletion or manipulation during implementation and verification work.
+- Data/configuration impact: Documentation and agent workflow only. No database,
+  Store data, application configuration, or runtime state was changed.
+- Compatibility or rollout notes: Codex may still prepare source and migration
+  files, and may run read-only inspection, static analysis, formatting, builds,
+  and tests that perform no database writes. A human operator remains
+  responsible for executing any data-changing command.
+- Verification: Repository instructions and generated documentation checks were
+  reviewed without running database-backed tests or data-mutating commands.
+
 ## 2026-08-25 - Store-scoped OpenAI media operations
 
 - Changed: Added Laravel-only OpenAI image generation, background removal,

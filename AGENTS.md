@@ -15,3 +15,20 @@ After changing application code, dependencies, routes, GraphQL schema, modules, 
 
 Do not edit files under `docs/generated/` manually. Do not record secrets, real
 credentials, or untracked `.env` values in documentation.
+
+## Database and Store-data safety
+
+Treat every database and all Store data as read-only during Codex work.
+
+- Never execute SQL, Artisan, migration, rollback, seed, restore, import, API,
+  GraphQL, browser, or other commands that create, update, delete, truncate,
+  drop, alter, or otherwise manipulate database or Store data.
+- Do not run database-backed tests when they can insert, update, delete, reset,
+  refresh, migrate, or otherwise mutate a database, including a test database.
+- Generic requests to implement, fix, test, verify, or deploy do not authorize
+  data mutation. If completion would require a mutation, stop and report it.
+- Read-only inspection, source/configuration edits, documentation generation,
+  formatting, static analysis, unit tests with no database writes, and builds
+  remain allowed.
+- Code or migration files may be prepared when requested, but Codex must not
+  execute them against any database or Store dataset.

@@ -1,5 +1,15 @@
 # ShopNXE backend developer guide
 
+## Codex data-safety policy
+
+Codex must treat every database and all Store data as read-only. It must not run
+SQL, migrations, rollbacks, seeds, restores, imports, database-backed tests, or
+API/GraphQL/browser actions that create, update, delete, reset, or otherwise
+manipulate Store data. Implementation work may prepare source and migration
+files, but execution against any development, test, staging, or production
+database is left to an authorized human operator. Static checks, formatting,
+documentation generation, and tests with no database writes remain permitted.
+
 This is the working guide for developers extending the ShopNXE backend. It explains what is installed, why it exists, how information moves through the system, which process executes each kind of work, and how to make changes safely.
 
 The [canonical application context](context.md) defines domain language, identifiers, authorization, and module boundaries. The [API manual](api-manual.md) is the implementation handoff for request cycles and client contracts. Exact package versions, enabled modules, routes, GraphQL operations, migrations, commands, and environment-variable names are maintained in generated references. Architectural decisions are recorded in the [ADRs](adr/001-modular-monolith.md), and meaningful behavioral changes belong in the [development log](development-log.md).
