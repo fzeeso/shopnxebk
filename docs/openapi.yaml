@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, multilingual Product Option/Variant, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
 servers:
   - url: http://localhost:8000
 tags:
@@ -22,6 +22,8 @@ tags:
     description: Store-scoped Brand identity, localized content, official website, and origin management.
   - name: Catalog Products
     description: Store-scoped Product lifecycle, localization, classification, pricing, inventory, and commerce metadata.
+  - name: Catalog Custom Fields
+    description: Store-scoped typed field definitions, select options, and Product or Variant values.
   - name: Store Media
     description: Reusable Store-owned uploads, processing, authenticated delivery, and Product or Variant attachment.
   - name: Translations
@@ -2001,6 +2003,295 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Product or image not found in the selected Store and nested Product boundary}
+  /api/v1/store/custom-fields:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Page custom-field definitions
+      description: Requires active Store membership. A product_type filter includes global definitions plus definitions for that Product Type code.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: product_type, in: query, schema: {type: string, maxLength: 255}}
+        - {name: field_key, in: query, schema: {type: string, maxLength: 100}}
+        - {name: field_type, in: query, schema: {$ref: '#/components/schemas/CustomFieldType'}}
+        - {name: is_required, in: query, schema: {type: boolean}}
+        - {name: is_filterable, in: query, schema: {type: boolean}}
+        - {name: sort_by, in: query, schema: {type: string, enum: [position, field_key, created_at, updated_at]}}
+        - {name: sort_direction, in: query, schema: {type: string, enum: [asc, desc]}}
+      responses:
+        '200':
+          description: Paginated custom-field definitions
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldDefinitionPageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    post:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Create a custom-field definition
+      description: Requires manage products. Initial options are accepted only for select or multi_select fields.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCustomFieldDefinitionRequest'}}
+      responses:
+        '201':
+          description: Custom-field definition created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldDefinitionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-fields/{definition}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Read a custom-field definition
+      responses:
+        '200':
+          description: Definition with translations, ordered options, and usage count
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldDefinitionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition not found in selected Store}
+    patch:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Partially update a custom-field definition
+      description: Requires manage products. The field type cannot change after values exist.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateCustomFieldDefinitionRequest'}}
+      responses:
+        '200':
+          description: Custom-field definition updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldDefinitionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Delete a custom-field definition and its owned values
+      description: Requires manage products. Database cascade rules remove its translations, options, and Product/Variant values.
+      responses:
+        '204': {description: Custom-field definition deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition not found in selected Store}
+  /api/v1/store/custom-fields/{definition}/options:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: List ordered options for a select custom field
+      responses:
+        '200':
+          description: Custom-field options
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldOptionListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition not found in selected Store}
+    post:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Add an option to a select or multi-select field
+      description: Requires manage products.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCustomFieldOptionRequest'}}
+      responses:
+        '201':
+          description: Custom-field option created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-fields/{definition}/options/{option}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: option, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Read a custom-field option
+      responses:
+        '200':
+          description: Custom-field option
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition or option not found in nested Store boundary}
+    patch:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Update option order or submitted translations
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateCustomFieldOptionRequest'}}
+      responses:
+        '200':
+          description: Custom-field option updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/CustomFieldOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition or option not found in nested Store boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Delete an unused custom-field option
+      description: Requires manage products. Selected options must first be removed from all Product and Variant values.
+      responses:
+        '204': {description: Custom-field option deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Definition or option not found in nested Store boundary}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/custom-field-values:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: List Product-level custom-field values
+      responses:
+        '200':
+          description: Product-level custom-field values only; Variant values are excluded
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+  /api/v1/store/products/{product}/custom-field-values/{definition}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Read one Product-level custom-field value
+      responses:
+        '200':
+          description: Product custom-field value
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, definition, or value not found}
+    put:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Set or replace one Product-level typed value
+      description: Requires manage products. The body must contain exactly the property required by the definition field_type.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueRequest'}}
+      responses:
+        '200':
+          description: Product custom-field value set
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, definition, or selected option not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Unset one Product-level custom-field value
+      responses:
+        '204': {description: Product custom-field value deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, definition, or value not found}
+  /api/v1/store/products/{product}/variants/{variant}/custom-field-values:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: variant, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: List Variant-level custom-field values
+      responses:
+        '200':
+          description: Variant custom-field values
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or Variant not found in nested Store boundary}
+  /api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: variant, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Read one Variant-level custom-field value
+      responses:
+        '200':
+          description: Variant custom-field value
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, Variant, definition, or value not found}
+    put:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Set or replace one Variant-level typed value
+      description: Requires manage products. The Variant must belong to the Product, and the body shape must match field_type.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueRequest'}}
+      responses:
+        '200':
+          description: Variant custom-field value set
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductCustomFieldValueResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, Variant, definition, or selected option not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Fields]
+      security: [{sanctum: []}]
+      summary: Unset one Variant-level custom-field value
+      responses:
+        '204': {description: Variant custom-field value deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, Variant, definition, or value not found}
   /api/v1/store/options:
     parameters:
       - {$ref: '#/components/parameters/StoreId'}
@@ -2735,6 +3026,198 @@ components:
         data: {type: array, items: {$ref: '#/components/schemas/Product'}}
         links: {$ref: '#/components/schemas/PaginationLinks'}
         meta: {$ref: '#/components/schemas/PaginationMeta'}
+    CustomFieldType:
+      type: string
+      enum: [text, number, boolean, select, multi_select, date, url]
+    CustomFieldDefinitionTranslationWrite:
+      type: object
+      required: [locale, label]
+      properties:
+        locale: {type: string, maxLength: 35}
+        label: {type: string, maxLength: 255}
+        help_text: {type: [string, 'null']}
+        lock_it: {type: boolean, default: false}
+    CustomFieldOptionTranslationWrite:
+      type: object
+      required: [locale, label]
+      properties:
+        locale: {type: string, maxLength: 35}
+        label: {type: string, maxLength: 255}
+        lock_it: {type: boolean, default: false}
+    CustomFieldOptionWrite:
+      type: object
+      properties:
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/CustomFieldOptionTranslationWrite'}
+    CreateCustomFieldOptionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldOptionWrite'}
+        - type: object
+          required: [translations]
+    UpdateCustomFieldOptionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldOptionWrite'}
+        - type: object
+          minProperties: 1
+    CustomFieldDefinitionWrite:
+      type: object
+      properties:
+        product_type: {type: [string, 'null'], maxLength: 255, description: Nullable Product Type code; null makes the definition global.}
+        field_key: {type: string, maxLength: 100, pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'}
+        field_type: {$ref: '#/components/schemas/CustomFieldType'}
+        is_required: {type: boolean, default: false}
+        is_filterable: {type: boolean, default: false}
+        position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/CustomFieldDefinitionTranslationWrite'}
+    CreateCustomFieldDefinitionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldDefinitionWrite'}
+        - type: object
+          required: [field_key, field_type, translations]
+          properties:
+            options:
+              type: array
+              maxItems: 500
+              items: {$ref: '#/components/schemas/CreateCustomFieldOptionRequest'}
+    UpdateCustomFieldDefinitionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldDefinitionWrite'}
+        - type: object
+          minProperties: 1
+    CustomFieldDefinitionTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldDefinitionTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    CustomFieldOptionTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/CustomFieldOptionTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    CustomFieldOption:
+      type: object
+      required: [id, position, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        definition_id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/CustomFieldOptionTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CustomFieldDefinition:
+      type: object
+      required: [id, field_key, field_type, is_required, is_filterable, position, translations, options]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_type: {type: [string, 'null']}
+        field_key: {type: string}
+        field_type: {$ref: '#/components/schemas/CustomFieldType'}
+        is_required: {type: boolean}
+        is_filterable: {type: boolean}
+        position: {type: integer, minimum: 0}
+        values_count: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/CustomFieldDefinitionTranslation'}}
+        options: {type: array, items: {$ref: '#/components/schemas/CustomFieldOption'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CustomFieldDefinitionResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CustomFieldDefinition'}
+    CustomFieldDefinitionPageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/CustomFieldDefinition'}}
+        links: {type: object, additionalProperties: true}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
+    CustomFieldOptionResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CustomFieldOption'}
+    CustomFieldOptionListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/CustomFieldOption'}}
+    ProductCustomFieldValueTranslationWrite:
+      type: object
+      required: [locale, value_text]
+      properties:
+        locale: {type: string, maxLength: 35}
+        value_text: {type: string}
+        lock_it: {type: boolean, default: false}
+    ProductCustomFieldValueTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/ProductCustomFieldValueTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    ProductCustomFieldValueRequest:
+      type: object
+      minProperties: 1
+      maxProperties: 1
+      description: Supply exactly one property matching the definition type; translations serves text/url, option_id serves select, and option_ids serves multi_select.
+      properties:
+        value_number: {type: number, multipleOf: 0.0001}
+        value_boolean: {type: boolean}
+        value_date: {type: string, format: date}
+        option_id: {$ref: '#/components/schemas/PublicUlid'}
+        option_ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/ProductCustomFieldValueTranslationWrite'}
+    ProductCustomFieldValue:
+      type: object
+      required: [id, product_id, definition_id, definition, translations, selected_options]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        variant_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        definition_id: {$ref: '#/components/schemas/PublicUlid'}
+        definition: {$ref: '#/components/schemas/CustomFieldDefinition'}
+        value_number: {type: [string, 'null'], description: Exact four-decimal serialization.}
+        value_boolean: {type: [boolean, 'null']}
+        value_date: {type: [string, 'null'], format: date}
+        option_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        selected_option: {oneOf: [{$ref: '#/components/schemas/CustomFieldOption'}, {type: 'null'}]}
+        option_ids: {type: array, items: {$ref: '#/components/schemas/PublicUlid'}}
+        selected_options: {type: array, items: {$ref: '#/components/schemas/CustomFieldOption'}}
+        translations: {type: array, items: {$ref: '#/components/schemas/ProductCustomFieldValueTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductCustomFieldValueResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductCustomFieldValue'}
+    ProductCustomFieldValueListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductCustomFieldValue'}}
     SharedProductOptionType:
       type: string
       enum: [dropdown, radio_buttons, buttons, swatches]

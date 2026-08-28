@@ -49,6 +49,7 @@ Accept: application/json
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
 | Product Options and Variants | Nested multilingual CRUD under `/api/v1/store/products/{product}` | Not exposed |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
+| Custom Fields | Definition/option CRUD plus Product/Variant typed-value operations under `/api/v1/store` | Full definition/option lifecycle plus Product/Variant typed-value operations |
 | Reusable Media | Upload/complete/list/detail/content/delete plus Product and Variant attachment under `/api/v1/store` | Not exposed |
 | Modifier Library | Store category/definition lifecycle with nested translations, values, validation, and pricing | Not exposed |
 | Product Modifiers | Nested group/assignment/reorder APIs and resolved storefront DTO | Not exposed |
@@ -97,13 +98,23 @@ Resolvers are adapters. Business rules, Store ownership, permissions, translatio
 | `productType` | One Product Type by public ULID | Active Store membership |
 | `products` | Filtered, sorted, paginated product list | Active Store membership |
 | `product` | One product by public ULID | Active Store membership |
+| `customFields`, `customField` | Filtered definition list and one definition | Active Store membership |
+| `productCustomFieldValues`, `productCustomFieldValue` | Product- or Variant-scope typed values | Active Store membership |
 | `createCategory`, `updateCategory`, `deleteCategory` | Category lifecycle | `manage products` |
 | `createProductType`, `updateProductType`, `deleteProductType` | Product Type lifecycle | `manage products` |
 | `createProduct`, `updateProduct`, `deleteProduct` | Product lifecycle | `manage products` |
+| `createCustomField`, `updateCustomField`, `deleteCustomField` | Definition lifecycle | `manage products` |
+| `createCustomFieldOption`, `updateCustomFieldOption`, `deleteCustomFieldOption` | Select-option lifecycle | `manage products` |
+| `setProductCustomFieldValue`, `deleteProductCustomFieldValue` | Set/unset a Product or Variant value | `manage products` |
 
-Lists default to 20 records and permit at most 100. Category sorting is allow-listed to `SORT_ORDER`, `CREATED_AT`, or `UPDATED_AT`. Product Type sorting is allow-listed to `SORT_ORDER`, `CODE`, `CREATED_AT`, or `UPDATED_AT`. Product sorting is allow-listed to `CREATED_AT`, `UPDATED_AT`, `STATUS`, or `PUBLISHED_AT`.
+Catalog lists permit at most 100 records. Custom Fields default to 25; the other GraphQL Catalog lists default to 20. Category sorting is allow-listed to `SORT_ORDER`, `CREATED_AT`, or `UPDATED_AT`. Product Type sorting is allow-listed to `SORT_ORDER`, `CODE`, `CREATED_AT`, or `UPDATED_AT`. Product sorting is allow-listed to `CREATED_AT`, `UPDATED_AT`, `STATUS`, or `PUBLISHED_AT`. Custom Field sorting is allow-listed to `POSITION`, `FIELD_KEY`, `CREATED_AT`, or `UPDATED_AT`.
 
 Category filters are `search`, `locale`, `parentId`, `rootOnly`, and `isActive`. Product Type filters are `search`, `locale`, `code`, `platformTaxonomyNodeId`, and `isActive`. Product filters are `search`, `locale`, `status`, `fulfillmentType`, `brandId`, and `categoryId`. Search matches the entity's localized title/name or slug case-insensitively; `locale` restricts which translation is searched.
+
+Custom Field filters are `search`, `productType`, `fieldKey`, `fieldType`,
+`isRequired`, and `isFilterable`. `productType` returns both global definitions
+and definitions assigned to that Product Type code. Search matches `fieldKey`
+or a translated label case-insensitively.
 
 ### 3.1 Fulfillment Type REST catalog
 
@@ -506,6 +517,99 @@ writer, and only public identifiers are serialized. Deleting a definition with
 Product assignments returns `422`; detach each assignment first. Assignment
 create accepts `option_id` and optional `position` and is idempotent for the
 same Product/Option pair.
+
+### 6.1.3 Typed custom fields
+
+Custom Fields are Store-level definitions with public ULIDs, stable `field_key`
+values, optional Product Type-code applicability, localized labels/help text,
+and optional ordered choices. Supported `field_type` values are `text`,
+`number`, `boolean`, `select`, `multi_select`, `date`, and `url`.
+
+Definition and option REST operations are:
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/custom-fields` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/custom-fields/{definition}` | Membership / `manage products` |
+| `GET`, `POST` | `/api/v1/store/custom-fields/{definition}/options` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/custom-fields/{definition}/options/{option}` | Membership / `manage products` |
+
+The definition list accepts bounded `page`/`per_page`, `search`,
+`product_type`, `field_key`, `field_type`, `is_required`, `is_filterable`,
+`sort_by`, and `sort_direction`. Creating a definition requires `field_key`,
+`field_type`, and at least one translation. Initial `options` are accepted only
+for `select` and `multi_select`. Definition and option translation writes upsert
+only submitted active Store locales and preserve an existing `lock_it` value
+when it is omitted. They are manual translations; these operations do not
+create an automatic `translationRequest`.
+
+```json
+{
+  "product_type": "running-shoe",
+  "field_key": "upper.material",
+  "field_type": "select",
+  "is_required": true,
+  "is_filterable": true,
+  "position": 20,
+  "translations": [
+    {"locale": "en", "label": "Upper material", "help_text": "Primary upper material"}
+  ],
+  "options": [
+    {"position": 0, "translations": [{"locale": "en", "label": "Mesh"}]},
+    {"position": 1, "translations": [{"locale": "en", "label": "Leather"}]}
+  ]
+}
+```
+
+Product and Variant values use idempotent `PUT`; `DELETE` unsets the value:
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/products/{product}/custom-field-values` | Membership |
+| `GET`, `PUT`, `DELETE` | `/api/v1/store/products/{product}/custom-field-values/{definition}` | Membership / `manage products` |
+| `GET` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values` | Membership |
+| `GET`, `PUT`, `DELETE` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}` | Membership / `manage products` |
+
+The value body must contain exactly one type-specific property:
+
+| `field_type` | Required value property |
+| --- | --- |
+| `text`, `url` | `translations: [{locale, value_text, lock_it?}]` |
+| `number` | `value_number` (up to four decimal places) |
+| `boolean` | `value_boolean` |
+| `date` | `value_date` in `YYYY-MM-DD` form |
+| `select` | `option_id` public ULID |
+| `multi_select` | non-empty distinct `option_ids` public ULID list |
+
+Selected options must belong to the same definition. A Variant must belong to
+the nested Product. A definition with `product_type` applies only when the
+Product references that Product Type code; a null `product_type` is global.
+Changing a definition's type is rejected once any values exist, and deleting a
+selected option is rejected. Deleting a definition intentionally follows the
+documented database cascade and removes all of its owned translations, options,
+and Product/Variant values.
+
+GraphQL exposes the same rules through `customFields`, `customField`,
+`productCustomFieldValues`, `productCustomFieldValue`, the definition/option
+create-update-delete mutations, and `setProductCustomFieldValue` /
+`deleteProductCustomFieldValue`. Pass `variantId` to target Variant scope;
+omit it for Product scope.
+
+```graphql
+mutation SetCustomField($productId: ID!, $definitionId: ID!, $optionId: ID!) {
+  setProductCustomFieldValue(
+    productId: $productId
+    definitionId: $definitionId
+    input: {optionId: $optionId}
+  ) {
+    value {
+      id
+      definition { id fieldKey fieldType translation(locale: "en") { label } }
+      selectedOption { id translation(locale: "en") { label } }
+    }
+  }
+}
+```
 
 ### 6.2 Product image REST lifecycle
 
