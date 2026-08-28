@@ -10,11 +10,12 @@ relationships, constraints, indexes, deletion behavior, and intended use.
 The Brand slice includes Store-scoped models and REST CRUD services. Category
 and Product Type lifecycle APIs are GraphQL-only. Products have both
 transactional GraphQL lifecycle operations and Store REST CRUD; Product Images
-and Product Options/Variants have nested REST CRUD. Fulfillment Types use REST for Platform
-management and active Store discovery. Category, Product Type, and Product
+and Product Options/Variants have nested REST CRUD. Custom Fields expose REST
+and GraphQL definition/option lifecycle plus Product/Variant typed values.
+Fulfillment Types use REST for Platform management and active Store discovery.
+Category, Product Type, and Product
 translations retain locale-aware manual editing and durable automatic
-translation handlers. Product files/fulfillment, custom fields and search
-projections remain persistence-only
+translation handlers. Product files/fulfillment and search projections remain persistence-only
 or follow-up work. Product writes can assign both a global taxonomy-node ULID
 and a Store-local Product Type ULID. No `/api/v1/store/categories` or
 `/api/v1/store/product-types` route exists. See the [API manual](api-manual.md)
@@ -1245,8 +1246,9 @@ remaining rules:
 - image/file upload validation, private object ownership, malware scanning,
   signed delivery, download limits, and expiry enforcement;
 - encrypted/protected license-key material and atomic one-order assignment;
-- custom-field requiredness, product-type applicability, filter indexing, and
-  field-type-to-storage validation;
+- custom-field requiredness during Product publication and filter indexing;
+  the API already enforces Product Type applicability and field-type-to-storage
+  validation;
 - after-commit events for future Search, Inventory, Files, Analytics, and Orders
   consumers.
 

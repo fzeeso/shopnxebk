@@ -150,6 +150,16 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `GET\|HEAD` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `PUT\|PATCH` | `/api/v1/store/brands/{brand}` | `api.v1.store.brands.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/brands/{brand}/media/{collection}` | `api.v1.store.brands.media` | signed:relative |
+| `GET\|HEAD` | `/api/v1/store/custom-fields` | `api.v1.store.custom-fields.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `POST` | `/api/v1/store/custom-fields` | `api.v1.store.custom-fields.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `DELETE` | `/api/v1/store/custom-fields/{definition}` | `api.v1.store.custom-fields.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/custom-fields/{definition}` | `api.v1.store.custom-fields.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `PATCH` | `/api/v1/store/custom-fields/{definition}` | `api.v1.store.custom-fields.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/custom-fields/{definition}/options` | `api.v1.store.custom-fields.options.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `POST` | `/api/v1/store/custom-fields/{definition}/options` | `api.v1.store.custom-fields.options.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `DELETE` | `/api/v1/store/custom-fields/{definition}/options/{option}` | `api.v1.store.custom-fields.options.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/custom-fields/{definition}/options/{option}` | `api.v1.store.custom-fields.options.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `PATCH` | `/api/v1/store/custom-fields/{definition}/options/{option}` | `api.v1.store.custom-fields.options.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/fulfillment-types` | `api.v1.store.fulfillment-types.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/languages` | `api.v1.store.languages.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `PUT` | `/api/v1/store/languages` | `api.v1.store.languages.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
@@ -208,6 +218,10 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `DELETE` | `/api/v1/store/products/{product}` | `api.v1.store.products.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/products/{product}` | `api.v1.store.products.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `PATCH` | `/api/v1/store/products/{product}` | `api.v1.store.products.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/custom-field-values` | `api.v1.store.products.custom-field-values.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `DELETE` | `/api/v1/store/products/{product}/custom-field-values/{definition}` | `api.v1.store.products.custom-field-values.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/custom-field-values/{definition}` | `api.v1.store.products.custom-field-values.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `PUT` | `/api/v1/store/products/{product}/custom-field-values/{definition}` | `api.v1.store.products.custom-field-values.set` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/products/{product}/images` | `api.v1.store.products.images.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `POST` | `/api/v1/store/products/{product}/images` | `api.v1.store.products.images.store` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `DELETE` | `/api/v1/store/products/{product}/images/{image}` | `api.v1.store.products.images.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
@@ -250,6 +264,10 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | `DELETE` | `/api/v1/store/products/{product}/variants/{variant}` | `api.v1.store.products.variants.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/products/{product}/variants/{variant}` | `api.v1.store.products.variants.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `PATCH` | `/api/v1/store/products/{product}/variants/{variant}` | `api.v1.store.products.variants.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values` | `api.v1.store.products.variants.custom-field-values.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `DELETE` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}` | `api.v1.store.products.variants.custom-field-values.destroy` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `GET\|HEAD` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}` | `api.v1.store.products.variants.custom-field-values.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
+| `PUT` | `/api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}` | `api.v1.store.products.variants.custom-field-values.set` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `PATCH` | `/api/v1/store/profile` | `api.v1.store.profile.update` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/roles` | `api.v1.store.roles.index` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
 | `GET\|HEAD` | `/api/v1/store/settings` | `api.v1.store.settings.show` | api, auth:sanctum, Modules\Authentication\Http\Middleware\EnsureUserScope:store, store, store.member, Modules\Stores\Http\Middleware\EnsureStoreOwnedBindings |
@@ -275,19 +293,31 @@ This is the factual companion to the [developer guide](../developer-guide.md). I
 | Type | Field | Protection | Schema owner |
 | --- | --- | --- | --- |
 | Mutation | `createCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `createCustomField` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `createCustomFieldOption` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `createProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `createProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteCustomField` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteCustomFieldOption` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `deleteProductCustomFieldValue` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `deleteProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `setProductCustomFieldValue` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateCategory` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateCustomField` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Mutation | `updateCustomFieldOption` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateProduct` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Mutation | `updateProductType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `activeStore` | Sanctum guard | `Modules/Stores/graphql/schema.graphql` |
 | Query | `apiVersion` | Public | `graphql/schema.graphql` |
 | Query | `categories` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `category` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `customField` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `customFields` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `product` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productCustomFieldValue` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
+| Query | `productCustomFieldValues` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `productType` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `productTypes` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |
 | Query | `products` | Sanctum guard | `Modules/Catalog/graphql/schema.graphql` |

@@ -269,9 +269,11 @@ carry independent nullable `image_url` and `banner_url` locators; these are
 validated manual metadata and are excluded from automatic language translation.
 Variant prices use
 non-negative integer minor units plus an uppercase three-letter currency code.
-Options and variants now use nested multilingual Store REST contracts. Product
-digital assets, license delivery, and custom fields remain persistence-only
-until their owning APIs are implemented. See the [API manual](api-manual.md)
+Options and variants use nested multilingual Store REST contracts. Custom
+Fields expose Store-scoped REST and GraphQL definition/option lifecycle plus
+Product- and Variant-scope typed value operations. Product digital assets and
+license delivery remain persistence-only until their owning APIs are
+implemented. See the [API manual](api-manual.md)
 and [Catalog schema reference](catalog.md).
 
 ## Product modifier library contract

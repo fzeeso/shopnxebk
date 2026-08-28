@@ -18,6 +18,16 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/platform/settings/fulfillment-types/{fulfillmentType}',
             'PATCH /api/v1/platform/settings/fulfillment-types/{fulfillmentType}',
             'GET /api/v1/store/fulfillment-types',
+            'GET /api/v1/store/custom-fields',
+            'POST /api/v1/store/custom-fields',
+            'GET /api/v1/store/custom-fields/{definition}',
+            'PATCH /api/v1/store/custom-fields/{definition}',
+            'DELETE /api/v1/store/custom-fields/{definition}',
+            'GET /api/v1/store/custom-fields/{definition}/options',
+            'POST /api/v1/store/custom-fields/{definition}/options',
+            'GET /api/v1/store/custom-fields/{definition}/options/{option}',
+            'PATCH /api/v1/store/custom-fields/{definition}/options/{option}',
+            'DELETE /api/v1/store/custom-fields/{definition}/options/{option}',
             'GET /api/v1/store/options',
             'POST /api/v1/store/options',
             'GET /api/v1/store/options/{option}',
@@ -28,6 +38,10 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/store/products/{product}',
             'PATCH /api/v1/store/products/{product}',
             'DELETE /api/v1/store/products/{product}',
+            'GET /api/v1/store/products/{product}/custom-field-values',
+            'GET /api/v1/store/products/{product}/custom-field-values/{definition}',
+            'PUT /api/v1/store/products/{product}/custom-field-values/{definition}',
+            'DELETE /api/v1/store/products/{product}/custom-field-values/{definition}',
             'GET /api/v1/store/products/{product}/images',
             'POST /api/v1/store/products/{product}/images',
             'GET /api/v1/store/products/{product}/images/{image}',
@@ -48,6 +62,10 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/store/products/{product}/variants/{variant}',
             'PATCH /api/v1/store/products/{product}/variants/{variant}',
             'DELETE /api/v1/store/products/{product}/variants/{variant}',
+            'GET /api/v1/store/products/{product}/variants/{variant}/custom-field-values',
+            'GET /api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}',
+            'PUT /api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}',
+            'DELETE /api/v1/store/products/{product}/variants/{variant}/custom-field-values/{definition}',
             'POST /api/v1/store/products/{product}/media',
             'DELETE /api/v1/store/products/{product}/media/{media}',
             'PUT /api/v1/store/products/{product}/media/{media}/primary',
@@ -86,6 +104,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
         return Str::startsWith($name, [
             'api.v1.platform.settings.fulfillment-types.',
             'api.v1.store.fulfillment-types.',
+            'api.v1.store.custom-fields.',
             'api.v1.store.options.',
             'api.v1.store.products.',
         ]);
@@ -100,7 +119,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
         $currentPath = null;
 
         foreach (preg_split('/\R/', $contents) ?: [] as $line) {
-            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:fulfillment-types|options|products))[^:]*):$/', $line, $match) === 1) {
+            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:custom-fields|fulfillment-types|options|products))[^:]*):$/', $line, $match) === 1) {
                 $currentPath = $match[1];
 
                 continue;

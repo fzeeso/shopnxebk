@@ -3,10 +3,10 @@
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
 Store-local merchandising and product persistence foundation, the reusable
 multi-language Product Modifier library, the global
-localized fulfillment catalog, Brand/Fulfillment Type/Product REST routes,
-Category/Product Type/Product GraphQL schema, Catalog models,
+localized fulfillment catalog, Brand/Fulfillment Type/Product/Custom Field REST
+routes, Category/Product Type/Product/Custom Field GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
-boundary. Product files/fulfillment, custom fields, search
+boundary. Product files/fulfillment, search
 projections, and admin screens remain follow-up work.
 
 The complete column-by-column contract, diagrams, indexes, deletion behavior,
@@ -22,6 +22,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Product | Store REST and GraphQL lifecycle APIs |
 | Product Option and Variant | Nested Store REST multilingual CRUD; no GraphQL fields |
 | Product Image | Nested Store REST metadata CRUD only |
+| Custom Field | Store REST and GraphQL definition/option lifecycle plus Product/Variant typed values |
 | Modifier Library | Store REST category/definition lifecycle; nested translations, values, rules, and prices |
 | Product Modifier | Nested Store REST groups/assignments/reorder plus resolved storefront DTO |
 | Fulfillment Type | Platform/Store REST only |
@@ -137,6 +138,13 @@ explicit route or GraphQL field is implemented and documented.
   and multi-select values. PostgreSQL enforces one value per
   definition/product/optional-variant scope and prevents mixed-definition
   option assignments.
+- `CustomFieldManagementService` exposes definition/option CRUD and Product- or
+  Variant-scope value list/read/idempotent-set/delete through both REST and
+  GraphQL. Reads require membership; writes require `manage products`. The
+  service enforces type-specific request shapes, active-locale translations,
+  Product Type-code applicability, nested Variant ownership, and
+  same-definition option selection before composite foreign keys provide the
+  final boundary.
 - Modifier definitions are Store-owned reusable catalog records, never copied
   when attached to Products. Product assignments may override required/min/max
   state, translated presentation, enabled/default values, settings, grouping,

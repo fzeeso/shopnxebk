@@ -114,12 +114,12 @@ copies, and the Theme installer used by Store provisioning.
 Store-local brands, collections, categories, Product Types, products, options,
 variants, reusable multi-language Product Modifier definitions and Product
 assignments, the global localized fulfillment-type catalog, media/fulfillment
-metadata, license-key pools, and typed custom-field persistence. Brands expose
+metadata, license-key pools, and typed custom fields. Brands expose
 Store-scoped CRUD services and REST routes.
-Categories, Product Types, and Products expose Store-scoped models,
-transactional services, GraphQL queries/mutations, and automatic-translation
-handlers. Product options/values and variants expose nested Store REST
-management; the remaining Catalog areas are still persistence-only. Localized
+Categories, Product Types, Products, and Custom Fields expose Store-scoped
+models, transactional services, and GraphQL queries/mutations. Product
+options/values, variants, and Custom Fields also expose Store REST management;
+the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
@@ -540,16 +540,19 @@ primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
 three-letter currency code. Catalog registers REST for Brand CRUD/media,
-Product CRUD, nested Product Option/Variant/Image metadata, and Fulfillment Types. Its
-module-owned GraphQL schema exposes paginated/filterable Category/Product
-Type/Product queries and explicit mutations backed by
+Product CRUD, nested Product Option/Variant/Image metadata, Custom Fields, and
+Fulfillment Types. Its module-owned GraphQL schema exposes paginated/filterable
+Category/Product Type/Product/Custom Field queries and explicit mutations backed by
 `CategoryManagementService`, `ProductTypeManagementService`, and
-`ProductManagementService`. Categories and Product Types deliberately have no
-REST routes; Brands, Product Options, Product Variants, and Product Images deliberately have no GraphQL fields.
+`ProductManagementService` and `CustomFieldManagementService`. Categories and
+Product Types deliberately have no REST routes; Brands, Product Options,
+Product Variants, and Product Images deliberately have no GraphQL fields.
 Reads require active Store membership; writes require `manage products`;
 Store-owned relationships accept same-Store ULIDs while Platform taxonomy
-nodes use global ULIDs. Product file delivery, custom fields, and search
-indexing still lack APIs. See the
+nodes use global ULIDs. Custom-field writes accept only the value property
+matching the definition type, enforce Product Type applicability, and resolve
+selected options inside the same Store and definition. Product file delivery
+and search indexing still lack APIs. See the
 [API manual](api-manual.md) and [Catalog module](modules/catalog.md).
 The [Catalog schema reference](catalog.md) documents every column, relationship,
 constraint, index, deletion rule, and operational query pattern.

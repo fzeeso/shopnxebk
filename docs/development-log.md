@@ -1,5 +1,27 @@
 # Development log
 
+## 2026-08-28 - Custom Field REST and GraphQL APIs
+
+- Changed: Exposed existing Custom Field definition, translation, option,
+  Product value, Variant value, and multi-select tables through Store-scoped
+  REST and GraphQL contracts. Added complete models/relations, resources, typed
+  value validation, public-ULID resolution, and contract tests.
+- Reason: Custom Fields were fully normalized in PostgreSQL but remained
+  persistence-only, leaving Store clients unable to configure fields or save
+  Product/Variant values through supported application boundaries.
+- Data/configuration impact: No migration or data command is included. Reads
+  require active Store membership; writes require `manage products`.
+  Definition deletion follows existing cascade rules, while selected-option
+  deletion and field-type changes after value creation are rejected.
+- Compatibility or rollout notes: REST uses snake_case under
+  `/api/v1/store/custom-fields` and nested `custom-field-values`; GraphQL uses
+  camelCase operations on `/graphql`. Value writes must contain exactly the
+  property matching `field_type`, and all external identifiers are ULIDs.
+- Verification: PHP syntax, Lighthouse schema validation, route discovery,
+  full PHPStan application analysis, and non-database contract tests pass.
+  Database-backed tests were not run because repository safety rules prohibit
+  mutating test data.
+
 ## 2026-08-28 - Shared option Value locale validation scope
 
 - Changed: Scoped shared Product option Value translation-locale uniqueness to
