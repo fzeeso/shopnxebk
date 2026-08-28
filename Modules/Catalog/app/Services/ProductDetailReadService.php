@@ -63,7 +63,11 @@ final readonly class ProductDetailReadService
             'product' => null,
             'sections' => $sections,
             'section_meta' => $sectionMeta,
-            'reference_data' => $this->referenceData($user, $store, $referenceLimit),
+            'reference_data' => fn (): array => $this->referenceData($user, $store, $referenceLimit),
+            'reference_cache' => [
+                'store_id' => (int) $store->getKey(),
+                'limit' => $referenceLimit,
+            ],
             'writable_sections' => $this->writableSections(),
         ];
     }
@@ -192,7 +196,11 @@ final readonly class ProductDetailReadService
             'writable_sections' => $this->writableSections(),
         ];
         if ($withReferenceData) {
-            $result['reference_data'] = $this->referenceData($user, $store, $referenceLimit);
+            $result['reference_data'] = fn (): array => $this->referenceData($user, $store, $referenceLimit);
+            $result['reference_cache'] = [
+                'store_id' => $storeId,
+                'limit' => $referenceLimit,
+            ];
         }
 
         return $result;

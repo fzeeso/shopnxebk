@@ -105,6 +105,13 @@ Theme marketplace/install/customize/publish routes are implemented by Themes.
 6. The action/policy runs.
 7. `ClearRequestContext` removes all current state in a `finally` block.
 
+`SCALABILITY_STORE_LOOKUP_CACHE_ENABLED` can cache the non-authoritative Store
+attributes used by header resolution for a short TTL. Store saves/deletes
+invalidate the key after commit and cache failures use the original PostgreSQL
+query. Membership, token Store binding, roles, and permissions remain live
+database checks on every request and are intentionally excluded from this
+cache.
+
 ## Provisioning flow
 
 `ProvisionStore` requires a Store-scoped user and enforces its own database

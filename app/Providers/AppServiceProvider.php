@@ -12,6 +12,7 @@ use App\Support\Translations\TranslationProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -25,6 +26,7 @@ use Laravel\Pulse\Facades\Pulse;
 use Laravel\Sanctum\Sanctum;
 use Modules\Authentication\Models\PersonalAccessToken;
 use Modules\Catalog\Contracts\ProductDetailSectionProvider;
+use Modules\Catalog\Services\ProductDetailReferenceCacheInvalidator;
 use Modules\Catalog\Services\ProductDetailSectionRegistry;
 use Modules\Catalog\Services\Translations\BrandTranslationHandler;
 use Modules\Catalog\Services\Translations\CategoryTranslationHandler;
@@ -33,6 +35,7 @@ use Modules\Catalog\Services\Translations\ProductTypeTranslationHandler;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
 use Modules\Stores\Services\Translations\StorePolicyTranslationHandler;
+use Modules\Stores\StoreFinder\StoreLookupCache;
 use Modules\Stores\Support\StoreRuntimeDatabaseGuard;
 
 class AppServiceProvider extends ServiceProvider
@@ -88,6 +91,27 @@ class AppServiceProvider extends ServiceProvider
                 $this->app->make(StoreRuntimeDatabaseGuard::class)->assertAllowed($request, $query);
             }
         });
+        if ((bool) config('scalability.request_performance.enabled', false)) {
+            DB::listen(function (QueryExecuted $query): void {
+                if (! $this->app->bound('request')) {
+                    return;
+                }
+
+                $request = $this->app->make('request');
+                if (! $request instanceof Request) {
+                    return;
+                }
+
+                $request->attributes->set(
+                    'database_query_count',
+                    (int) $request->attributes->get('database_query_count', 0) + 1,
+                );
+                $request->attributes->set(
+                    'database_duration_ms',
+                    (float) $request->attributes->get('database_duration_ms', 0.0) + $query->time,
+                );
+            });
+        }
 
         $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
         $this->loadRoutesFrom(base_path('routes/brand-api.php'));
@@ -96,6 +120,14 @@ class AppServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(base_path('routes/shared-product-option-api.php'));
         $this->loadRoutesFrom(base_path('routes/custom-field-api.php'));
         $this->loadRoutesFrom(base_path('routes/modifier-api.php'));
+
+        if ((bool) config('scalability.product_detail_reference_cache.enabled', false)) {
+            app(ProductDetailReferenceCacheInvalidator::class)->register();
+        }
+        if ((bool) config('scalability.store_lookup_cache.enabled', false)) {
+            Store::saved(fn (Store $store) => DB::afterCommit(fn () => app(StoreLookupCache::class)->forget($store)));
+            Store::deleted(fn (Store $store) => DB::afterCommit(fn () => app(StoreLookupCache::class)->forget($store)));
+        }
 
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         Sanctum::getAccessTokenFromRequestUsing(static function (Request $request): ?string {
@@ -130,6 +162,20 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('auth.mfa', fn (Request $request) => Limit::perMinute(5)->by(hash('sha256', (string) $request->input('challenge_token')).'|'.$request->ip()));
         RateLimiter::for('auth.mfa-management', fn (Request $request) => Limit::perMinute(5)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
         RateLimiter::for('graphql', fn (Request $request) => Limit::perMinute(60)->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+        RateLimiter::for('store-product-api', function (Request $request): Limit {
+            if (! (bool) config('scalability.rate_limits.store_product_api.enabled', false)) {
+                return Limit::none();
+            }
+
+            $isRead = in_array($request->getMethod(), ['GET', 'HEAD', 'OPTIONS'], true);
+            $limit = $isRead
+                ? (int) config('scalability.rate_limits.store_product_api.reads_per_minute', 600)
+                : (int) config('scalability.rate_limits.store_product_api.writes_per_minute', 120);
+            $identity = (string) ($request->user()?->getAuthIdentifier() ?? $request->ip());
+            $store = strtolower((string) $request->header('X-Store-ID', 'no-store'));
+
+            return Limit::perMinute(max(1, $limit))->by(hash('sha256', $store.'|'.$identity));
+        });
 
         ResetPassword::createUrlUsing(fn ($user, string $token): string => rtrim((string) config('app.frontend_reset_password_url'), '/').'?token='.urlencode($token).'&email='.urlencode($user->getEmailForPasswordReset()));
 

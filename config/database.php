@@ -3,6 +3,16 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+$pgsqlReadWriteSplit = (bool) env('DB_READ_WRITE_SPLIT_ENABLED', false);
+$pgsqlReadHosts = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env('DB_READ_HOSTS', env('DB_HOST', '127.0.0.1'))),
+)));
+$pgsqlWriteHosts = array_values(array_filter(array_map(
+    'trim',
+    explode(',', (string) env('DB_WRITE_HOSTS', env('DB_HOST', '127.0.0.1'))),
+)));
+
 return [
 
     /*
@@ -87,6 +97,11 @@ return [
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),
+            ...$pgsqlReadWriteSplit ? [
+                'read' => ['host' => $pgsqlReadHosts],
+                'write' => ['host' => $pgsqlWriteHosts],
+                'sticky' => (bool) env('DB_STICKY_READS', true),
+            ] : [],
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'laravel'),
@@ -97,6 +112,7 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'timezone' => env('DB_TIMEZONE', 'UTC'),
+            'application_name' => env('DB_APPLICATION_NAME', env('APP_NAME', 'shopnxe')),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 

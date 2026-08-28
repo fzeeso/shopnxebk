@@ -11,6 +11,7 @@ a specific frontend framework.
 | Plans & Pricing | `/admin/plans` | Backend catalog/API implemented; visual frontend is separate | [Plans & Pricing](plans-and-pricing.md) |
 | Platform Stores | `/admin/merchants` | Backend searchable/paged Store API implemented; visual frontend is separate | [Platform Stores admin](components/platform-stores-admin.md) |
 | Platform Settings | `/admin/settings` | Backend catalog/API implemented; visual frontend is separate | [Platform Settings admin](components/platform-settings-admin.md) |
+| Store Product editor | Frontend-defined Store Admin Product route | Product Detail backend contract implemented; visual frontend is separate | [Product Detail guide](product-detail-guide.md) |
 | Store Settings | Future Store-admin route | Deliberately deferred | [Store management boundary](store-management.md) |
 | Admin localization | All admin routes | Frontend dictionaries are external; synchronization contract documented | [Localization](components/localization.md) |
 

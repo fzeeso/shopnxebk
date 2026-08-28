@@ -1,5 +1,28 @@
 # Development log
 
+## 2026-08-28 - Reversible AWS scale-readiness controls
+
+- Changed: Added disabled-by-default flags for Store lookup and Product Detail
+  reference caching, Product API rate limits, request/query timing, PostgreSQL
+  reader routing, and Octane cleanup. Added after-commit cache generations,
+  database fallback, safe Store cache invalidation, a read-only multi-Store k6
+  profile, unit coverage, and a separate AWS deployment decision guide with
+  starting sizes and rollback instructions.
+- Reason: The codebase needs measurable, reversible production hardening before
+  several-thousand-Store capacity can be claimed or AWS resources selected.
+- Data/configuration impact: Configuration, middleware, cache payloads,
+  observability, documentation, and test assets only. All behavior-changing
+  flags default off. No migration, database command, Store row, AWS resource,
+  credential, or production traffic was created or changed.
+- Compatibility or rollout notes: Authorization and membership are never
+  cached. Cache failures fall back to PostgreSQL. Enable one flag at a time in
+  AWS staging; set it false and reload Octane for rollback. Reader routing must
+  remain off until a reader endpoint and replica lag are tested.
+- Verification: PHP syntax, isolated non-database cache tests, formatting,
+  static analysis, generated-document checks, and source/diff checks were run.
+  Database-backed tests and live load tests were not run under repository data
+  safety rules.
+
 ## 2026-08-28 - Product Detail documentation handoff
 
 - Changed: Added a canonical Store Admin Product Detail guide and a dedicated

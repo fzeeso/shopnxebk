@@ -1047,6 +1047,22 @@ per minute so durable dispatch recovery is active.
 
 Store cache keys include a store prefix, preventing collisions.
 
+`config/scalability.php` contains opt-in production-readiness controls. Store
+header lookup can cache raw Store attributes for a short TTL while continuing
+to check active membership and permissions in PostgreSQL. Product Detail can
+cache only its rendered reference catalogs, keyed by Store, result limit, and
+Store/global generations; Eloquent reference changes invalidate generations
+after commit. Both caches fail open to the existing database path. Product API
+read/write rate limits and request/query performance sampling are independent
+flags and default off. Database read/write host routing uses sticky reads and
+must remain off until an AWS reader and replica-lag behavior have been tested.
+
+The read-only k6 profile under `load-tests/` measures Store-scoped Product
+Detail bootstrap/show traffic without creating or updating records. The
+[AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md)
+owns starting sizes, flag rollout/rollback, acceptance gates, monitoring, and
+the decisions that require the AWS account owner.
+
 Future searchable documents include `store_id`; every search applies the active store filter. Meilisearch is a projection, while PostgreSQL remains authoritative.
 
 Media uses bigint morph keys, a package UUID where Media Library requires it,
@@ -1216,6 +1232,8 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Billing module](modules/billing.md)
 - [Catalog module](modules/catalog.md)
 - [Catalog schema reference](catalog.md)
+- [Product Detail Store Admin guide](product-detail-guide.md)
+- [Product Detail section-provider contract](module-communication/product-detail-section-providers.md)
 - [Module communication contracts](module-communication/)
 - [Authentication](authentication.md)
 - [Platform settings](settings.md)
@@ -1228,5 +1246,6 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [REST API](rest-api.md)
 - [Local development](local-development.md)
 - [Deployment](deployment.md)
+- [AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md)
 - [Security model](security-model.md)
 - [OpenAPI](openapi.yaml)

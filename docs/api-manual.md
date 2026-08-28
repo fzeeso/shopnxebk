@@ -471,6 +471,17 @@ omitted selective-read section is empty or deleted. The complete Store Admin
 workflow, tab manifests, caching, conflict recovery, limits, and error handling
 are in the [Product Detail guide](product-detail-guide.md).
 
+Production optimizations are contract-preserving and disabled by default.
+When `SCALABILITY_PRODUCT_DETAIL_REFERENCE_CACHE_ENABLED=true`, only the
+rendered `reference_data` payload is cached under Store/global generations;
+Product sections and authorization remain live. When
+`SCALABILITY_STORE_PRODUCT_RATE_LIMIT_ENABLED=true`, Product REST requests are
+limited per selected Store plus user/IP, with independent read/write limits,
+and excess requests return `429`. Clients must use bounded backoff and must not
+automatically replay a non-idempotent write. A staging-only optional
+`Server-Timing` header can expose application duration to the read-only k6
+profile without changing the response body.
+
 The write body has a partial `product` object using the normal Product REST
 shape and a `sections` object. Omitted sections are never changed. Current
 section keys are `images`, `media`, `custom_fields`, `options`, `variants`,
@@ -1030,6 +1041,13 @@ An external application should bootstrap in this order:
 7. Poll returned translation requests when localized content must be immediately visible.
 
 When developers add another translatable entity, they must add the Store-scoped model/service, explicit GraphQL resolver and SDL, translation handler and registry tag, `lock_it` migration contract, PostgreSQL feature tests, this manual's behavioral explanation, the affected module/context guide, and a development-log entry.
+
+When an owning module adds Product-editor state, it must implement and tag a
+`ProductDetailSectionProvider` rather than adding a hard-coded controller
+dependency or exposing a table automatically. Follow the
+[provider contract](module-communication/product-detail-section-providers.md)
+and update the [Store Admin guide](product-detail-guide.md) when the client
+workflow or supported section behavior changes.
 
 ## 11. Keeping this manual current
 

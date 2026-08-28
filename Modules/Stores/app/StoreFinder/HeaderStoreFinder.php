@@ -6,13 +6,14 @@ namespace Modules\Stores\StoreFinder;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Modules\Stores\Models\Store;
 use Spatie\Multitenancy\Contracts\IsTenant;
 use Spatie\Multitenancy\TenantFinder\TenantFinder;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class HeaderStoreFinder extends TenantFinder
 {
+    public function __construct(private readonly StoreLookupCache $cache) {}
+
     public function findForRequest(Request $request): ?IsTenant
     {
         $id = $request->header('X-Store-ID');
@@ -23,6 +24,6 @@ final class HeaderStoreFinder extends TenantFinder
             throw new BadRequestHttpException('X-Store-ID must be a valid ULID.');
         }
 
-        return Store::query()->where('public_id', $id)->first();
+        return $this->cache->findByPublicId($id);
     }
 }

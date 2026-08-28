@@ -443,7 +443,18 @@ Platform roles are evaluated without an active store team. Store-role assignment
 - Business modules own their records and actions. Store-owned records use bigint `store_id` and `StoreScoped`, then return ULIDs publicly.
 - Cross-module calls use contracts, typed actions, immutable data objects, or after-commit domain events. A module must not update another module’s tables directly.
 
-See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+Production scaling controls are deliberately reversible. Store header lookup
+and Product Detail reference payloads may use short Redis caches only when
+their separate flags are enabled. Keys are Store-scoped, reference generations
+invalidate after successful owning-model transactions, TTL is the final safety
+net, and cache failure falls back to PostgreSQL. Active membership, token Store
+binding, permissions, and writes are never authorized from these caches.
+Product API rate limits, request/query timing, reader routing, and Octane
+cleanup are separately flagged so one operational change can be rolled back
+without changing the domain contract. See the
+[AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md).
+
+See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Product Detail Store Admin guide](product-detail-guide.md), [Product Detail section-provider contract](module-communication/product-detail-section-providers.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

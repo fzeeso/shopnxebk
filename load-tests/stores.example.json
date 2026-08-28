@@ -1,0 +1,11 @@
+{
+  "stores": [
+    {
+      "store_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "token": "replace-with-a-staging-token",
+      "product_ids": [
+        "01ARZ3NDEKTSV4RRFFQ69G5FB0"
+      ]
+    }
+  ]
+}

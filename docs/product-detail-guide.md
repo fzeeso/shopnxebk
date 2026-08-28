@@ -284,6 +284,13 @@ section contract explicitly requests that behavior.
 - Upload binary media before the Product Detail save.
 - Continue truncated collections through granular pagination.
 - Do not replace the façade with browser fan-out to every granular endpoint.
+- In AWS staging, establish an uncached baseline with the read-only k6 harness,
+  then enable Store lookup and reference caching one flag at a time. Reference
+  caching does not cache Product sections or authorization.
+- Product API rate limits are opt-in and keyed by selected Store plus user/IP;
+  clients must handle `429` with bounded retry/backoff when they are enabled.
+- Deployment sizing, rollback flags, and load-test gates are recorded in the
+  [AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md).
 
 ## Security and ownership
 

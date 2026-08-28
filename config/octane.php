@@ -105,8 +105,8 @@ return [
         OperationTerminated::class => [
             FlushOnce::class,
             FlushTemporaryContainerInstances::class,
-            // DisconnectFromDatabases::class,
-            // CollectGarbage::class,
+            ...(bool) env('OCTANE_DISCONNECT_DATABASES', false) ? [DisconnectFromDatabases::class] : [],
+            ...(bool) env('OCTANE_COLLECT_GARBAGE', false) ? [CollectGarbage::class] : [],
         ],
 
         WorkerErrorOccurred::class => [

@@ -13,7 +13,13 @@ use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionValueController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductVariantController;
 
-Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.member', 'store.bindings'])
+$productMiddleware = ['api', 'auth:sanctum', 'user.scope:store'];
+if ((bool) config('scalability.rate_limits.store_product_api.enabled', false)) {
+    $productMiddleware[] = 'throttle:store-product-api';
+}
+$productMiddleware = [...$productMiddleware, 'store', 'store.member', 'store.bindings'];
+
+Route::middleware($productMiddleware)
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {

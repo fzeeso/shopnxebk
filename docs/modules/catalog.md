@@ -117,6 +117,12 @@ explicit route or GraphQL field is implemented and documented.
   duplicate keys are rejected; selected reads skip unrequested built-in queries
   and provider calls while retaining Product core/revision and the complete
   writable capability list. Omitting the manifest returns the full aggregate.
+  Selector/reference payloads can be cached as primitive JSON under Store and
+  global generations when
+  `SCALABILITY_PRODUCT_DETAIL_REFERENCE_CACHE_ENABLED=true`. Reference-model
+  changes bump the appropriate generation after commit; TTL and database
+  fallback remain safety nets. Product sections and authorization are not
+  served from this cache.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,

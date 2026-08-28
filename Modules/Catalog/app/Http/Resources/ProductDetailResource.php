@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Modules\Catalog\Http\Resources;
 
+use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Catalog\Models\Product;
+use Modules\Catalog\Services\ProductDetailReferenceCache;
 use Modules\Settings\Http\Resources\CurrencyResource;
 
 /** @extends JsonResource<array<string, mixed>> */
@@ -49,16 +51,27 @@ final class ProductDetailResource extends JsonResource
         ];
 
         if (array_key_exists('reference_data', $this->resource)) {
-            /** @var array<string, mixed> $references */
-            $references = $this->resource['reference_data'];
-            $result['reference_data'] = [
-                ...$references,
-                'fulfillment_types' => FulfillmentTypeResource::collection($references['fulfillment_types']),
-                'custom_fields' => CustomFieldDefinitionResource::collection($references['custom_fields']),
-                'shared_options' => SharedProductOptionResource::collection($references['shared_options']),
-                'modifiers' => ModifierDefinitionResource::collection($references['modifiers']),
-                'currencies' => CurrencyResource::collection($references['currencies']),
-            ];
+            /** @var array<string, mixed>|Closure(): array<string, mixed> $referenceSource */
+            $referenceSource = $this->resource['reference_data'];
+            $render = static function () use ($referenceSource, $request): array {
+                $references = $referenceSource instanceof Closure ? $referenceSource() : $referenceSource;
+
+                return [
+                    ...$references,
+                    'fulfillment_types' => FulfillmentTypeResource::collection($references['fulfillment_types'])->resolve($request),
+                    'custom_fields' => CustomFieldDefinitionResource::collection($references['custom_fields'])->resolve($request),
+                    'shared_options' => SharedProductOptionResource::collection($references['shared_options'])->resolve($request),
+                    'modifiers' => ModifierDefinitionResource::collection($references['modifiers'])->resolve($request),
+                    'currencies' => CurrencyResource::collection($references['currencies'])->resolve($request),
+                ];
+            };
+            /** @var array{store_id?: int, limit?: int} $cacheContext */
+            $cacheContext = $this->resource['reference_cache'] ?? [];
+            $storeId = (int) ($cacheContext['store_id'] ?? 0);
+            $limit = (int) ($cacheContext['limit'] ?? 250);
+            $result['reference_data'] = $storeId > 0
+                ? app(ProductDetailReferenceCache::class)->remember($storeId, $limit, $render)
+                : $render();
         }
         if (array_key_exists('saved_sections', $this->resource)) {
             $result['saved_sections'] = $this->resource['saved_sections'];
