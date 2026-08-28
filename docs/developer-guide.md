@@ -414,6 +414,19 @@ an omitted `lock_it`; it does not currently request automatic translation.
 The `url` field is a validated root-relative or HTTP(S) locator, not an upload
 or object-storage lifecycle operation.
 
+For the Store Admin create/edit screen, prefer the Product Detail application
+façade in `ProductDetailReadService` and `ProductDetailWriteService`. The read
+service composes bounded Product-owned sections and selector reference data
+behind `/api/v1/store/product-detail`; section metadata makes truncation
+explicit. The write service accepts dirty-section commands, locks the Product,
+optionally compares `expected_updated_at`, and runs Catalog-owned operations in
+one outer transaction. It calls the existing Product, image, option, variant,
+Custom Field, shared-option, Modifier, and Media services directly—never via
+loopback HTTP—so there remains one business-rule implementation per domain.
+Request-local `ref`/`@ref` mappings allow dependent entities to be created in
+one command. Binary upload is intentionally outside the transaction; attach a
+completed media ULID through the aggregate command.
+
 Product options and variants are managed through the adjacent nested routes in
 `routes/product-api.php`. `ProductOptionManagementService` owns ordered option
 dimensions, translated names, ordered translated values, and deletion guards.

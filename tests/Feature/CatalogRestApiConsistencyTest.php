@@ -4,12 +4,45 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Http\Requests\ProductDetailWriteRequest;
 use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
 final class CatalogRestApiConsistencyTest extends TestCase
 {
+    public function test_product_detail_envelope_preserves_nested_domain_payloads(): void
+    {
+        $payload = [
+            'product' => [
+                'translations' => [['locale' => 'en', 'title' => 'Runner', 'slug' => 'runner']],
+            ],
+            'sections' => [
+                'options' => ['upsert' => [[
+                    'ref' => 'size',
+                    'translations' => [['locale' => 'en', 'name' => 'Size']],
+                    'values' => [[
+                        'ref' => 'small',
+                        'translations' => [['locale' => 'en', 'value' => 'Small']],
+                    ]],
+                ]]],
+                'variants' => ['upsert' => [[
+                    'ref' => 'small-variant',
+                    'price_amount_minor' => 2499,
+                    'currency_code' => 'USD',
+                    'option_value_ids' => ['@small'],
+                ]]],
+            ],
+        ];
+        $request = ProductDetailWriteRequest::create('/api/v1/store/product-detail', 'POST', $payload);
+        $validated = Validator::make($payload, $request->rules())->validate();
+
+        self::assertSame('Runner', $validated['product']['translations'][0]['title']);
+        self::assertSame('Small', $validated['sections']['options']['upsert'][0]['values'][0]['translations'][0]['value']);
+        self::assertSame(['@small'], $validated['sections']['variants']['upsert'][0]['option_value_ids']);
+    }
+
     public function test_catalog_rest_routes_and_openapi_operations_stay_consistent(): void
     {
         $expected = [
@@ -33,6 +66,10 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/store/options/{option}',
             'PATCH /api/v1/store/options/{option}',
             'DELETE /api/v1/store/options/{option}',
+            'GET /api/v1/store/product-detail',
+            'POST /api/v1/store/product-detail',
+            'GET /api/v1/store/product-detail/{product}',
+            'PATCH /api/v1/store/product-detail/{product}',
             'GET /api/v1/store/products',
             'POST /api/v1/store/products',
             'GET /api/v1/store/products/{product}',
@@ -106,6 +143,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'api.v1.store.fulfillment-types.',
             'api.v1.store.custom-fields.',
             'api.v1.store.options.',
+            'api.v1.store.product-detail.',
             'api.v1.store.products.',
         ]);
     }
@@ -119,7 +157,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
         $currentPath = null;
 
         foreach (preg_split('/\R/', $contents) ?: [] as $line) {
-            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:custom-fields|fulfillment-types|options|products))[^:]*):$/', $line, $match) === 1) {
+            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:custom-fields|fulfillment-types|options|product-detail|products))[^:]*):$/', $line, $match) === 1) {
                 $currentPath = $match[1];
 
                 continue;

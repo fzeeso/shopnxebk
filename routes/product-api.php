@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\MediaAttachmentController;
 use App\Http\Controllers\Api\V1\MediaController;
 use Illuminate\Support\Facades\Route;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductController;
+use Modules\Catalog\Http\Controllers\Api\V1\ProductDetailController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductImageController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionController;
 use Modules\Catalog\Http\Controllers\Api\V1\ProductOptionValueController;
@@ -16,6 +17,14 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store', 'store', 'store.me
     ->prefix('api/v1/store')
     ->name('api.v1.store.')
     ->group(function (): void {
+        Route::get('product-detail', [ProductDetailController::class, 'bootstrap'])
+            ->name('product-detail.bootstrap');
+        Route::post('product-detail', [ProductDetailController::class, 'store'])
+            ->name('product-detail.store');
+        Route::get('product-detail/{product}', [ProductDetailController::class, 'show'])
+            ->name('product-detail.show');
+        Route::patch('product-detail/{product}', [ProductDetailController::class, 'update'])
+            ->name('product-detail.update');
         Route::post('media/ai/generate', [MediaAiController::class, 'generate'])
             ->middleware('throttle:6,1')
             ->name('media.ai.generate');

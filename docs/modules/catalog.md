@@ -20,6 +20,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Category | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product Type | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product | Store REST and GraphQL lifecycle APIs |
+| Product Detail façade | Store REST composed bootstrap/read and transactional partial-section create/update |
 | Product Option and Variant | Nested Store REST multilingual CRUD; no GraphQL fields |
 | Product Image | Nested Store REST metadata CRUD only |
 | Custom Field | Store REST and GraphQL definition/option lifecycle plus Product/Variant typed values |
@@ -99,6 +100,13 @@ explicit route or GraphQL field is implemented and documented.
   position, and active-Store-locale alt text. Reads require membership and
   writes require `manage products`; the API does not own binary upload or
   storage deletion.
+- The Product Detail façade composes Product core, selector references, images,
+  attached media, Custom Field values, options, variants, shared options, and
+  Modifier configuration into one bounded Store response. Its intelligent save
+  command touches only named sections, supports request-local references for
+  dependent creates, detects optional stale revisions, and wraps Catalog-owned
+  writes in one transaction while delegating validation to the owning services.
+  Binary uploads and future non-Catalog module state remain separate contracts.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,

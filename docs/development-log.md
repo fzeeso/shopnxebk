@@ -1,5 +1,31 @@
 # Development log
 
+## 2026-08-28 - Product Detail composition and intelligent save façade
+
+- Changed: Added Store-scoped Product Detail bootstrap/detail reads plus
+  transactional create/update commands covering Product core, image metadata,
+  attached media, Custom Field values, options/values, variants, shared options,
+  Modifier groups, and Modifier assignments. Added partial dirty-section saves,
+  request-local dependent-create references, bounded section metadata, optional
+  optimistic revision checks, OpenAPI/docs, and non-database contract coverage.
+- Reason: Product create/edit clients otherwise need many independent network
+  calls to assemble selectors and Product-owned state, then repeat the same
+  fan-out on save. The façade reduces client round trips without duplicating the
+  existing domain services or splitting the modular monolith into microservices.
+- Data/configuration impact: Application routes/services/resources and
+  documentation only. No migration or database command was added or executed.
+  Reads require active Store membership and writes require `manage products`.
+- Compatibility or rollout notes: Existing granular REST and GraphQL contracts
+  remain supported. Binary upload stays separate; completed media can be
+  attached in the aggregate command. Sections over the response limit report
+  `truncated` and continue through their existing paginated APIs. Future module
+  state must integrate through contracts/events rather than direct Catalog table
+  writes.
+- Verification: PHP syntax, full PHPStan analysis, route/OpenAPI contract checks,
+  formatting, generated-doc checks, and safe non-database unit tests were run.
+  Database-backed tests were not run because repository safety rules prohibit
+  mutating test data.
+
 ## 2026-08-28 - Custom Field REST and GraphQL APIs
 
 - Changed: Exposed existing Custom Field definition, translation, option,

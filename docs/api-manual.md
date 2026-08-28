@@ -47,6 +47,7 @@ Accept: application/json
 | Categories | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Product Types | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
+| Product Detail façade | Composed bootstrap/read and intelligent create/update under `/api/v1/store/product-detail` | Not exposed |
 | Product Options and Variants | Nested multilingual CRUD under `/api/v1/store/products/{product}` | Not exposed |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
 | Custom Fields | Definition/option CRUD plus Product/Variant typed-value operations under `/api/v1/store` | Full definition/option lifecycle plus Product/Variant typed-value operations |
@@ -414,7 +415,92 @@ Product detail also embeds ordered `options` and `variants`, including every
 submitted translation, so an editor can render all active Store languages from
 one read.
 
-### 6.1.1 Product option and variant REST lifecycle
+### 6.1.1 Product Detail composition and intelligent save
+
+Store Admin product forms should use the Product Detail façade instead of
+calling every Catalog resource separately:
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/product-detail` | Bootstrap selectors for a new Product |
+| `GET` | `/api/v1/store/product-detail/{product}` | Read one complete editor aggregate |
+| `POST` | `/api/v1/store/product-detail` | Create Product core plus supplied sections |
+| `PATCH` | `/api/v1/store/product-detail/{product}` | Update only supplied Product fields/sections |
+
+Reads require active Store membership; writes require `manage products`. The
+bootstrap/reference block contains active Brands, Categories, Product Types,
+Platform taxonomy nodes, fulfillment types, Custom Fields and choices, shared
+options, Modifier definitions, Store languages, currencies, and Store defaults.
+The Product read adds Product core/translations/categories plus image metadata,
+reusable attached media, Product/Variant Custom Field values, option dimensions,
+variants, shared-option assignments, modifier groups, and modifier assignments.
+`section_limit` defaults to 100 and is capped at 250; `reference_limit` defaults
+to 250 and is capped at 500. Each `section_meta` entry reports `total`,
+`returned`, `limit`, and `truncated`; capped selector collections expose the
+same shape under `reference_data.meta`. Set `with_reference_data=false` after
+the client has cached bootstrap data. A truncated large section is continued
+via its existing granular paginated endpoint.
+
+The write body has a partial `product` object using the normal Product REST
+shape and a `sections` object. Omitted sections are never changed. Current
+section keys are `images`, `media`, `custom_fields`, `options`, `variants`,
+`shared_options`, `modifier_groups`, and `modifiers`. Each section uses explicit
+`upsert`/`delete` collections where applicable; media uses `attach`, `detach`,
+`variant_attach`, `variant_detach`, and `primary_media_id`. Catalog-owned work
+runs in one outer PostgreSQL transaction while delegating every operation to
+the existing section service, so its validation, Store isolation, and business
+rules remain authoritative. Uploading binary media remains a separate
+`POST /api/v1/store/media/uploads` operation; the aggregate command attaches
+the resulting public media ULID.
+Existing Option Values are changed through `options.value_upsert` and
+`options.value_delete`; nested `values` is reserved for new Options so an
+update never silently replaces or discards Value rows.
+
+Create items may supply a request-local `ref` such as `size-small`. A later item
+in the same command references it as `@size-small`. This supports creating an
+Option and Values, then a Variant selecting those Values, then Variant images,
+Custom Fields, or media attachments without intermediate requests. The response
+returns the generated public ULIDs in `references`.
+
+```json
+{
+  "product": {
+    "status": "draft",
+    "translations": [{"locale": "en", "title": "Runner", "slug": "runner"}]
+  },
+  "sections": {
+    "options": {
+      "upsert": [{
+        "ref": "size",
+        "translations": [{"locale": "en", "name": "Size"}],
+        "values": [{
+          "ref": "size-small",
+          "translations": [{"locale": "en", "value": "Small"}]
+        }]
+      }]
+    },
+    "variants": {
+      "upsert": [{
+        "ref": "small-variant",
+        "price_amount_minor": 2499,
+        "currency_code": "USD",
+        "option_value_ids": ["@size-small"]
+      }]
+    }
+  }
+}
+```
+
+For updates, send the `revision` returned by the read response as
+`expected_updated_at`. A stale revision returns `409 Conflict`; omit it only
+when intentional last-write-wins behavior is acceptable. A successful response
+returns the refreshed aggregate, its new `revision`, `saved_sections`, and any
+request-local reference mappings. This façade is an application composition
+boundary, not a replacement for the granular APIs: integrations may keep using
+granular resources, and future Discount/Inventory/Search modules should join
+through module contracts/events rather than having Catalog update their tables.
+
+### 6.1.2 Product option and variant REST lifecycle
 
 Product options are variant dimensions such as Color or Size. Option values
 are the selectable translated choices; variants are the priced, inventoried
@@ -483,7 +569,7 @@ the last clears it. Variant responses include their title translations plus
 each selected value's `option_translations` and `translations`, allowing a
 client to compose a fallback label without numeric identifiers or extra reads.
 
-### 6.1.2 Shared Product option definitions
+### 6.1.3 Shared Product option definitions
 
 Shared Product options are reusable Store-level definitions. They are separate
 from the nested Product option matrix above: a shared definition owns an
@@ -518,7 +604,7 @@ Product assignments returns `422`; detach each assignment first. Assignment
 create accepts `option_id` and optional `position` and is idempotent for the
 same Product/Option pair.
 
-### 6.1.3 Typed custom fields
+### 6.1.4 Typed custom fields
 
 Custom Fields are Store-level definitions with public ULIDs, stable `field_key`
 values, optional Product Type-code applicability, localized labels/help text,

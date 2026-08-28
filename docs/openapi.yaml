@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types are GraphQL-only and are documented by the Lighthouse schema; their absence here is intentional.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, composed Product Detail, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types remain GraphQL-only as standalone resources and are documented by the Lighthouse schema; the Product Detail façade exposes bounded selector projections for Store Admin composition.
 servers:
   - url: http://localhost:8000
 tags:
@@ -1831,6 +1831,79 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Variant, media, or attachment not found in the selected Store}
+  /api/v1/store/product-detail:
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Bootstrap the Store Product editor in one request
+      description: Returns bounded Brand, Category, Product Type, taxonomy, fulfillment, Custom Field, shared-option, Modifier, language, currency, and Store-default reference data.
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {name: reference_limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 250}}
+      responses:
+        '200':
+          description: Product editor reference data
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductDetailResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Intelligently create a Product and supplied sections
+      description: Requires manage products. Catalog-owned Product core and supplied sections are delegated to their existing services and committed in one outer transaction. Binary media must already be uploaded.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductDetailRequest'}}
+      responses:
+        '201':
+          description: Product aggregate created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductDetailResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/product-detail/{product}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read a complete Product editor aggregate
+      parameters:
+        - {name: section_limit, in: query, schema: {type: integer, minimum: 1, maximum: 250, default: 100}}
+        - {name: reference_limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 250}}
+        - {name: with_reference_data, in: query, schema: {type: boolean, default: true}}
+      responses:
+        '200':
+          description: Product core, Product-owned sections, selector references, section counts, and revision
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductDetailResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Intelligently update only supplied Product fields and sections
+      description: Requires manage products. Omitted sections are unchanged. A stale expected_updated_at returns 409.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateProductDetailRequest'}}
+      responses:
+        '200':
+          description: Refreshed Product aggregate with saved_sections and request-local reference mappings
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductDetailResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+        '409': {description: Product revision is stale; reload before reapplying pending sections}
+        '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/store/products:
     get:
       tags: [Catalog Products]
@@ -2970,6 +3043,157 @@ components:
         - {$ref: '#/components/schemas/ProductWriteRequest'}
         - type: object
           minProperties: 1
+    ProductDetailLocalReference:
+      type: string
+      pattern: '^[A-Za-z0-9_.-]{1,100}$'
+      description: Request-local name returned as a public ULID and referenced later in the same command with an @ prefix.
+    ProductDetailPublicIdOrReference:
+      type: string
+      pattern: '^(?:[0-9A-HJKMNP-TV-Z]{26}|@[A-Za-z0-9_.-]{1,100})$'
+    ProductDetailItemCommand:
+      type: object
+      description: Section-specific REST write fields; id updates an existing resource, while omitted id creates one. ref names a newly created resource for later items in the command.
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        ref: {$ref: '#/components/schemas/ProductDetailLocalReference'}
+      additionalProperties: true
+    ProductDetailUpsertSection:
+      type: object
+      properties:
+        upsert:
+          type: array
+          items: {$ref: '#/components/schemas/ProductDetailItemCommand'}
+        delete:
+          type: array
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+    ProductDetailOptionsSection:
+      allOf:
+        - {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+        - type: object
+          properties:
+            value_upsert:
+              type: array
+              items: {$ref: '#/components/schemas/ProductDetailItemCommand'}
+            value_delete:
+              type: array
+              items:
+                type: object
+                required: [option_id, id]
+                properties:
+                  option_id: {$ref: '#/components/schemas/PublicUlid'}
+                  id: {$ref: '#/components/schemas/PublicUlid'}
+    ProductDetailCustomFieldSection:
+      type: object
+      properties:
+        upsert:
+          type: array
+          items:
+            allOf:
+              - {$ref: '#/components/schemas/ProductDetailItemCommand'}
+              - type: object
+                required: [definition_id]
+                properties:
+                  definition_id: {$ref: '#/components/schemas/PublicUlid'}
+                  variant_id:
+                    oneOf:
+                      - {$ref: '#/components/schemas/ProductDetailPublicIdOrReference'}
+                      - {type: 'null'}
+        delete:
+          type: array
+          items:
+            type: object
+            required: [definition_id]
+            properties:
+              definition_id: {$ref: '#/components/schemas/PublicUlid'}
+              variant_id:
+                oneOf:
+                  - {$ref: '#/components/schemas/PublicUlid'}
+                  - {type: 'null'}
+      additionalProperties: false
+    ProductDetailMediaSection:
+      type: object
+      properties:
+        attach: {type: array, items: {type: object, required: [media_id], properties: {media_id: {$ref: '#/components/schemas/PublicUlid'}, sort_order: {type: integer, minimum: 0}, is_primary: {type: boolean}}}}
+        detach: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
+        variant_attach: {type: array, items: {type: object, required: [variant_id, media_id], properties: {variant_id: {$ref: '#/components/schemas/ProductDetailPublicIdOrReference'}, media_id: {$ref: '#/components/schemas/PublicUlid'}, sort_order: {type: integer, minimum: 0}}}}
+        variant_detach: {type: array, items: {type: object, required: [variant_id, media_id], properties: {variant_id: {$ref: '#/components/schemas/ProductDetailPublicIdOrReference'}, media_id: {$ref: '#/components/schemas/PublicUlid'}}}}
+        primary_media_id: {$ref: '#/components/schemas/PublicUlid'}
+      additionalProperties: false
+    ProductDetailSectionsWrite:
+      type: object
+      properties:
+        images: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+        media: {$ref: '#/components/schemas/ProductDetailMediaSection'}
+        custom_fields: {$ref: '#/components/schemas/ProductDetailCustomFieldSection'}
+        options: {$ref: '#/components/schemas/ProductDetailOptionsSection'}
+        variants: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+        shared_options: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+        modifier_groups: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+        modifiers: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
+      additionalProperties: false
+    ProductDetailWriteRequest:
+      type: object
+      properties:
+        expected_updated_at: {type: [string, 'null'], format: date-time, description: Optional revision from the latest Product Detail read; mismatch returns 409.}
+        product: {$ref: '#/components/schemas/ProductWriteRequest'}
+        sections: {$ref: '#/components/schemas/ProductDetailSectionsWrite'}
+      additionalProperties: false
+    CreateProductDetailRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductDetailWriteRequest'}
+        - type: object
+          required: [product]
+    UpdateProductDetailRequest:
+      allOf:
+        - {$ref: '#/components/schemas/ProductDetailWriteRequest'}
+        - type: object
+          minProperties: 1
+    ProductDetailSectionMeta:
+      type: object
+      required: [total, returned, limit, truncated]
+      properties:
+        total: {type: integer, minimum: 0}
+        returned: {type: integer, minimum: 0}
+        limit: {type: integer, minimum: 1, maximum: 250}
+        truncated: {type: boolean}
+    ProductDetailData:
+      type: object
+      required: [product, revision, sections, section_meta, capabilities]
+      properties:
+        product:
+          oneOf:
+            - {$ref: '#/components/schemas/Product'}
+            - {type: 'null'}
+        revision: {type: [string, 'null'], format: date-time}
+        sections:
+          type: object
+          required: [images, media, custom_fields, options, variants, shared_options, modifier_groups, modifiers]
+          properties:
+            images: {type: array, items: {$ref: '#/components/schemas/ProductImage'}}
+            media: {type: array, items: {type: object, additionalProperties: true}}
+            custom_fields: {type: array, items: {$ref: '#/components/schemas/ProductCustomFieldValue'}}
+            options: {type: array, items: {$ref: '#/components/schemas/ProductOption'}}
+            variants: {type: array, items: {$ref: '#/components/schemas/ProductVariant'}}
+            shared_options: {type: array, items: {$ref: '#/components/schemas/ProductSharedOptionAssignment'}}
+            modifier_groups: {type: array, items: {type: object, additionalProperties: true}}
+            modifiers: {type: array, items: {type: object, additionalProperties: true}}
+        section_meta:
+          type: object
+          additionalProperties: {$ref: '#/components/schemas/ProductDetailSectionMeta'}
+        reference_data: {type: object, additionalProperties: true}
+        capabilities: {type: object, additionalProperties: true}
+        saved_sections: {type: array, uniqueItems: true, items: {type: string}}
+        references:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: {$ref: '#/components/schemas/PublicUlid'}
+    ProductDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductDetailData'}
     ProductTranslation:
       allOf:
         - {$ref: '#/components/schemas/ProductTranslationWrite'}

@@ -242,6 +242,18 @@ localized alt text. Image reads require active membership and writes require
 `manage products`; Catalog does not yet own image upload or delivery for this
 resource.
 
+The authenticated Product Detail façade is the Store Admin composition
+boundary. Its bootstrap/read contract returns bounded selector reference data
+and the Product's current Catalog-owned sections in one HTTP response. Its
+create/update contract applies only supplied dirty sections, delegates to the
+existing section services, and commits all Catalog-owned changes in one outer
+transaction. Request-local references connect newly created Options, Values,
+Variants, Modifier groups, images, Custom Fields, and media attachments without
+exposing bigint keys. `expected_updated_at` provides optimistic conflict
+detection. The façade does not make Catalog the owner of future Discounts,
+Inventory, Search, Shipping, or Analytics data; those modules integrate through
+public contracts and after-commit events/outbox consumers when implemented.
+
 Product Type GraphQL exposes Store-scoped paginated list/detail reads and
 explicit create/update/delete mutations. It accepts public Platform taxonomy-
 node ULIDs, localized name/slug/description rows, manual translation locks,
