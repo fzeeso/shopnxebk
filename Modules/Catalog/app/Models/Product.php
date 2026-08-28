@@ -124,6 +124,14 @@ final class Product extends Model
         return $this->hasMany(ProductVariant::class)->orderBy('position')->orderBy('id');
     }
 
+    public function customFieldValues(): HasMany
+    {
+        return $this->hasMany(ProductCustomFieldValue::class)
+            ->whereNull('variant_id')
+            ->orderBy('definition_id')
+            ->orderBy('id');
+    }
+
     public function modifierGroups(): HasMany
     {
         return $this->hasMany(ProductModifierGroup::class)->orderBy('sort_order')->orderBy('id');

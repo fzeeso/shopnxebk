@@ -37,6 +37,21 @@ final class CustomFieldDefinition extends Model
             ->orderBy('id');
     }
 
+    public function translations(): HasMany
+    {
+        return $this->hasMany(CustomFieldDefinitionTranslation::class, 'definition_id')->orderBy('locale');
+    }
+
+    public function options(): HasMany
+    {
+        return $this->hasMany(CustomFieldOption::class, 'definition_id')->orderBy('position')->orderBy('id');
+    }
+
+    public function values(): HasMany
+    {
+        return $this->hasMany(ProductCustomFieldValue::class, 'definition_id');
+    }
+
     protected function casts(): array
     {
         return [

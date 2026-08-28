@@ -77,6 +77,11 @@ final class ProductVariant extends Model
         )->withPivot(['store_id', 'product_id']);
     }
 
+    public function customFieldValues(): HasMany
+    {
+        return $this->hasMany(ProductCustomFieldValue::class, 'variant_id')->orderBy('definition_id')->orderBy('id');
+    }
+
     public function media(): BelongsToMany
     {
         return $this->belongsToMany(Media::class, 'product_variant_media')

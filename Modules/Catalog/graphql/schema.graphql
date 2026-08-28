@@ -5,6 +5,10 @@ extend type Query {
     productType(id: ID!): CatalogProductType! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductTypeById")
     products(page: Int = 1, perPage: Int = 20, filter: ProductFilterInput, sortBy: ProductSortField = CREATED_AT, sortDirection: CatalogSortDirection = DESC): ProductPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ListProducts")
     product(id: ID!): CatalogProduct! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Queries\\ProductById")
+    customFields(page: Int = 1, perPage: Int = 25, filter: CustomFieldFilterInput, sortBy: CustomFieldSortField = POSITION, sortDirection: CatalogSortDirection = ASC): CustomFieldPage! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldQueries@definitions")
+    customField(id: ID!): CustomFieldDefinition! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldQueries@definition")
+    productCustomFieldValues(productId: ID!, variantId: ID): [ProductCustomFieldValue!]! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldQueries@values")
+    productCustomFieldValue(productId: ID!, definitionId: ID!, variantId: ID): ProductCustomFieldValue! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldQueries@value")
 }
 
 extend type Mutation {
@@ -17,6 +21,14 @@ extend type Mutation {
     createProduct(input: CreateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\CreateProduct")
     updateProduct(id: ID!, input: UpdateProductInput!): ProductPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\UpdateProduct")
     deleteProduct(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\Mutations\\DeleteProduct")
+    createCustomField(input: CreateCustomFieldInput!): CustomFieldPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@createDefinition")
+    updateCustomField(id: ID!, input: UpdateCustomFieldInput!): CustomFieldPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@updateDefinition")
+    deleteCustomField(id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@deleteDefinition")
+    createCustomFieldOption(definitionId: ID!, input: CreateCustomFieldOptionInput!): CustomFieldOptionPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@createOption")
+    updateCustomFieldOption(definitionId: ID!, id: ID!, input: UpdateCustomFieldOptionInput!): CustomFieldOptionPayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@updateOption")
+    deleteCustomFieldOption(definitionId: ID!, id: ID!): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@deleteOption")
+    setProductCustomFieldValue(productId: ID!, definitionId: ID!, variantId: ID, input: ProductCustomFieldValueInput!): ProductCustomFieldValuePayload! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@setValue")
+    deleteProductCustomFieldValue(productId: ID!, definitionId: ID!, variantId: ID): DeletedCatalogEntity! @guard(with: ["sanctum"]) @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldMutations@deleteValue")
 }
 
 enum CatalogSortDirection {
@@ -40,6 +52,23 @@ enum ProductSortField {
 enum ProductTypeSortField {
     SORT_ORDER @enum(value: "sortOrder")
     CODE @enum(value: "code")
+    CREATED_AT @enum(value: "createdAt")
+    UPDATED_AT @enum(value: "updatedAt")
+}
+
+enum CustomFieldType {
+    TEXT @enum(value: "text")
+    NUMBER @enum(value: "number")
+    BOOLEAN @enum(value: "boolean")
+    SELECT @enum(value: "select")
+    MULTI_SELECT @enum(value: "multi_select")
+    DATE @enum(value: "date")
+    URL @enum(value: "url")
+}
+
+enum CustomFieldSortField {
+    POSITION @enum(value: "position")
+    FIELD_KEY @enum(value: "fieldKey")
     CREATED_AT @enum(value: "createdAt")
     UPDATED_AT @enum(value: "updatedAt")
 }
@@ -129,6 +158,75 @@ type ProductTranslation {
     updatedAt: DateTime! @rename(attribute: "updated_at")
 }
 
+type CustomFieldDefinition {
+    id: ID! @rename(attribute: "public_id")
+    productType: String @rename(attribute: "product_type")
+    fieldKey: String! @rename(attribute: "field_key")
+    fieldType: CustomFieldType! @rename(attribute: "field_type")
+    isRequired: Boolean! @rename(attribute: "is_required")
+    isFilterable: Boolean! @rename(attribute: "is_filterable")
+    position: Int!
+    valuesCount: Int @rename(attribute: "values_count")
+    translations: [CustomFieldDefinitionTranslation!]!
+    translation(locale: String!): CustomFieldDefinitionTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldTypes@definitionTranslation")
+    options: [CustomFieldOption!]!
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CustomFieldDefinitionTranslation {
+    locale: String!
+    label: String!
+    helpText: String @rename(attribute: "help_text")
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CustomFieldOption {
+    id: ID! @rename(attribute: "public_id")
+    definitionId: ID! @method(name: "definitionPublicId")
+    position: Int!
+    translations: [CustomFieldOptionTranslation!]!
+    translation(locale: String!): CustomFieldOptionTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldTypes@optionTranslation")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type CustomFieldOptionTranslation {
+    locale: String!
+    label: String!
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type ProductCustomFieldValue {
+    id: ID! @rename(attribute: "public_id")
+    productId: ID! @method(name: "productPublicId")
+    variantId: ID @method(name: "variantPublicId")
+    definitionId: ID! @method(name: "definitionPublicId")
+    definition: CustomFieldDefinition!
+    valueNumber: String @rename(attribute: "value_number")
+    valueBoolean: Boolean @rename(attribute: "value_boolean")
+    valueDate: String @method(name: "valueDateString")
+    optionId: ID @method(name: "selectedOptionPublicId")
+    selectedOption: CustomFieldOption
+    selectedOptions: [CustomFieldOption!]!
+    translations: [ProductCustomFieldValueTranslation!]!
+    translation(locale: String!): ProductCustomFieldValueTranslation @field(resolver: "Modules\\Catalog\\GraphQL\\CustomFieldTypes@valueTranslation")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
+type ProductCustomFieldValueTranslation {
+    locale: String!
+    valueText: String! @rename(attribute: "value_text")
+    lockIt: Boolean! @rename(attribute: "lock_it")
+    createdAt: DateTime! @rename(attribute: "created_at")
+    updatedAt: DateTime! @rename(attribute: "updated_at")
+}
+
 type CategoryPage {
     data: [CatalogCategory!]!
     paginatorInfo: CatalogPaginatorInfo!
@@ -141,6 +239,11 @@ type ProductTypePage {
 
 type ProductPage {
     data: [CatalogProduct!]!
+    paginatorInfo: CatalogPaginatorInfo!
+}
+
+type CustomFieldPage {
+    data: [CustomFieldDefinition!]!
     paginatorInfo: CatalogPaginatorInfo!
 }
 
@@ -167,6 +270,18 @@ type ProductTypePayload {
 type ProductPayload {
     product: CatalogProduct!
     translationRequest: CatalogTranslationRequest
+}
+
+type CustomFieldPayload {
+    customField: CustomFieldDefinition!
+}
+
+type CustomFieldOptionPayload {
+    option: CustomFieldOption!
+}
+
+type ProductCustomFieldValuePayload {
+    value: ProductCustomFieldValue!
 }
 
 type CatalogTranslationRequest {
@@ -211,6 +326,15 @@ input ProductFilterInput {
     categoryId: ID
 }
 
+input CustomFieldFilterInput {
+    search: String
+    productType: String
+    fieldKey: String
+    fieldType: CustomFieldType
+    isRequired: Boolean
+    isFilterable: Boolean
+}
+
 input CategoryTranslationInput {
     locale: String!
     title: String!
@@ -242,6 +366,65 @@ input ProductTranslationInput {
     seoTitle: String
     seoDescription: String
     lockIt: Boolean
+}
+
+input CustomFieldDefinitionTranslationInput {
+    locale: String!
+    label: String!
+    helpText: String
+    lockIt: Boolean
+}
+
+input CustomFieldOptionTranslationInput {
+    locale: String!
+    label: String!
+    lockIt: Boolean
+}
+
+input CreateCustomFieldOptionInput {
+    position: Int
+    translations: [CustomFieldOptionTranslationInput!]!
+}
+
+input UpdateCustomFieldOptionInput {
+    position: Int
+    translations: [CustomFieldOptionTranslationInput!]
+}
+
+input CreateCustomFieldInput {
+    productType: String
+    fieldKey: String!
+    fieldType: CustomFieldType!
+    isRequired: Boolean
+    isFilterable: Boolean
+    position: Int
+    translations: [CustomFieldDefinitionTranslationInput!]!
+    options: [CreateCustomFieldOptionInput!]
+}
+
+input UpdateCustomFieldInput {
+    productType: String
+    fieldKey: String
+    fieldType: CustomFieldType
+    isRequired: Boolean
+    isFilterable: Boolean
+    position: Int
+    translations: [CustomFieldDefinitionTranslationInput!]
+}
+
+input ProductCustomFieldValueTranslationInput {
+    locale: String!
+    valueText: String!
+    lockIt: Boolean
+}
+
+input ProductCustomFieldValueInput {
+    valueNumber: String
+    valueBoolean: Boolean
+    valueDate: String
+    optionId: ID
+    optionIds: [ID!]
+    translations: [ProductCustomFieldValueTranslationInput!]
 }
 
 input CreateCategoryInput {
