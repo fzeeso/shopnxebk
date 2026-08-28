@@ -426,6 +426,20 @@ inside the selected Store/Product and accept only active Store locales through
 the admin may change its language view without losing structural context.
 These endpoints do not request automatic translation.
 
+Reusable Product option definitions use the separate
+`routes/shared-product-option-api.php` route group. `SharedProductOptionService`
+owns Store-scoped list/search, case-insensitive internal-name uniqueness,
+aggregate Option/Value writes, one-default validation, and explicit Product
+assign/unassign operations. `LocalizedTranslationWriter` synchronizes
+`display_name` and `display_label` rows while preserving locale locks. The
+write request requires unique locales for the Option translation collection
+and scopes Value-translation locale uniqueness to each individual Value, so
+the same locale may be represented once on every separate Value. The
+resource returns every translation, ordered Values, and Product usage count;
+it never exposes `store_id` or internal bigint keys. The new tables are additive
+and do not alter the existing Product option/variant schema. Do not conflate
+shared definitions with sellable SKU dimensions or Product Modifiers.
+
 `CatalogRestApiConsistencyTest` keeps the implemented Product, Product option,
 Product variant, Product image, media-attachment, and Fulfillment Type
 method/path pairs identical to `docs/openapi.yaml`.

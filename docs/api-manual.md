@@ -472,6 +472,41 @@ the last clears it. Variant responses include their title translations plus
 each selected value's `option_translations` and `translations`, allowing a
 client to compose a fallback label without numeric identifiers or extra reads.
 
+### 6.1.2 Shared Product option definitions
+
+Shared Product options are reusable Store-level definitions. They are separate
+from the nested Product option matrix above: a shared definition owns an
+internal `name`, storefront `type`, translated `display_name`, ordered Values,
+translated `display_label`, and at most one default Value. Product assignment
+is explicit and never copies the definition.
+
+| Method | Endpoint | Permission |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/options` | Membership / `manage products` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/options/{option}` | Membership / `manage products` |
+| `GET`, `POST` | `/api/v1/store/products/{product}/shared-options` | Membership / `manage products` |
+| `DELETE` | `/api/v1/store/products/{product}/shared-options/{assignment}` | `manage products` |
+
+List accepts bounded `page`/`per_page`, optional `search`, and optional `type`.
+Search covers the internal name, translated display names, and translated Value
+labels. `type` is one of `dropdown`, `radio_buttons`, `buttons`, or `swatches`.
+Create requires `name`, `type`, at least one `translations` row, and at least
+one Value. Each Value requires its own translations. Update accepts the same
+aggregate structure and removes Values omitted from a submitted `values` list.
+Option translation locales must be unique within the Option translation list.
+Value translation locales are unique within each individual Value: clients may
+send `en`, for example, once for every Value, but not twice for one Value.
+Only one submitted Value may set `is_default: true`; PostgreSQL independently
+enforces the same invariant. Responses include every saved translation,
+ordered Values, and `products_count` when the assignment count is loaded.
+
+Internal names are unique per Store without case sensitivity. All public
+lookups are Store-scoped ULIDs, locales pass through the active-Store language
+writer, and only public identifiers are serialized. Deleting a definition with
+Product assignments returns `422`; detach each assignment first. Assignment
+create accepts `option_id` and optional `position` and is idempotent for the
+same Product/Option pair.
+
 ### 6.2 Product image REST lifecycle
 
 Product gallery metadata is exposed as a nested Store-scoped resource:

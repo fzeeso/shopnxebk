@@ -44,6 +44,7 @@ explicit route or GraphQL field is implemented and documented.
 | Product modifier assignments | `product_modifier_groups`, `product_modifier_group_translations`, `product_modifier_assignments`, `product_modifier_assignment_translations`, `product_modifier_value_assignments`, `product_modifier_price_overrides`, `product_modifier_value_price_overrides` |
 | Cart/order modifier integration | `cart_item_modifier_selections`, `order_item_modifier_snapshots` |
 | Options and variants | `product_options`, `product_option_translations`, `product_option_values`, `product_option_value_translations`, `product_variants`, `product_variant_translations`, `variant_option_values` |
+| Shared Product options | `shared_product_options`, `shared_product_option_translations`, `shared_product_option_values`, `shared_product_option_value_translations`, `product_shared_option_assignments` |
 | Media and fulfillment | `product_images`, `product_image_translations`, `product_digital_assets`, `product_digital_asset_translations`, `product_license_keys` |
 | Custom fields | `custom_field_definitions`, `custom_field_definition_translations`, `custom_field_options`, `custom_field_option_translations`, `product_custom_field_values`, `product_custom_field_value_translations`, `product_custom_field_value_options` |
 
@@ -120,6 +121,14 @@ explicit route or GraphQL field is implemented and documented.
   values cannot be deleted, and the first/last variant synchronizes
   `products.has_variants`. Variant reads carry all option/value and optional
   title translations for a multi-language editor without bigint leakage.
+- Shared Product options expose Store-wide REST CRUD for a unique internal
+  name, constrained presentation type, translated display name, ordered
+  translated Values, and one optional default. Product assignments reuse the
+  same definition across Products and must be removed before definition
+  deletion. Composite foreign keys and Store-scoped ULID lookups reject
+  cross-Store Products, Options, Values, and assignments. A Value rejects a
+  duplicate locale inside its own translation list, while separate Values may
+  each carry a translation for the same Store locale.
 - Product/option/variant composite foreign keys ensure a variant cannot select
   an option value from another product. Equivalent constraints keep product
   images, digital assets, license keys, and variant-level custom fields attached

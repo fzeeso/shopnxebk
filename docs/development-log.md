@@ -1,5 +1,36 @@
 # Development log
 
+## 2026-08-28 - Shared option Value locale validation scope
+
+- Changed: Scoped shared Product option Value translation-locale uniqueness to
+  each individual Value instead of comparing locale entries across the full
+  aggregate Value collection.
+- Reason: Every Value needs its own translation for the same Store languages;
+  reusing `en`, `ur`, or another locale on a different Value is valid.
+- Data/configuration impact: Request validation, unit coverage, and
+  documentation only. No database schema, configuration, or Store data changed.
+- Compatibility or rollout notes: Duplicate locales within one Value remain
+  invalid; Option-level translation locale uniqueness is unchanged.
+- Verification: Added and ran a non-database unit test covering valid locale
+  reuse across Values and invalid duplication within one Value.
+
+## 2026-08-28 - Shared multilingual Product option definitions
+
+- Changed: Added an additive Store-level Product Option definition layer with
+  internal names, four presentation types, translated display names, ordered
+  translated Values, one optional default, Product usage counts, and explicit
+  Product assignments. Exposed authenticated Store CRUD at `/options` plus
+  nested Product `shared-options` assignment routes.
+- Reason: Store Admin needs a clean reusable Option library whose create/edit
+  form is not blocked by saved Products or existing sellable Variants, while
+  keeping SKU dimensions and Modifiers as separate domains.
+- Data/configuration impact: Prepared one additive migration creating five new
+  Store-scoped tables. No existing table is altered, and the migration was not
+  executed during this work. Public resources never expose internal keys.
+- Verification: Added a non-database contract test for schema fields, routes,
+  Store scoping, multilingual request/resource fields, and the single-default
+  invariant; ran focused PHPUnit and PHP syntax checks.
+
 ## 2026-08-26 - Multilingual Product options and variants
 
 - Changed: Added nested Store REST CRUD for ordered Product option dimensions,

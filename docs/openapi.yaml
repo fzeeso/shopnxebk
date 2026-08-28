@@ -2001,6 +2001,137 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Product or image not found in the selected Store and nested Product boundary}
+  /api/v1/store/options:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: List reusable shared Product option definitions
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100}}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: type, in: query, schema: {$ref: '#/components/schemas/SharedProductOptionType'}}
+      responses:
+        '200':
+          description: Paginated shared Product options with translations, Values, and usage counts
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/SharedProductOptionPageResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Create a reusable shared Product option definition
+      description: Requires manage products. Internal names are case-insensitively unique per Store and at most one Value may be default.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateSharedProductOptionRequest'}}
+      responses:
+        '201':
+          description: Shared Product option created
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/SharedProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/options/{option}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: option, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Read a shared Product option definition
+      responses:
+        '200':
+          description: Shared Product option with all translations and ordered Values
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/SharedProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Shared Product option not found in selected Store}
+    patch:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Update a shared Product option definition and submitted Value collection
+      description: Requires manage products. When values is present, Values omitted from that collection are deleted.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateSharedProductOptionRequest'}}
+      responses:
+        '200':
+          description: Shared Product option updated
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/SharedProductOptionResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Shared Product option or submitted Value not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Delete an unassigned shared Product option
+      description: Requires manage products. Every Product assignment must be removed first.
+      responses:
+        '204': {description: Shared Product option deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Shared Product option not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/shared-options:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: List shared option assignments for a Product
+      responses:
+        '200':
+          description: Ordered Product shared-option assignments
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductSharedOptionAssignmentListResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product not found in selected Store}
+    post:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Assign a shared option definition to a Product
+      description: Requires manage products. Repeating the same Product/Option pair updates its position.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateProductSharedOptionAssignmentRequest'}}
+      responses:
+        '201':
+          description: Shared option assigned to Product
+          content:
+            application/json: {schema: {$ref: '#/components/schemas/ProductSharedOptionAssignmentResponse'}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or shared option not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/products/{product}/shared-options/{assignment}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: assignment, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    delete:
+      tags: [Catalog Products]
+      security: [{sanctum: []}]
+      summary: Remove a shared option assignment from a Product
+      description: Requires manage products. The shared definition and its translations remain available.
+      responses:
+        '204': {description: Product shared-option assignment deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or assignment not found in the nested Store/Product boundary}
   /api/v1/store/products/{product}/options:
     parameters:
       - {$ref: '#/components/parameters/StoreId'}
@@ -2604,6 +2735,136 @@ components:
         data: {type: array, items: {$ref: '#/components/schemas/Product'}}
         links: {$ref: '#/components/schemas/PaginationLinks'}
         meta: {$ref: '#/components/schemas/PaginationMeta'}
+    SharedProductOptionType:
+      type: string
+      enum: [dropdown, radio_buttons, buttons, swatches]
+    SharedProductOptionTranslationWrite:
+      type: object
+      required: [locale, display_name]
+      properties:
+        locale: {type: string, maxLength: 35}
+        display_name: {type: string, minLength: 1, maxLength: 100}
+        lock_it: {type: boolean, default: false}
+    SharedProductOptionValueTranslationWrite:
+      type: object
+      required: [locale, display_label]
+      properties:
+        locale: {type: string, maxLength: 35}
+        display_label: {type: string, minLength: 1, maxLength: 100}
+        lock_it: {type: boolean, default: false}
+    SharedProductOptionValueWrite:
+      type: object
+      required: [translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0, maximum: 4294967295}
+        is_default: {type: boolean, default: false}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/SharedProductOptionValueTranslationWrite'}
+    SharedProductOptionWrite:
+      type: object
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        type: {$ref: '#/components/schemas/SharedProductOptionType'}
+        position: {type: integer, minimum: 0, maximum: 4294967295}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/SharedProductOptionTranslationWrite'}
+        values:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items: {$ref: '#/components/schemas/SharedProductOptionValueWrite'}
+    CreateSharedProductOptionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/SharedProductOptionWrite'}
+        - type: object
+          required: [name, type, translations, values]
+    UpdateSharedProductOptionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/SharedProductOptionWrite'}
+        - type: object
+          minProperties: 1
+    SharedProductOptionTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/SharedProductOptionTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    SharedProductOptionValueTranslation:
+      allOf:
+        - {$ref: '#/components/schemas/SharedProductOptionValueTranslationWrite'}
+        - type: object
+          required: [lock_it]
+          properties:
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    SharedProductOptionValue:
+      type: object
+      required: [id, position, is_default, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0}
+        is_default: {type: boolean}
+        translations: {type: array, items: {$ref: '#/components/schemas/SharedProductOptionValueTranslation'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    SharedProductOption:
+      type: object
+      required: [id, name, type, position, translations, values]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        name: {type: string, maxLength: 100}
+        type: {$ref: '#/components/schemas/SharedProductOptionType'}
+        position: {type: integer, minimum: 0}
+        products_count: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/SharedProductOptionTranslation'}}
+        values: {type: array, items: {$ref: '#/components/schemas/SharedProductOptionValue'}}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    SharedProductOptionResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/SharedProductOption'}
+    SharedProductOptionPageResponse:
+      type: object
+      required: [data, links, meta]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/SharedProductOption'}}
+        links: {$ref: '#/components/schemas/PaginationLinks'}
+        meta: {$ref: '#/components/schemas/PaginationMeta'}
+    CreateProductSharedOptionAssignmentRequest:
+      type: object
+      required: [option_id]
+      properties:
+        option_id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0, maximum: 4294967295}
+    ProductSharedOptionAssignment:
+      type: object
+      required: [id, position, product_id, option]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        position: {type: integer, minimum: 0}
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        option: {$ref: '#/components/schemas/SharedProductOption'}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    ProductSharedOptionAssignmentResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/ProductSharedOptionAssignment'}
+    ProductSharedOptionAssignmentListResponse:
+      type: object
+      required: [data]
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/ProductSharedOptionAssignment'}}
     ProductOptionTranslationWrite:
       type: object
       required: [locale, name]

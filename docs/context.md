@@ -223,6 +223,19 @@ write service rejects cross-Store/Product values, incomplete or duplicate
 combinations, and Store-local duplicate SKUs; it protects the option shape
 while variants exist and synchronizes `products.has_variants`.
 
+Shared Product option definitions are a second, Store-level Catalog layer.
+They keep language-neutral internal names and presentation types separate from
+translated storefront display names and translated ordered Value labels. One
+Value may be the default. Explicit assignment rows connect the same definition
+to multiple Products and power the definition's usage count; no definition or
+translation is copied. The authenticated `/api/v1/store/options` CRUD and
+nested Product `shared-options` assignment routes are Store-scoped, require
+Catalog view/manage authorization, and serialize only public ULIDs. These
+aggregate writes permit the same locale across separate Values while rejecting
+a duplicate locale within one Value's own translation collection. These
+records do not replace the Product-scoped option/variant matrix and do not
+model customer-input Modifiers.
+
 Nested Product image REST CRUD exposes Store-scoped gallery locator metadata,
 pixel dimensions, position, optional same-product variant association, and
 localized alt text. Image reads require active membership and writes require

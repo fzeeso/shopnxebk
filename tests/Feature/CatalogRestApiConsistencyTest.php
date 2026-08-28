@@ -18,6 +18,11 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'GET /api/v1/platform/settings/fulfillment-types/{fulfillmentType}',
             'PATCH /api/v1/platform/settings/fulfillment-types/{fulfillmentType}',
             'GET /api/v1/store/fulfillment-types',
+            'GET /api/v1/store/options',
+            'POST /api/v1/store/options',
+            'GET /api/v1/store/options/{option}',
+            'PATCH /api/v1/store/options/{option}',
+            'DELETE /api/v1/store/options/{option}',
             'GET /api/v1/store/products',
             'POST /api/v1/store/products',
             'GET /api/v1/store/products/{product}',
@@ -46,6 +51,9 @@ final class CatalogRestApiConsistencyTest extends TestCase
             'POST /api/v1/store/products/{product}/media',
             'DELETE /api/v1/store/products/{product}/media/{media}',
             'PUT /api/v1/store/products/{product}/media/{media}/primary',
+            'GET /api/v1/store/products/{product}/shared-options',
+            'POST /api/v1/store/products/{product}/shared-options',
+            'DELETE /api/v1/store/products/{product}/shared-options/{assignment}',
         ];
         sort($expected);
 
@@ -78,6 +86,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
         return Str::startsWith($name, [
             'api.v1.platform.settings.fulfillment-types.',
             'api.v1.store.fulfillment-types.',
+            'api.v1.store.options.',
             'api.v1.store.products.',
         ]);
     }
@@ -91,7 +100,7 @@ final class CatalogRestApiConsistencyTest extends TestCase
         $currentPath = null;
 
         foreach (preg_split('/\R/', $contents) ?: [] as $line) {
-            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:fulfillment-types|products))[^:]*):$/', $line, $match) === 1) {
+            if (preg_match('/^  (\/api\/v1\/(?:platform\/settings\/fulfillment-types|store\/(?:fulfillment-types|options|products))[^:]*):$/', $line, $match) === 1) {
                 $currentPath = $match[1];
 
                 continue;

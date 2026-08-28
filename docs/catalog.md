@@ -2,7 +2,7 @@
 
 This document is the complete persistence contract for the Catalog module,
 including its global Platform classification tree and Store-local catalog
-records. The source of truth is the twenty-one migrations under
+records. The source of truth is the twenty-two migrations under
 `Modules/Catalog/database/migrations` plus the application-wide reusable media
 migration; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
@@ -46,6 +46,7 @@ for the executable request cycle and examples.
 | 20 | `2026_08_25_001000_create_modifier_library_tables.php` | Reusable Store-level modifier categories, definitions, translations, values, validation, and library pricing |
 | 21 | `2026_08_25_001100_create_product_modifier_assignment_tables.php` | Product groups, reusable assignments, presentation/value/settings overrides, and Product pricing |
 | 22 | `2026_08_25_001200_create_cart_and_order_modifier_tables.php` | Server-priced cart selection rows and immutable localized order snapshots |
+| 23 | `2026_08_28_000100_create_shared_product_option_tables.php` | Reusable Store-level Product option definitions, translated Values, defaults, and Product assignments |
 
 Rollback runs in the reverse order. Store deletion cascades Store-local Catalog
 rows; Platform taxonomies are global and survive Store deletion.
@@ -89,6 +90,9 @@ Addressable entity tables are:
 - `product_digital_assets`
 - `product_license_keys`
 - `product_custom_field_values`
+- `shared_product_options`
+- `shared_product_option_values`
+- `product_shared_option_assignments`
 
 ### Platform taxonomy entity columns
 
@@ -742,6 +746,27 @@ preserve an existing `lock_it` when the field is absent. Option creation may
 include its initial translated values. Public ULIDs are used at every nested
 boundary. Adding or deleting an option dimension is rejected while the Product
 has variants; deleting a value selected by any variant is also rejected.
+
+### Shared Product option definitions
+
+The additive shared-option layer does not alter the Product-scoped tables
+above. It provides reusable definitions that Products reference explicitly.
+
+| Table | Key columns and invariant |
+| --- | --- |
+| `shared_product_options` | Store-owned public ULID, case-insensitive Store-unique `name`, `type` constrained to `dropdown`, `radio_buttons`, `buttons`, or `swatches`, and unsigned `position` |
+| `shared_product_option_translations` | `(option_id, locale)` unique; required translated `display_name` and `lock_it` |
+| `shared_product_option_values` | Store-owned public ULID, composite same-Store Option FK, unsigned `position`, and boolean `is_default`; a partial unique index permits at most one default per Option |
+| `shared_product_option_value_translations` | `(option_value_id, locale)` unique; required translated `display_label` and `lock_it` |
+| `product_shared_option_assignments` | Store-owned public ULID with same-Store Product and shared-Option composite FKs; `(store_id, product_id, option_id)` is unique and `position` orders assigned definitions |
+
+`GET/POST /api/v1/store/options` and
+`GET/PATCH/DELETE /api/v1/store/options/{option}` manage the definition and its
+complete Value collection. Nested Product `shared-options` routes list, assign,
+and unassign definitions. Reads require active membership; writes require
+`manage products`. Resources expose public ULIDs, all translations, ordered
+Values, optional default state, and Product usage count without bigint leakage.
+Definitions with assignments cannot be deleted.
 
 ## 9. Variants and option selections
 
