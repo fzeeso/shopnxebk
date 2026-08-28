@@ -427,6 +427,30 @@ Request-local `ref`/`@ref` mappings allow dependent entities to be created in
 one command. Binary upload is intentionally outside the transaction; attach a
 completed media ULID through the aggregate command.
 
+Product Detail is extensible without editing the façade for every new module.
+Implement `ProductDetailSectionProvider` in the owning module and tag the
+implementation with `ProductDetailSectionProvider::class` from that module's
+service provider. `ProductDetailSectionRegistry` validates a unique snake_case
+key, rejects Catalog's reserved section names, and orders providers by priority
+then key. It automatically merges relative request rules and composes provider
+bootstrap/read data, metadata, writable capabilities, transactional saves, and
+request-local references. The provider remains responsible for permission and
+Store/Product checks through its domain service; its `save()` must perform only
+transaction-compatible local persistence and defer remote or asynchronous work
+until after commit. Provider payloads must already be safe for public JSON.
+
+```php
+$this->app->tag(
+    [ProductDiscountDetailSection::class],
+    ProductDetailSectionProvider::class,
+);
+```
+
+Do not auto-discover tables or expose Eloquent models by convention. Explicit
+provider registration is the security and ownership boundary: adding a table
+alone changes no API, while registering a provider adds its section everywhere
+in the Product Detail object.
+
 Product options and variants are managed through the adjacent nested routes in
 `routes/product-api.php`. `ProductOptionManagementService` owns ordered option
 dimensions, translated names, ordered translated values, and deletion guards.

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Catalog\Models\Product;
+use Modules\Catalog\Support\ProductDetailReferenceMap;
 use Modules\Catalog\Support\ProductInputMapper;
 use Modules\Stores\Contracts\StoreContext;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
@@ -28,6 +29,7 @@ final readonly class ProductDetailWriteService
         private SharedProductOptionService $sharedOptions,
         private ProductModifierAssignmentService $modifiers,
         private MediaService $media,
+        private ProductDetailSectionRegistry $sectionRegistry,
     ) {}
 
     /** @param array<string, mixed> $command @return array<string, mixed> */
@@ -76,13 +78,7 @@ final readonly class ProductDetailWriteService
     {
         /** @var array<string, array<string, mixed>> $sections */
         $sections = $command['sections'] ?? [];
-        /** @var array<string, array<string, string>> $references */
-        $references = [
-            'options' => [],
-            'option_values' => [],
-            'variants' => [],
-            'modifier_groups' => [],
-        ];
+        $references = new ProductDetailReferenceMap;
 
         $this->deleteCustomFields($user, $productPublicId, $sections['custom_fields']['delete'] ?? [], $references);
         $this->deleteMedia($user, $productPublicId, $sections['media'] ?? [], $references);
@@ -105,6 +101,18 @@ final readonly class ProductDetailWriteService
         $this->attachMedia($user, $productPublicId, $sections['media'] ?? [], $references);
 
         $store = $this->context->require();
+        $providerProduct = Product::query()
+            ->where('store_id', $store->getKey())
+            ->where('public_id', $productPublicId)
+            ->lockForUpdate()
+            ->firstOrFail();
+        foreach ($this->sectionRegistry->all() as $provider) {
+            $key = $provider->key();
+            if (array_key_exists($key, $sections)) {
+                $provider->save($user, $store, $providerProduct, $sections[$key], $references);
+            }
+        }
+
         $revisionProduct = Product::query()
             ->where('store_id', $store->getKey())
             ->where('public_id', $productPublicId)
@@ -127,7 +135,7 @@ final readonly class ProductDetailWriteService
         return [
             'product_id' => $productPublicId,
             'saved_sections' => array_values(array_unique($savedSections)),
-            'references' => array_filter($references),
+            'references' => $references->all(),
         ];
     }
 
@@ -194,8 +202,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function deleteOptionValues(User $user, string $productId, iterable $items, array $refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function deleteOptionValues(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $this->options->deleteValue(
@@ -207,8 +215,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function deleteCustomFields(User $user, string $productId, iterable $items, array $refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function deleteCustomFields(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $variantId = $this->nullableReference($item['variant_id'] ?? null, 'variants', $refs);
@@ -216,8 +224,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param array<string, mixed> $section @param array<string, array<string, string>> $refs */
-    private function deleteMedia(User $user, string $productId, array $section, array $refs): void
+    /** @param array<string, mixed> $section */
+    private function deleteMedia(User $user, string $productId, array $section, ProductDetailReferenceMap $refs): void
     {
         foreach ($section['detach'] ?? [] as $mediaId) {
             $this->media->detachFromProduct($user, $productId, (string) $mediaId);
@@ -231,8 +239,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertOptions(User $user, string $productId, iterable $items, array &$refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertOptions(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $id = $item['id'] ?? null;
@@ -266,8 +274,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertOptionValues(User $user, string $productId, iterable $items, array &$refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertOptionValues(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $optionId = $this->resolve((string) $item['option_id'], 'options', $refs);
@@ -280,8 +288,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertVariants(User $user, string $productId, iterable $items, array &$refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertVariants(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $id = $item['id'] ?? null;
@@ -299,8 +307,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertImages(User $user, string $productId, iterable $items, array $refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertImages(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $id = $item['id'] ?? null;
@@ -314,8 +322,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertCustomFields(User $user, string $productId, iterable $items, array $refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertCustomFields(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $variantId = $this->nullableReference($item['variant_id'] ?? null, 'variants', $refs);
@@ -329,8 +337,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertModifierGroups(User $user, string $productId, iterable $items, array &$refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertModifierGroups(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $id = $item['id'] ?? null;
@@ -350,8 +358,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param iterable<array<string, mixed>> $items @param array<string, array<string, string>> $refs */
-    private function upsertModifiers(User $user, string $productId, iterable $items, array $refs): void
+    /** @param iterable<array<string, mixed>> $items */
+    private function upsertModifiers(User $user, string $productId, iterable $items, ProductDetailReferenceMap $refs): void
     {
         foreach ($items as $item) {
             $id = $item['id'] ?? null;
@@ -365,8 +373,8 @@ final readonly class ProductDetailWriteService
         }
     }
 
-    /** @param array<string, mixed> $section @param array<string, array<string, string>> $refs */
-    private function attachMedia(User $user, string $productId, array $section, array $refs): void
+    /** @param array<string, mixed> $section */
+    private function attachMedia(User $user, string $productId, array $section, ProductDetailReferenceMap $refs): void
     {
         foreach ($section['attach'] ?? [] as $item) {
             $this->media->attachToProduct(
@@ -424,42 +432,18 @@ final readonly class ProductDetailWriteService
         return $input;
     }
 
-    /** @param array<string, array<string, string>> $refs */
-    private function resolve(string $value, string $type, array $refs): string
+    private function resolve(string $value, string $type, ProductDetailReferenceMap $refs): string
     {
-        if (! str_starts_with($value, '@')) {
-            return $value;
-        }
-
-        $key = substr($value, 1);
-        if (! isset($refs[$type][$key])) {
-            throw ValidationException::withMessages([
-                'references' => ["Reference [{$value}] has not been created in section [{$type}]."],
-            ]);
-        }
-
-        return $refs[$type][$key];
+        return $refs->resolve($type, $value);
     }
 
-    /** @param array<string, array<string, string>> $refs */
-    private function nullableReference(mixed $value, string $type, array $refs): ?string
+    private function nullableReference(mixed $value, string $type, ProductDetailReferenceMap $refs): ?string
     {
-        return $value === null ? null : $this->resolve((string) $value, $type, $refs);
+        return $refs->nullable($type, $value);
     }
 
-    /** @param array<string, array<string, string>> $refs */
-    private function register(array &$refs, string $type, mixed $reference, string $publicId): void
+    private function register(ProductDetailReferenceMap $refs, string $type, mixed $reference, string $publicId): void
     {
-        if ($reference === null) {
-            return;
-        }
-
-        $key = (string) $reference;
-        if (isset($refs[$type][$key])) {
-            throw ValidationException::withMessages([
-                'references' => ["Reference [{$key}] is duplicated in section [{$type}]."],
-            ]);
-        }
-        $refs[$type][$key] = $publicId;
+        $refs->register($type, $reference, $publicId);
     }
 }

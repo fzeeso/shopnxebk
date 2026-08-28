@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Catalog\Services\ProductDetailSectionRegistry;
 
 final class ProductDetailWriteRequest extends FormRequest
 {
@@ -16,15 +17,22 @@ final class ProductDetailWriteRequest extends FormRequest
     /** @return array<string, list<mixed>> */
     public function rules(): array
     {
+        $sectionRegistry = app(ProductDetailSectionRegistry::class);
         $productRule = $this->isMethod('post') ? ['required', 'array'] : ['sometimes', 'array'];
         $reference = ['sometimes', 'string', 'max:100', 'regex:/^[A-Za-z0-9_.-]+$/'];
         $publicIdOrReference = ['required', 'string', 'max:101', 'regex:/^(?:[0-9A-HJKMNP-TV-Z]{26}|@[A-Za-z0-9_.-]{1,100})$/i'];
         $optionalPublicIdOrReference = ['sometimes', 'nullable', 'string', 'max:101', 'regex:/^(?:[0-9A-HJKMNP-TV-Z]{26}|@[A-Za-z0-9_.-]{1,100})$/i'];
 
-        return [
+        $rules = [
             'expected_updated_at' => ['sometimes', 'nullable', 'date'],
             'product' => $productRule,
-            'sections' => ['sometimes', 'array:images,media,custom_fields,options,variants,shared_options,modifier_groups,modifiers'],
+            'sections' => [
+                'sometimes',
+                'array:'.implode(',', [
+                    ...ProductDetailSectionRegistry::BUILT_IN_SECTIONS,
+                    ...$sectionRegistry->keys(),
+                ]),
+            ],
 
             'sections.images' => ['sometimes', 'array:upsert,delete'],
             'sections.images.upsert' => ['sometimes', 'array', 'list', 'max:100'],
@@ -114,5 +122,7 @@ final class ProductDetailWriteRequest extends FormRequest
             'sections.modifiers.delete' => ['sometimes', 'array', 'list', 'max:250'],
             'sections.modifiers.delete.*' => ['required', 'ulid', 'distinct'],
         ];
+
+        return [...$rules, ...$sectionRegistry->validationRules()];
     }
 }

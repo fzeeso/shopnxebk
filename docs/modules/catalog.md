@@ -106,7 +106,13 @@ explicit route or GraphQL field is implemented and documented.
   command touches only named sections, supports request-local references for
   dependent creates, detects optional stale revisions, and wraps Catalog-owned
   writes in one transaction while delegating validation to the owning services.
-  Binary uploads and future non-Catalog module state remain separate contracts.
+  Binary uploads remain a separate contract. Future owning modules register an
+  explicit `ProductDetailSectionProvider`; its unique key, relative validation,
+  bounded bootstrap/read payload, transactional save, metadata, capabilities,
+  and shared request-local references are then composed automatically. No table
+  is exposed by discovery or naming convention. Providers retain permission,
+  Store/Product-isolation, serialization, and domain-service ownership, and
+  defer remote effects until after commit.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,

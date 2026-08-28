@@ -1,5 +1,25 @@
 # Development log
 
+## 2026-08-28 - Extensible Product Detail section-provider registry
+
+- Changed: Added an explicit tagged `ProductDetailSectionProvider` contract and
+  deterministic registry. Registered module sections now join Product Detail
+  bootstrap/read data, metadata, request validation, writable capabilities,
+  transactional saves, and shared request-local reference mappings without
+  editing the central façade.
+- Reason: Future Discount, Inventory, Search, and similar modules should extend
+  the one-read/one-save Product Detail contract while keeping domain ownership
+  and avoiding a growing set of hard-coded cross-module dependencies.
+- Data/configuration impact: Application composition, validation, OpenAPI,
+  tests, and documentation only. No migration, database command, Store data, or
+  automatic table exposure was added.
+- Compatibility or rollout notes: Existing built-in section contracts are
+  unchanged. A future section becomes visible only after its owning module
+  explicitly tags a provider. Provider saves must remain local and
+  transaction-compatible; remote work belongs after commit.
+- Verification: Added non-database unit coverage for provider ordering, key
+  safety, validation rule composition, payload metadata, and shared references.
+
 ## 2026-08-28 - Product Detail composition and intelligent save façade
 
 - Changed: Added Store-scoped Product Detail bootstrap/detail reads plus

@@ -34,6 +34,7 @@ final readonly class ProductDetailReadService
         private ProductManagementService $products,
         private FulfillmentTypeManagementService $fulfillmentTypes,
         private StoreTranslationLanguages $languages,
+        private ProductDetailSectionRegistry $sectionRegistry,
     ) {}
 
     /** @return array<string, mixed> */
@@ -41,10 +42,18 @@ final readonly class ProductDetailReadService
     {
         $store = $this->store($user);
 
+        $sections = $this->emptySections();
+        $sectionMeta = [];
+        foreach ($this->sectionRegistry->all() as $provider) {
+            $payload = $provider->bootstrap($user, $store, $referenceLimit);
+            $sections[$provider->key()] = $payload->data;
+            $sectionMeta[$provider->key()] = $payload->meta($referenceLimit);
+        }
+
         return [
             'product' => null,
-            'sections' => $this->emptySections(),
-            'section_meta' => [],
+            'sections' => $sections,
+            'section_meta' => $sectionMeta,
             'reference_data' => $this->referenceData($user, $store, $referenceLimit),
         ];
     }
@@ -134,6 +143,14 @@ final readonly class ProductDetailReadService
         $mediaTotal = $mediaQuery->count();
         $media = $mediaQuery->limit($sectionLimit)->get();
 
+        $extensionSections = [];
+        $extensionMeta = [];
+        foreach ($this->sectionRegistry->all() as $provider) {
+            $payload = $provider->read($user, $store, $product, $sectionLimit);
+            $extensionSections[$provider->key()] = $payload->data;
+            $extensionMeta[$provider->key()] = $payload->meta($sectionLimit);
+        }
+
         $result = [
             'product' => $product,
             'sections' => [
@@ -145,6 +162,7 @@ final readonly class ProductDetailReadService
                 'shared_options' => $sharedOptions,
                 'modifier_groups' => $modifierGroups,
                 'modifiers' => $modifiers,
+                ...$extensionSections,
             ],
             'section_meta' => [
                 'images' => $imageMeta,
@@ -155,6 +173,7 @@ final readonly class ProductDetailReadService
                 'shared_options' => $sharedOptionMeta,
                 'modifier_groups' => $modifierGroupMeta,
                 'modifiers' => $modifierMeta,
+                ...$extensionMeta,
             ],
         ];
         if ($withReferenceData) {

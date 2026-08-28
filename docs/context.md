@@ -253,6 +253,14 @@ exposing bigint keys. `expected_updated_at` provides optimistic conflict
 detection. The façade does not make Catalog the owner of future Discounts,
 Inventory, Search, Shipping, or Analytics data; those modules integrate through
 public contracts and after-commit events/outbox consumers when implemented.
+An owning module can add Product Detail data through an explicitly tagged
+`ProductDetailSectionProvider`. The registry automatically extends read,
+bootstrap, validation, save, metadata, writable-capability, and request-local
+reference behavior without another central façade edit. Registration—not table
+creation—is the exposure boundary; providers must return public JSON data,
+enforce Store/Product isolation through their own services, avoid remote work
+inside the aggregate transaction, and use after-commit delivery for external
+effects.
 
 Product Type GraphQL exposes Store-scoped paginated list/detail reads and
 explicit create/update/delete mutations. It accepts public Platform taxonomy-

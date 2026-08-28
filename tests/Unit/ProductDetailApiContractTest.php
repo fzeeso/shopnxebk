@@ -53,7 +53,8 @@ final class ProductDetailApiContractTest extends TestCase
         self::assertStringContainsString("\$sections = \$command['sections'] ?? []", $writer);
         self::assertStringContainsString('expected_updated_at', $writer);
         self::assertStringContainsString('ConflictHttpException', $writer);
-        self::assertStringContainsString("str_starts_with(\$value, '@')", $writer);
+        self::assertStringContainsString('ProductDetailReferenceMap', $writer);
+        self::assertStringContainsString('$provider->save(', $writer);
         self::assertStringContainsString("'saved_sections'", $writer);
         self::assertStringNotContainsString('Http::', $writer);
         self::assertStringNotContainsString('curl_', $writer);
@@ -64,6 +65,24 @@ final class ProductDetailApiContractTest extends TestCase
         ] as $delegate) {
             self::assertStringContainsString($delegate, $writer);
         }
+    }
+
+    public function test_registered_section_providers_extend_reads_writes_validation_and_capabilities(): void
+    {
+        $registry = $this->source('Modules/Catalog/app/Services/ProductDetailSectionRegistry.php');
+        $reader = $this->source('Modules/Catalog/app/Services/ProductDetailReadService.php');
+        $writer = $this->source('Modules/Catalog/app/Services/ProductDetailWriteService.php');
+        $request = $this->source('app/Http/Requests/ProductDetailWriteRequest.php');
+        $resource = $this->source('Modules/Catalog/app/Http/Resources/ProductDetailResource.php');
+        $provider = $this->source('app/Providers/AppServiceProvider.php');
+
+        self::assertStringContainsString('ProductDetailSectionProvider', $registry);
+        self::assertStringContainsString('$provider->bootstrap(', $reader);
+        self::assertStringContainsString('$provider->read(', $reader);
+        self::assertStringContainsString('$provider->save(', $writer);
+        self::assertStringContainsString('validationRules()', $request);
+        self::assertStringContainsString("['product', ...array_keys(\$sections)]", $resource);
+        self::assertStringContainsString('$app->tagged(ProductDetailSectionProvider::class)', $provider);
     }
 
     public function test_existing_product_api_and_facade_share_the_same_input_mapper(): void

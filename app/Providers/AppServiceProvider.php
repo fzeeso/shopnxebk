@@ -24,6 +24,8 @@ use Laravel\Octane\Events\RequestTerminated;
 use Laravel\Pulse\Facades\Pulse;
 use Laravel\Sanctum\Sanctum;
 use Modules\Authentication\Models\PersonalAccessToken;
+use Modules\Catalog\Contracts\ProductDetailSectionProvider;
+use Modules\Catalog\Services\ProductDetailSectionRegistry;
 use Modules\Catalog\Services\Translations\BrandTranslationHandler;
 use Modules\Catalog\Services\Translations\CategoryTranslationHandler;
 use Modules\Catalog\Services\Translations\ProductTranslationHandler;
@@ -52,6 +54,12 @@ class AppServiceProvider extends ServiceProvider
             TranslationContentRegistry::class,
             fn ($app): TranslationContentRegistry => new TranslationContentRegistry(
                 $app->tagged(TranslationContentHandler::class),
+            ),
+        );
+        $this->app->singleton(
+            ProductDetailSectionRegistry::class,
+            fn ($app): ProductDetailSectionRegistry => new ProductDetailSectionRegistry(
+                $app->tagged(ProductDetailSectionProvider::class),
             ),
         );
 

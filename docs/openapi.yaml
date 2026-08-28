@@ -3122,6 +3122,7 @@ components:
       additionalProperties: false
     ProductDetailSectionsWrite:
       type: object
+      description: Catalog built-ins plus explicitly registered Product Detail section-provider commands.
       properties:
         images: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
         media: {$ref: '#/components/schemas/ProductDetailMediaSection'}
@@ -3131,7 +3132,10 @@ components:
         shared_options: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
         modifier_groups: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
         modifiers: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
-      additionalProperties: false
+      additionalProperties:
+        type: object
+        description: Command validated and saved by the owning registered module provider.
+        additionalProperties: true
     ProductDetailWriteRequest:
       type: object
       properties:
@@ -3168,6 +3172,7 @@ components:
         revision: {type: [string, 'null'], format: date-time}
         sections:
           type: object
+          description: Catalog built-ins plus serialization-ready data from registered section providers.
           required: [images, media, custom_fields, options, variants, shared_options, modifier_groups, modifiers]
           properties:
             images: {type: array, items: {$ref: '#/components/schemas/ProductImage'}}
@@ -3178,6 +3183,7 @@ components:
             shared_options: {type: array, items: {$ref: '#/components/schemas/ProductSharedOptionAssignment'}}
             modifier_groups: {type: array, items: {type: object, additionalProperties: true}}
             modifiers: {type: array, items: {type: object, additionalProperties: true}}
+          additionalProperties: true
         section_meta:
           type: object
           additionalProperties: {$ref: '#/components/schemas/ProductDetailSectionMeta'}

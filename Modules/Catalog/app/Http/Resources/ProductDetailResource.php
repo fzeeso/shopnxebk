@@ -18,26 +18,27 @@ final class ProductDetailResource extends JsonResource
         $product = $this->resource['product'] ?? null;
         /** @var array<string, mixed> $sections */
         $sections = $this->resource['sections'];
+        $renderedSections = [
+            'images' => ProductImageResource::collection($sections['images']),
+            'media' => ProductMediaResource::collection($sections['media']),
+            'custom_fields' => ProductCustomFieldValueResource::collection($sections['custom_fields']),
+            'options' => ProductOptionResource::collection($sections['options']),
+            'variants' => ProductVariantResource::collection($sections['variants']),
+            'shared_options' => ProductSharedOptionAssignmentResource::collection($sections['shared_options']),
+            'modifier_groups' => ProductModifierGroupResource::collection($sections['modifier_groups']),
+            'modifiers' => ProductModifierAssignmentResource::collection($sections['modifiers']),
+        ];
+        foreach (array_diff_key($sections, $renderedSections) as $key => $data) {
+            $renderedSections[$key] = $data;
+        }
 
         $result = [
             'product' => $product === null ? null : new ProductResource($product),
             'revision' => $product?->updated_at?->toIso8601String(),
-            'sections' => [
-                'images' => ProductImageResource::collection($sections['images']),
-                'media' => ProductMediaResource::collection($sections['media']),
-                'custom_fields' => ProductCustomFieldValueResource::collection($sections['custom_fields']),
-                'options' => ProductOptionResource::collection($sections['options']),
-                'variants' => ProductVariantResource::collection($sections['variants']),
-                'shared_options' => ProductSharedOptionAssignmentResource::collection($sections['shared_options']),
-                'modifier_groups' => ProductModifierGroupResource::collection($sections['modifier_groups']),
-                'modifiers' => ProductModifierAssignmentResource::collection($sections['modifiers']),
-            ],
+            'sections' => $renderedSections,
             'section_meta' => $this->resource['section_meta'],
             'capabilities' => [
-                'writable_sections' => [
-                    'product', 'images', 'media', 'custom_fields', 'options', 'variants',
-                    'shared_options', 'modifier_groups', 'modifiers',
-                ],
+                'writable_sections' => ['product', ...array_keys($sections)],
                 'partial_section_saves' => true,
                 'optimistic_concurrency' => true,
                 'binary_uploads_are_separate' => true,

@@ -497,8 +497,22 @@ when intentional last-write-wins behavior is acceptable. A successful response
 returns the refreshed aggregate, its new `revision`, `saved_sections`, and any
 request-local reference mappings. This façade is an application composition
 boundary, not a replacement for the granular APIs: integrations may keep using
-granular resources, and future Discount/Inventory/Search modules should join
-through module contracts/events rather than having Catalog update their tables.
+granular resources.
+
+Future module sections join the same object through the explicit
+`ProductDetailSectionProvider` contract. The owning module supplies its section
+key, priority, relative validation rules, bounded bootstrap/read payloads, and
+save delegation, then tags that provider with
+`ProductDetailSectionProvider::class` in its service provider. The registry
+automatically adds the key to accepted write sections, reads, `section_meta`,
+`capabilities.writable_sections`, provider saves, and response reference maps;
+the central Product Detail request, reader, writer, resource, and route do not
+need another edit. Registration is intentionally explicit—new database tables
+are never exposed by reflection or naming convention. A provider must enforce
+its owning module's permissions and Store/Product isolation, return
+serialization-ready public data, avoid remote I/O inside `save()`, and delegate
+writes to its domain service. Cross-module asynchronous work should be recorded
+for after-commit event/outbox processing.
 
 ### 6.1.2 Product option and variant REST lifecycle
 
