@@ -22,7 +22,11 @@ final class ProductDetailController extends Controller
     ): JsonResponse {
         return response()->json([
             'data' => new ProductDetailResource(
-                $reader->bootstrap($this->user($request), $request->referenceLimit()),
+                $reader->bootstrap(
+                    $this->user($request),
+                    $request->referenceLimit(),
+                    $request->selectedSections(),
+                ),
             ),
         ]);
     }
@@ -39,6 +43,7 @@ final class ProductDetailController extends Controller
                 $request->sectionLimit(),
                 $request->withReferenceData(),
                 $request->referenceLimit(),
+                $request->selectedSections(),
             )),
         ]);
     }

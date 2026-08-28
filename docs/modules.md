@@ -41,6 +41,10 @@ under `docs/module-communication/`; update both sides whenever a cross-module
 interface changes. Themes is documented in [Themes module](modules/themes.md)
 and [Theme marketplace and Store themes](themes.md). Catalog is documented in
 the [Catalog module](modules/catalog.md) and the complete
-[Catalog schema reference](catalog.md). All modules inherit the
+[Catalog schema reference](catalog.md). Product-editing clients use the
+[Product Detail Store Admin guide](product-detail-guide.md), while modules that
+extend the aggregate use the
+[Product Detail section-provider contract](module-communication/product-detail-section-providers.md).
+All modules inherit the
 identifier, Store-language, and authorization rules from
 [application context](context.md).

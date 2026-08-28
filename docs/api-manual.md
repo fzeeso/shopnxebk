@@ -441,6 +441,36 @@ same shape under `reference_data.meta`. Set `with_reference_data=false` after
 the client has cached bootstrap data. A truncated large section is continued
 via its existing granular paginated endpoint.
 
+Detail and bootstrap reads accept an optional comma-separated `sections`
+selection, for example
+`?sections=product,images,options,variants,discounts`. When it is supplied,
+only the named Catalog section queries and registered provider methods run;
+omitting it preserves the complete response. Unknown or duplicate keys return
+`422`. Product core and its revision remain present on existing-Product reads;
+`product` is accepted as an explicit marker so clients can use one complete
+section manifest. `section_meta` contains only loaded sections, while
+`capabilities.writable_sections` continues to advertise every registered write
+section. `with_reference_data` remains independent of section selection.
+
+Client interpretation of the composed response:
+
+| Field | Meaning |
+| --- | --- |
+| `product` | Product core, classifications, categories, and translations; `null` for bootstrap |
+| `revision` | Optimistic concurrency value to send as `expected_updated_at` |
+| `sections` | Only loaded Product-owned built-ins and selected registered extensions |
+| `section_meta` | Counts, limits, and truncation for loaded sections only |
+| `reference_data` | Optional/cached Store selectors; independent of section selection |
+| `capabilities.writable_sections` | Complete currently registered write contract, not just loaded sections |
+| `saved_sections` | Product/section names acknowledged by a successful write |
+| `references` | Request-local `ref` names mapped to generated public ULIDs |
+
+A client should ignore unknown response section keys until it intentionally
+adds UI support, use capabilities for discovery, and never infer that an
+omitted selective-read section is empty or deleted. The complete Store Admin
+workflow, tab manifests, caching, conflict recovery, limits, and error handling
+are in the [Product Detail guide](product-detail-guide.md).
+
 The write body has a partial `product` object using the normal Product REST
 shape and a `sections` object. Omitted sections are never changed. Current
 section keys are `images`, `media`, `custom_fields`, `options`, `variants`,
@@ -513,6 +543,11 @@ its owning module's permissions and Store/Product isolation, return
 serialization-ready public data, avoid remote I/O inside `save()`, and delegate
 writes to its domain service. Cross-module asynchronous work should be recorded
 for after-commit event/outbox processing.
+
+Module authors must follow the
+[Product Detail section-provider contract](module-communication/product-detail-section-providers.md),
+including Store/Product isolation, bounded public serialization, no remote work
+inside `save()`, selective-read behavior, compatibility, and test requirements.
 
 ### 6.1.2 Product option and variant REST lifecycle
 

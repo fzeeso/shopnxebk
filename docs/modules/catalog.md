@@ -113,6 +113,10 @@ explicit route or GraphQL field is implemented and documented.
   is exposed by discovery or naming convention. Providers retain permission,
   Store/Product-isolation, serialization, and domain-service ownership, and
   defer remote effects until after commit.
+  Reads optionally accept a comma-separated `sections` manifest. Unknown and
+  duplicate keys are rejected; selected reads skip unrequested built-in queries
+  and provider calls while retaining Product core/revision and the complete
+  writable capability list. Omitting the manifest returns the full aggregate.
 - Category, Product Type, and Product GraphQL reads require active Store membership. Their
   explicit mutations require `manage products`, use public ULIDs, reject
   cross-Store references, resolve Product Types within the selected Store,
@@ -242,4 +246,7 @@ See [Catalog to Stores](../module-communication/catalog-to-stores.md),
 [Catalog to Settings](../module-communication/catalog-to-settings.md), and
 [Catalog to Files](../module-communication/catalog-to-files.md). See also the
 complete [Catalog schema reference](../catalog.md) and the end-to-end
-[API manual](../api-manual.md).
+[API manual](../api-manual.md). Product-editor clients should use the
+[Product Detail Store Admin guide](../product-detail-guide.md); future module
+owners must follow the
+[Product Detail section-provider contract](../module-communication/product-detail-section-providers.md).

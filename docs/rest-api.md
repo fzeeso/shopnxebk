@@ -280,3 +280,24 @@ same `manage products` permission. The image contract accepts root-relative or
 HTTP(S) locators, dimensions, gallery position, an optional same-product
 variant public ULID, and active-Store-locale alt text with a manual lock. It is
 a metadata API, not a binary upload or storage-deletion API.
+
+Product Detail Store Admin contracts:
+
+| Method | URL | Scope and purpose |
+| --- | --- | --- |
+| `GET` | `/api/v1/store/product-detail` | Bootstrap a new-Product editor with bounded selectors and registered sections. |
+| `GET` | `/api/v1/store/product-detail/{product}` | Compose Product core, requested sections, metadata, capabilities, and optional selectors. |
+| `POST` | `/api/v1/store/product-detail` | Create Product core and supplied sections in one transaction. |
+| `PATCH` | `/api/v1/store/product-detail/{product}` | Save only supplied dirty fields/sections, optionally checking the read revision. |
+
+Both reads accept an optional comma-separated `sections` query. Omission loads
+the full aggregate; a manifest such as
+`product,images,options,variants` skips every unrequested Catalog query and
+registered provider. Existing-Product core and revision remain present.
+Unknown or duplicate names return `422`; capabilities continue to list the full
+writable contract. `section_limit`, `reference_limit`, and
+`with_reference_data` control bounded payload size. Binary media is uploaded
+separately and attached by public media ULID. See the
+[Product Detail Store Admin guide](product-detail-guide.md) for client flow and
+the [API manual](api-manual.md#611-product-detail-composition-and-intelligent-save)
+for the complete request contract.

@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Http\Requests\ProductDetailReadRequest;
 use App\Http\Requests\ProductDetailWriteRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Catalog\Contracts\ProductDetailSectionProvider;
+use Modules\Catalog\Http\Resources\ProductDetailResource;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Services\ProductDetailSectionRegistry;
 use Modules\Catalog\Support\ProductDetailReferenceMap;
@@ -83,6 +87,47 @@ final class ProductDetailSectionRegistryTest extends TestCase
         self::assertStringContainsString('discounts', $rules['sections'][1]);
         self::assertSame(['sometimes', 'array:upsert'], $rules['sections.discounts']);
         self::assertSame(['sometimes', 'array', 'list'], $rules['sections.discounts.upsert']);
+    }
+
+    public function test_read_request_accepts_only_known_distinct_section_keys(): void
+    {
+        $this->app->instance(ProductDetailSectionRegistry::class, new ProductDetailSectionRegistry([
+            $this->provider('discounts'),
+        ]));
+        $request = ProductDetailReadRequest::create('/api/v1/store/product-detail/example', 'GET', [
+            'sections' => 'product,images,discounts',
+        ]);
+        $validator = Validator::make($request->all(), $request->rules());
+        $request->setValidator($validator);
+        $validator->validate();
+
+        self::assertSame(['product', 'images', 'discounts'], $request->selectedSections());
+
+        foreach (['images,images', 'images,unknown'] as $invalid) {
+            $invalidRequest = ProductDetailReadRequest::create('/', 'GET', ['sections' => $invalid]);
+            self::assertTrue(Validator::make($invalidRequest->all(), $invalidRequest->rules())->fails());
+        }
+    }
+
+    public function test_resource_serializes_partial_sections_without_reducing_write_capabilities(): void
+    {
+        $resource = new ProductDetailResource([
+            'product' => null,
+            'sections' => [
+                'images' => collect(),
+                'discounts' => [['id' => '01DISCOUNT']],
+            ],
+            'section_meta' => [],
+            'writable_sections' => ['product', 'images', 'options', 'discounts'],
+        ]);
+
+        $result = $resource->toArray(Request::create('/'));
+
+        self::assertSame(['images', 'discounts'], array_keys($result['sections']));
+        self::assertSame(
+            ['product', 'images', 'options', 'discounts'],
+            $result['capabilities']['writable_sections'],
+        );
     }
 
     public function test_reference_map_shares_core_and_extension_references(): void

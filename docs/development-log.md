@@ -1,5 +1,39 @@
 # Development log
 
+## 2026-08-28 - Product Detail documentation handoff
+
+- Changed: Added a canonical Store Admin Product Detail guide and a dedicated
+  cross-module section-provider contract, then linked them from README,
+  architecture, REST, API, developer, context, Catalog, schema, and module-map
+  documentation.
+- Reason: Client developers, Store Admin implementers, backend maintainers, and
+  future module owners need separate task-oriented guidance while sharing one
+  authoritative architecture and security contract.
+- Data/configuration impact: Documentation only. No application behavior,
+  schema, database command, or Store data changed.
+- Compatibility or rollout notes: The guides document the implemented full and
+  selective read behavior, dirty transactional saves, capabilities, references,
+  conflict handling, provider ownership, and existing compatibility rules.
+- Verification: Documentation generation, link/source review, formatting
+  checks, and documentation consistency checks were run.
+
+## 2026-08-28 - Selective Product Detail section reads
+
+- Changed: Added the validated `sections` query manifest to Product Detail
+  bootstrap/detail reads. Selected reads execute only requested Catalog queries
+  and registered providers, return metadata for loaded sections, and preserve
+  the full writable capability list.
+- Reason: A single frontend endpoint should not force every present and future
+  module to query data for screens that need only Product core and a few tabs.
+- Data/configuration impact: Request, controller, read composition, resource,
+  OpenAPI, tests, and documentation only. No migration, database command, or
+  Store data change was made.
+- Compatibility or rollout notes: Omitting `sections` preserves the prior full
+  aggregate. Existing Product core/revision remains available on selected
+  detail reads. Unknown and duplicate section names return `422`.
+- Verification: Added non-database coverage for registered-key selection,
+  invalid manifests, and partial-resource capability behavior.
+
 ## 2026-08-28 - Extensible Product Detail section-provider registry
 
 - Changed: Added an explicit tagged `ProductDetailSectionProvider` contract and

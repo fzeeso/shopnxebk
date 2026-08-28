@@ -1280,6 +1280,15 @@ See the shorter [Catalog module overview](modules/catalog.md),
 [ADR 006](adr/006-catalog-persistence-model.md), and the directional contracts
 under [module communication](module-communication/).
 
+The Product Detail façade is an application composition contract, not an
+additional persistence owner. Its built-in sections use these normalized
+tables through Catalog services. Future modules retain their own tables and
+services and join through the explicit
+[Product Detail section-provider contract](module-communication/product-detail-section-providers.md).
+No table or Eloquent model becomes public merely because it exists. Client
+workflow and selective-read semantics are documented in the
+[Product Detail Store Admin guide](product-detail-guide.md).
+
 ## 21. PostgreSQL query patterns
 
 These examples use internal bigint parameters only after the application has

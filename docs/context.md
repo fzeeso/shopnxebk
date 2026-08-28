@@ -261,6 +261,18 @@ creation—is the exposure boundary; providers must return public JSON data,
 enforce Store/Product isolation through their own services, avoid remote work
 inside the aggregate transaction, and use after-commit delivery for external
 effects.
+Product Detail reads also accept a validated `sections` manifest. Omission
+loads the complete aggregate; a comma-separated selection runs only matching
+Catalog queries and registered providers. Product core/revision remains
+available, response metadata covers only loaded sections, and capabilities
+continue to describe the complete writable contract. This keeps one client
+endpoint without forcing every future module to execute on every screen.
+
+The canonical client workflow is the
+[Product Detail Store Admin guide](product-detail-guide.md). Cross-module
+ownership, registration, transaction, reference, compatibility, and testing
+requirements are defined by the
+[Product Detail section-provider contract](module-communication/product-detail-section-providers.md).
 
 Product Type GraphQL exposes Store-scoped paginated list/detail reads and
 explicit create/update/delete mutations. It accepts public Platform taxonomy-

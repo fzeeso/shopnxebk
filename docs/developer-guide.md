@@ -451,6 +451,32 @@ provider registration is the security and ownership boundary: adding a table
 alone changes no API, while registering a provider adds its section everywhere
 in the Product Detail object.
 
+Product Detail reads may be narrowed with the validated comma-separated
+`sections` query parameter. `ProductDetailReadRequest` accepts `product`, all
+Catalog built-ins, and current registry keys, rejecting unknown or duplicate
+names. `ProductDetailReadService` always resolves Product core/revision but
+executes only selected built-in queries and selected provider `bootstrap()` or
+`read()` methods. With no selection it preserves the complete aggregate.
+Partial responses contain metadata only for loaded sections, while writable
+capabilities still report the full registry. Use this for summary tabs or
+large future installations; use the unfiltered call when the editor genuinely
+needs every section.
+
+The complete provider lifecycle and review checklist are maintained in the
+[Product Detail section-provider contract](module-communication/product-detail-section-providers.md).
+When adding a provider, update its owning module document, OpenAPI extension
+description/example, API manual, application context, Store Admin guide, and
+development log. Add tests proving registration/rules, Store isolation,
+bounded public reads, no invocation when unselected, transactional rollback,
+dirty-section behavior, and shared reference handling. Coordinate backend and
+frontend rollout because provider registration immediately changes accepted
+read manifests, write validation, response sections, and capabilities.
+
+For client behavior, do not duplicate frontend state rules here. Use the
+[Product Detail Store Admin guide](product-detail-guide.md) as the canonical
+workflow for bootstrap caching, selective tabs, dirty saves, upload ordering,
+optimistic conflict recovery, and truncated-section continuation.
+
 Product options and variants are managed through the adjacent nested routes in
 `routes/product-api.php`. `ProductOptionManagementService` owns ordered option
 dimensions, translated names, ordered translated values, and deletion guards.

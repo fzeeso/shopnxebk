@@ -37,14 +37,23 @@ final readonly class ProductDetailReadService
         private ProductDetailSectionRegistry $sectionRegistry,
     ) {}
 
-    /** @return array<string, mixed> */
-    public function bootstrap(User $user, int $referenceLimit = 250): array
+    /** @param list<string>|null $selectedSections @return array<string, mixed> */
+    public function bootstrap(User $user, int $referenceLimit = 250, ?array $selectedSections = null): array
     {
         $store = $this->store($user);
 
-        $sections = $this->emptySections();
+        $sections = [];
         $sectionMeta = [];
+        foreach (ProductDetailSectionRegistry::BUILT_IN_SECTIONS as $key) {
+            if ($this->includesSection($selectedSections, $key)) {
+                $sections[$key] = collect();
+            }
+        }
         foreach ($this->sectionRegistry->all() as $provider) {
+            if (! $this->includesSection($selectedSections, $provider->key())) {
+                continue;
+            }
+
             $payload = $provider->bootstrap($user, $store, $referenceLimit);
             $sections[$provider->key()] = $payload->data;
             $sectionMeta[$provider->key()] = $payload->meta($referenceLimit);
@@ -55,126 +64,132 @@ final readonly class ProductDetailReadService
             'sections' => $sections,
             'section_meta' => $sectionMeta,
             'reference_data' => $this->referenceData($user, $store, $referenceLimit),
+            'writable_sections' => $this->writableSections(),
         ];
     }
 
-    /** @return array<string, mixed> */
+    /** @param list<string>|null $selectedSections @return array<string, mixed> */
     public function show(
         User $user,
         string $productPublicId,
         int $sectionLimit = 100,
         bool $withReferenceData = true,
         int $referenceLimit = 250,
+        ?array $selectedSections = null,
     ): array {
         $store = $this->store($user);
         $product = $this->products->show($user, $productPublicId);
         $productId = (int) $product->getKey();
         $storeId = (int) $store->getKey();
 
-        [$images, $imageMeta] = $this->limited(
-            ProductImage::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with(['product', 'variant', 'translations'])
-                ->orderBy('position')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$options, $optionMeta] = $this->limited(
-            ProductOption::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with(['product', 'translations', 'values.translations'])
-                ->orderBy('position')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$variants, $variantMeta] = $this->limited(
-            ProductVariant::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with([
-                    'product', 'preferredImage', 'translations', 'optionValues.translations',
-                    'optionValues.option.translations',
-                ])
-                ->orderBy('position')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$customFields, $customFieldMeta] = $this->limited(
-            ProductCustomFieldValue::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with([
-                    'product', 'variant', 'definition.translations', 'definition.options.translations',
-                    'selectedOption.translations', 'selectedOptions.translations', 'translations',
-                ])
-                ->orderBy('variant_id')->orderBy('definition_id')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$sharedOptions, $sharedOptionMeta] = $this->limited(
-            ProductSharedOptionAssignment::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with(['product', 'option.translations', 'option.values.translations'])
-                ->orderBy('position')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$modifierGroups, $modifierGroupMeta] = $this->limited(
-            ProductModifierGroup::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with('translations')
-                ->orderBy('sort_order')->orderBy('id'),
-            $sectionLimit,
-        );
-        [$modifiers, $modifierMeta] = $this->limited(
-            ProductModifierAssignment::query()
-                ->where('store_id', $storeId)
-                ->where('product_id', $productId)
-                ->with([
-                    'modifier.translations', 'modifier.values.translations', 'modifier.values.priceAdjustments',
-                    'modifier.validationRules.translations', 'modifier.priceAdjustments', 'group.translations',
-                    'translations', 'valueAssignments.value.translations', 'priceOverrides',
-                    'valuePriceOverrides.value',
-                ])
-                ->orderBy('sort_order')->orderBy('id'),
-            $sectionLimit,
-        );
-
-        $mediaQuery = $product->media()->with('variants.media');
-        $mediaTotal = $mediaQuery->count();
-        $media = $mediaQuery->limit($sectionLimit)->get();
-
-        $extensionSections = [];
-        $extensionMeta = [];
-        foreach ($this->sectionRegistry->all() as $provider) {
-            $payload = $provider->read($user, $store, $product, $sectionLimit);
-            $extensionSections[$provider->key()] = $payload->data;
-            $extensionMeta[$provider->key()] = $payload->meta($sectionLimit);
+        $sections = [];
+        $sectionMeta = [];
+        if ($this->includesSection($selectedSections, 'images')) {
+            [$sections['images'], $sectionMeta['images']] = $this->limited(
+                ProductImage::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with(['product', 'variant', 'translations'])
+                    ->orderBy('position')->orderBy('id'),
+                $sectionLimit,
+            );
         }
+        if ($this->includesSection($selectedSections, 'options')) {
+            [$sections['options'], $sectionMeta['options']] = $this->limited(
+                ProductOption::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with(['product', 'translations', 'values.translations'])
+                    ->orderBy('position')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'variants')) {
+            [$sections['variants'], $sectionMeta['variants']] = $this->limited(
+                ProductVariant::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with([
+                        'product', 'preferredImage', 'translations', 'optionValues.translations',
+                        'optionValues.option.translations',
+                    ])
+                    ->orderBy('position')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'custom_fields')) {
+            [$sections['custom_fields'], $sectionMeta['custom_fields']] = $this->limited(
+                ProductCustomFieldValue::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with([
+                        'product', 'variant', 'definition.translations', 'definition.options.translations',
+                        'selectedOption.translations', 'selectedOptions.translations', 'translations',
+                    ])
+                    ->orderBy('variant_id')->orderBy('definition_id')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'shared_options')) {
+            [$sections['shared_options'], $sectionMeta['shared_options']] = $this->limited(
+                ProductSharedOptionAssignment::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with(['product', 'option.translations', 'option.values.translations'])
+                    ->orderBy('position')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'modifier_groups')) {
+            [$sections['modifier_groups'], $sectionMeta['modifier_groups']] = $this->limited(
+                ProductModifierGroup::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with('translations')
+                    ->orderBy('sort_order')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'modifiers')) {
+            [$sections['modifiers'], $sectionMeta['modifiers']] = $this->limited(
+                ProductModifierAssignment::query()
+                    ->where('store_id', $storeId)
+                    ->where('product_id', $productId)
+                    ->with([
+                        'modifier.translations', 'modifier.values.translations', 'modifier.values.priceAdjustments',
+                        'modifier.validationRules.translations', 'modifier.priceAdjustments', 'group.translations',
+                        'translations', 'valueAssignments.value.translations', 'priceOverrides',
+                        'valuePriceOverrides.value',
+                    ])
+                    ->orderBy('sort_order')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
+        if ($this->includesSection($selectedSections, 'media')) {
+            $mediaQuery = $product->media()->with('variants.media');
+            $mediaTotal = $mediaQuery->count();
+            $media = $mediaQuery->limit($sectionLimit)->get();
+            $sections['media'] = $media;
+            $sectionMeta['media'] = $this->meta($mediaTotal, $media->count(), $sectionLimit);
+        }
+
+        foreach ($this->sectionRegistry->all() as $provider) {
+            if (! $this->includesSection($selectedSections, $provider->key())) {
+                continue;
+            }
+
+            $payload = $provider->read($user, $store, $product, $sectionLimit);
+            $sections[$provider->key()] = $payload->data;
+            $sectionMeta[$provider->key()] = $payload->meta($sectionLimit);
+        }
+        $sections = $this->orderSectionValues($sections);
+        $sectionMeta = $this->orderSectionValues($sectionMeta);
 
         $result = [
             'product' => $product,
-            'sections' => [
-                'images' => $images,
-                'media' => $media,
-                'custom_fields' => $customFields,
-                'options' => $options,
-                'variants' => $variants,
-                'shared_options' => $sharedOptions,
-                'modifier_groups' => $modifierGroups,
-                'modifiers' => $modifiers,
-                ...$extensionSections,
-            ],
-            'section_meta' => [
-                'images' => $imageMeta,
-                'media' => $this->meta($mediaTotal, $media->count(), $sectionLimit),
-                'custom_fields' => $customFieldMeta,
-                'options' => $optionMeta,
-                'variants' => $variantMeta,
-                'shared_options' => $sharedOptionMeta,
-                'modifier_groups' => $modifierGroupMeta,
-                'modifiers' => $modifierMeta,
-                ...$extensionMeta,
-            ],
+            'sections' => $sections,
+            'section_meta' => $sectionMeta,
+            'writable_sections' => $this->writableSections(),
         ];
         if ($withReferenceData) {
             $result['reference_data'] = $this->referenceData($user, $store, $referenceLimit);
@@ -312,18 +327,32 @@ final readonly class ProductDetailReadService
         ];
     }
 
-    /** @return array<string, Collection<int, mixed>> */
-    private function emptySections(): array
+    /** @param list<string>|null $selectedSections */
+    private function includesSection(?array $selectedSections, string $key): bool
+    {
+        return $selectedSections === null || in_array($key, $selectedSections, true);
+    }
+
+    /** @return list<string> */
+    private function writableSections(): array
     {
         return [
-            'images' => collect(),
-            'media' => collect(),
-            'custom_fields' => collect(),
-            'options' => collect(),
-            'variants' => collect(),
-            'shared_options' => collect(),
-            'modifier_groups' => collect(),
-            'modifiers' => collect(),
+            'product',
+            ...ProductDetailSectionRegistry::BUILT_IN_SECTIONS,
+            ...$this->sectionRegistry->keys(),
         ];
+    }
+
+    /** @param array<string, mixed> $values @return array<string, mixed> */
+    private function orderSectionValues(array $values): array
+    {
+        $ordered = [];
+        foreach ($this->writableSections() as $key) {
+            if ($key !== 'product' && array_key_exists($key, $values)) {
+                $ordered[$key] = $values[$key];
+            }
+        }
+
+        return $ordered;
     }
 }

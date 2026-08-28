@@ -27,6 +27,7 @@ final class ProductDetailApiContractTest extends TestCase
     {
         $reader = $this->source('Modules/Catalog/app/Services/ProductDetailReadService.php');
         $resource = $this->source('Modules/Catalog/app/Http/Resources/ProductDetailResource.php');
+        $request = $this->source('app/Http/Requests/ProductDetailReadRequest.php');
 
         foreach ([
             'images', 'media', 'custom_fields', 'options', 'variants', 'shared_options',
@@ -43,6 +44,9 @@ final class ProductDetailApiContractTest extends TestCase
         }
         self::assertStringContainsString("where('store_id', \$storeId)", $reader);
         self::assertStringContainsString("'truncated' => \$total > \$returned", $reader);
+        self::assertStringContainsString('includesSection(', $reader);
+        self::assertStringContainsString("'sections' => [", $request);
+        self::assertStringContainsString('selectedSections()', $request);
     }
 
     public function test_writer_is_atomic_partial_and_delegates_to_domain_services(): void

@@ -1840,6 +1840,7 @@ paths:
       parameters:
         - {$ref: '#/components/parameters/StoreId'}
         - {name: reference_limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 250}}
+        - {name: sections, in: query, description: Optional comma-separated registered section keys; omission returns every section. Product is accepted as an explicit core marker., schema: {type: string, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$', example: 'product,images,options'}}
       responses:
         '200':
           description: Product editor reference data
@@ -1847,6 +1848,7 @@ paths:
             application/json: {schema: {$ref: '#/components/schemas/ProductDetailResponse'}}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
     post:
       tags: [Catalog Products]
       security: [{sanctum: []}]
@@ -1877,6 +1879,7 @@ paths:
         - {name: section_limit, in: query, schema: {type: integer, minimum: 1, maximum: 250, default: 100}}
         - {name: reference_limit, in: query, schema: {type: integer, minimum: 1, maximum: 500, default: 250}}
         - {name: with_reference_data, in: query, schema: {type: boolean, default: true}}
+        - {name: sections, in: query, description: Optional comma-separated registered section keys. Only named section queries/providers run; Product core and revision remain present., schema: {type: string, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$', example: 'product,images,discounts'}}
       responses:
         '200':
           description: Product core, Product-owned sections, selector references, section counts, and revision
@@ -1885,6 +1888,7 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Product not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
     patch:
       tags: [Catalog Products]
       security: [{sanctum: []}]
@@ -3172,8 +3176,7 @@ components:
         revision: {type: [string, 'null'], format: date-time}
         sections:
           type: object
-          description: Catalog built-ins plus serialization-ready data from registered section providers.
-          required: [images, media, custom_fields, options, variants, shared_options, modifier_groups, modifiers]
+          description: Selected Catalog built-ins plus serialization-ready data from selected registered providers. All sections are returned when the sections query parameter is omitted.
           properties:
             images: {type: array, items: {$ref: '#/components/schemas/ProductImage'}}
             media: {type: array, items: {type: object, additionalProperties: true}}
