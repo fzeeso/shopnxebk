@@ -20,6 +20,9 @@
   `lock_it` flag protects merchant-authored translations from automated
   overwrite, immutable policy versions, and the Store-policy adapter for the
   shared after-commit translation queue;
+- Store-owned hierarchical Pages, localized title/slug/content/SEO rows,
+  page lifecycle and homepage invariants, and the Pages adapter for the shared
+  after-commit translation queue;
 - the `activeStore` GraphQL field.
 - Platform Store catalog/merchant provisioning and selected-Store user management APIs.
 
@@ -153,6 +156,13 @@ resolves Settings-owned active languages, excludes `lock_it = true` rows,
 applies generated text in a short worker transaction, and appends a version for
 each generated content change. Provider latency and failures never hold or
 undo the merchant's source edit.
+
+Default-language Page edits follow the same durable request flow. Pages keep
+language-neutral hierarchy, type, layout, visibility, and publication data in
+`pages`; `page_translations` owns language-specific title, Unicode slug,
+content, summary, SEO/search fields, and `lock_it`. Store-safe composite foreign
+keys prevent cross-Store hierarchy/translation relationships, and public Page
+deletion is a non-destructive disable operation. See [Store pages](../pages.md).
 
 ## Outbound communication
 

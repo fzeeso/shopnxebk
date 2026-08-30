@@ -44,6 +44,7 @@ Accept: application/json
 | Resource | REST exposure | GraphQL exposure |
 | --- | --- | --- |
 | Brands | Full Store CRUD plus signed Brand media delivery under `/api/v1/store/brands` | Not exposed |
+| Collections | Store CRUD, rule replacement, manual Product replacement, rule refresh, paginated memberships, and read-only AI history under `/api/v1/store/collections` | Not exposed |
 | Categories | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Product Types | Not exposed through REST | Full list/detail/create/update/delete through `/graphql` |
 | Products | Full Store CRUD under `/api/v1/store/products` | Full list/detail/create/update/delete through `/graphql` |
@@ -88,6 +89,43 @@ sequenceDiagram
 ```
 
 Resolvers are adapters. Business rules, Store ownership, permissions, translation synchronization, hierarchy checks, and product-category synchronization live in Catalog services. Database composite foreign keys are the final cross-Store boundary.
+
+### 2.1 Collection REST information flow
+
+Collection clients use the same authenticated Store envelope as Product REST.
+Reads require active Store membership; writes require `manage products`.
+
+| Method | Route | Table flow |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/collections` | Page Collections or create `collections` plus `collection_translations`, optional rules, and optional manual memberships in one transaction. |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/collections/{collection}` | Read/update the aggregate or delete it. Delete cascades translations, rules, AI jobs, and memberships; children remain with `parent_id = null`. |
+| `PUT` | `/api/v1/store/collections/{collection}/rules` | Replace the complete `collection_rules` set for a rule-based or AI-generated Collection. |
+| `GET`, `PUT` | `/api/v1/store/collections/{collection}/products` | Page `product_collections` joins or replace only the manual membership subset. Automated rows are preserved. |
+| `POST` | `/api/v1/store/collections/{collection}/refresh` | Evaluate saved rules against Store Products, remove unpinned automated joins, preserve manual/pinned joins, and insert current matches atomically. |
+| `GET` | `/api/v1/store/collections/{collection}/ai-jobs` | Page append-only `collection_ai_jobs` audit records. AI generation is not started by this API release. |
+
+Create and update accept language-neutral Collection metadata separately from
+localized rows. Submitted translations are synchronized to
+`collection_translations`; the source and translation-request ledger commit in
+the same transaction, and translation work is dispatched only after commit.
+Each public ULID is resolved within the selected Store before its internal
+bigint is written.
+
+Rule operands are strings at the HTTP boundary, then the service validates the
+field/operator pair and parses numeric `price` comparisons before building the
+Product query. Supported string fields are `vendor`, `sku`, `status`,
+`product_type`, `title`, `brand`, and `tag`; `price` supports equality and
+ordered comparisons. `rules_match_type=all` combines conditions with AND;
+`any` combines them with OR. Saving rules does not silently change membership:
+call `refresh` when the client is ready to apply them.
+
+Manual replacement is full-collection semantics for `added_by=manual` rows
+only. Refresh owns `added_by=rule|ai` rows only when `is_pinned=false`.
+Consequently merchant-curated rows and pinned includes survive regeneration.
+The current schema has no negative/exclusion row, so `is_pinned` represents a
+protected included Product, not a pinned exclusion.
+Changing `collection_type` to `manual` clears saved rules and removes unpinned
+automated memberships in that same update transaction; pinned includes remain.
 
 ## 3. Catalog GraphQL operations
 
@@ -938,11 +976,119 @@ availability, file/media, and otherwise generic validation failures. Store
 default-language copy and safe English internal messages remain the final
 fallbacks when translated copy is absent.
 
-There are no installed Cart, Orders, Sales Channel, or Customer Group APIs.
-Consequently modifier cart validation and immutable checkout snapshots are
-available as Catalog integration services but are not exposed as HTTP routes.
-The nullable audience columns are also not writable through these APIs until
-those modules expose Store-scoped public ULIDs.
+There are no installed Cart, Orders, or Sales Channel APIs. Consequently
+modifier cart validation and immutable checkout snapshots are available as
+Catalog integration services but are not exposed as HTTP routes. Customers now
+owns customer groups and exports a Store-scoped public-ULID resolver; Catalog's
+nullable modifier audience columns remain non-writable until the modifier
+services explicitly adopt that resolver and define snapshot/deletion behavior.
+
+### 6.5 Customer Admin REST and conversion boundary
+
+Customers are Store-owned buyer profiles, not Authentication `users`. Every
+route requires a Store-scoped Sanctum identity, `X-Store-ID`, active membership,
+and Store-owned bindings. Reads require membership; mutations require
+`manage customers`.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/customers` | Page/search/filter customer profiles or create one. |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/customers/{customer}` | Read/edit or disable and soft-delete one customer public ULID. |
+| `GET`, `POST` | `/api/v1/store/customers/{customer}/credits` | Page the signed ledger or append a non-zero credit entry. |
+| `GET`, `POST` | `/api/v1/store/customer-groups` | Page/search groups or create one with its default-language name. |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/customer-groups/{group}` | Read/edit or safely delete an unreferenced non-default group. |
+| `PUT`, `DELETE` | `/api/v1/store/customer-groups/{group}/translations/{language}` | Upsert/delete one active Store-language display name. |
+| `PUT` | `/api/v1/store/customer-groups/{group}/categories` | Replace the complete explicit Category allow-list. |
+| `POST` | `/api/v1/store/customer-groups/{group}/discounts` | Create a same-Store Category/Product percentage rule. |
+| `PUT`, `DELETE` | `/api/v1/store/customer-groups/{group}/discounts/{discount}` | Replace/delete one nested target rule. |
+
+Profile writes accept normalized email/contact/name/company, a group public
+ULID, `active`/`disabled`, notes, non-negative point counters, registered IP,
+and joined time. They prohibit password, legacy ID, hash, salt, and token
+fields. Omitting the group on create assigns the current default when present;
+explicit null leaves it ungrouped. Email is lower-cased and unique among
+non-deleted customers only inside the selected Store.
+
+Credits use decimal strings, types `return`, `gift`, or `adjustment`, optional
+opaque `external_reference`, reason, and occurrence time. Negative adjustments
+are valid. The response balance is the signed ledger sum; no update/delete
+route exists, and corrections use compensating adjustments. Reasons are
+language-neutral audit text.
+
+Groups separate stable logic from presentation. `code`, discount percentage/
+method, default flag, `none`/`all`/`specific` category access, and target rules
+are not translated. Only `customer_group_translations.name` is multilingual.
+Create requires the default active Store-language row, default-language saves
+may return a durable `translation_request`, and `lock_it=true` prevents
+automated overwrite. Target rules accept `category` plus `category_only` or
+`category_and_descendants`, or `product` plus `not_applicable`; public target
+ULIDs must belong to the active Store.
+
+The reviewed MariaDB input is schema-only, so no rows were imported. Its
+field-by-field mapping, token/credential treatment, load order, ledger-balance
+reconciliation, acceptance checks, and rollback rules are in the
+[legacy Customer conversion runbook](customer-data-conversion.md). Complete
+request/response examples are in [Customer management](customers.md).
+
+### 6.6 Store Page Admin REST lifecycle
+
+General Store Pages are available only through authenticated Store Admin REST
+in this release. Every request requires a Store-scoped token/session and
+`X-Store-ID`; reads require active membership and writes reuse
+`manage policies`.
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET`, `POST` | `/api/v1/store/pages` | Paginate/filter Pages or create one draft Page with translations. |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/pages/{page}` | Read/update or non-destructively disable one public-ULID Page. |
+| `POST` | `/api/v1/store/pages/{page}/enable` | Move disabled to draft. |
+| `POST` | `/api/v1/store/pages/{page}/disable` | Disable and clear publication time. |
+| `POST` | `/api/v1/store/pages/{page}/publish` | Validate type/default translation and publish. |
+| `POST` | `/api/v1/store/pages/{page}/unpublish` | Return published to draft. |
+| `PUT`, `DELETE` | `/api/v1/store/pages/{page}/translations/{language}` | Upsert/delete one language by public ULID. |
+
+Create uses snake_case and separates language-neutral configuration from
+localized rows:
+
+```json
+{
+  "page_type": "content",
+  "parent_id": null,
+  "sort_order": 10,
+  "layout_key": "default",
+  "is_homepage": false,
+  "customers_only": false,
+  "seo_enabled": true,
+  "translations": [
+    {
+      "language_id": "01K_LANGUAGE_EN",
+      "title": "About us",
+      "slug": "about-us",
+      "content": "About the Store.",
+      "seo_title": "About our Store",
+      "lock_it": false
+    },
+    {
+      "language_id": "01K_LANGUAGE_UR",
+      "title": "ہمارے بارے میں",
+      "slug": "ہمارے-بارے-میں",
+      "content": "اسٹور کے بارے میں۔",
+      "lock_it": true
+    }
+  ]
+}
+```
+
+Page types are `content`, `contact`, `external_link`, and `rss`. External-link
+Pages require `external_url`; RSS Pages require `feed_url`. Publishing requires
+the default Store-language row, and content Pages require non-empty content in
+that row. Localized slugs allow Unicode letters/numbers with hyphen-separated
+segments and are unique per Store/language. Default-language writes return a
+nullable `translation_request`; generated target rows never overwrite
+`lock_it=true`. List filters are `status`, `page_type`, `parent_id`,
+`root_only`, `language_id`, `search`, `page`, and `per_page` (maximum 100).
+There is no public/storefront Page read contract yet. See
+[Store pages](pages.md).
 
 ## 7. Reading localized data
 

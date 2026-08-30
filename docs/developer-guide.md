@@ -32,6 +32,7 @@ flowchart LR
     Themes["Themes module"]
     Billing["Billing module"]
     Catalog["Catalog module"]
+    Customers["Customers module"]
     GraphQL["Lighthouse GraphQL"]
     DB[("PostgreSQL")]
     Redis[("Redis")]
@@ -48,6 +49,7 @@ flowchart LR
     HTTP --> Themes
     HTTP --> Billing
     HTTP --> Catalog
+    HTTP --> Customers
     HTTP --> GraphQL
     Auth --> DB
     Settings --> DB
@@ -55,6 +57,7 @@ flowchart LR
     Themes --> DB
     Billing --> DB
     Catalog --> DB
+    Customers --> DB
     GraphQL --> DB
     HTTP --> Redis
     HTTP --> Files
@@ -123,6 +126,16 @@ the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
 template.
+
+`Modules/Customers/` owns Store-scoped customer profiles, customer groups,
+multilingual group display names, append-only credit entries, Category access,
+and Category/Product-targeted group discounts. Its REST services use public
+ULIDs, active Store context, and `manage customers`; storefront customer login
+is deliberately outside this module. Only group display names enter the shared
+translation queue. The exported `CustomerGroupResolver` is the integration
+boundary for future Orders, Discounts, and Catalog audience support. See the
+[Customers module](modules/customers.md) and
+[conversion runbook](customer-data-conversion.md).
 
 Product modifiers have three deliberately separate runtime layers. The
 library service transactionally owns definitions, translations, values,
@@ -294,6 +307,15 @@ provider. Generated policy content receives the same immutable language-scoped
 version history as a manual edit. A target with `lock_it = true` is excluded;
 saving another non-default language is a manual edit and does not cascade.
 
+Store-owned general Pages use the normalized model in [Store pages](pages.md).
+`pages` keeps language-neutral hierarchy, type, lifecycle, layout, homepage,
+visibility, type configuration, and audit fields. `page_translations` keeps
+localized Unicode slug/title/content/summary/SEO/search copy plus `lock_it`.
+Store Admin CRUD and lifecycle routes live under `/api/v1/store/pages`; reads
+require active membership and writes reuse `manage policies`. Default-language
+writes use the shared after-commit translation ledger/queue and generated slugs
+remain unique per Store/language. Page DELETE is a non-destructive disable.
+
 ### Normalized Store settings and address flow
 
 `store_settings.store_id` is both the primary key and the cascading foreign key
@@ -361,8 +383,10 @@ Any Platform-scoped user may read `GET /api/v1/platform/settings/currencies`. Cr
 
 ### Catalog persistence foundation
 
-The Catalog API surface is intentionally split by resource. Brand lifecycle
-and signed media are REST-only. Category and Product Type lifecycle operations
+The Catalog API surface is intentionally split by resource. Brand lifecycle,
+signed media, and Collection management are REST-only. Collection routes cover
+aggregate CRUD, rule/manual-membership replacement, deterministic membership
+refresh, membership paging, and read-only AI job history. Category and Product Type lifecycle operations
 are GraphQL-only and have no `/api/v1/store/categories` or
 `/api/v1/store/product-types` routes. Product lifecycle is available through
 both GraphQL and Store REST. Product Image metadata is nested REST-only, and
@@ -377,6 +401,16 @@ Addressable rows use bigint internal IDs, public ULIDs, and timezone timestamps;
 Store-owned rows also use indexed Store IDs. Translations and Store-local
 relationship rows carry Store IDs for composite foreign keys even when their
 primary key is a natural pair.
+
+`CollectionManagementService` is the only write boundary for `collections`,
+`collection_translations`, `collection_rules`, and `product_collections`.
+Public parent and Product ULIDs are resolved within the active Store before
+bigint relationships are written. Rule refresh evaluates the saved allow-list
+against Store Products, removes only unpinned automated memberships, preserves
+manual and pinned includes, and inserts current matches in one transaction.
+`collection_ai_jobs` is exposed as paginated read-only history; no route starts
+an AI provider operation. Collection translations use the common
+`TranslationCoordinator` and locked-target handler after commit.
 
 `platform_taxonomies` and `platform_taxonomy_nodes` provide a versioned global
 classification tree with a single default taxonomy, same-taxonomy ancestry,
@@ -565,7 +599,7 @@ HTTP transaction, database locks, or an application connection, and provider
 failure never rolls back merchant source content.
 
 `TranslationContentRegistry` resolves tagged `TranslationContentHandler`
-implementations. Brand, Category, Product Type, Product, and Store policy are registered handlers. A handler
+implementations. Brand, Collection, Category, Product Type, Product, and Store policy are registered handlers. A handler
 selects the source and active/unlocked targets, supplies the field contract,
 and applies structured output. Snapshot hashes include source data and target
 revisions. Workers check the hash before and after the provider call, mark
@@ -603,13 +637,13 @@ primary category per product, keeps every relationship within the same Store
 and product, and constrains lifecycle/type values. Variant money follows the
 platform convention: non-negative integer minor units plus an uppercase
 three-letter currency code. Catalog registers REST for Brand CRUD/media,
-Product CRUD, nested Product Option/Variant/Image metadata, Custom Fields, and
+Collection management, Product CRUD, nested Product Option/Variant/Image metadata, Custom Fields, and
 Fulfillment Types. Its module-owned GraphQL schema exposes paginated/filterable
 Category/Product Type/Product/Custom Field queries and explicit mutations backed by
 `CategoryManagementService`, `ProductTypeManagementService`, and
 `ProductManagementService` and `CustomFieldManagementService`. Categories and
-Product Types deliberately have no REST routes; Brands, Product Options,
-Product Variants, and Product Images deliberately have no GraphQL fields.
+Product Types deliberately have no REST routes; Brands, Collections, Product
+Options, Product Variants, and Product Images deliberately have no GraphQL fields.
 Reads require active Store membership; writes require `manage products`;
 Store-owned relationships accept same-Store ULIDs while Platform taxonomy
 nodes use global ULIDs. Custom-field writes accept only the value property
@@ -1231,6 +1265,7 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Stores module](modules/stores.md)
 - [Billing module](modules/billing.md)
 - [Catalog module](modules/catalog.md)
+- [Customers module](modules/customers.md)
 - [Catalog schema reference](catalog.md)
 - [Product Detail Store Admin guide](product-detail-guide.md)
 - [Product Detail section-provider contract](module-communication/product-detail-section-providers.md)
@@ -1238,6 +1273,9 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Authentication](authentication.md)
 - [Platform settings](settings.md)
 - [Stores](stores.md)
+- [Store pages](pages.md)
+- [Customer management](customers.md)
+- [Legacy customer conversion](customer-data-conversion.md)
 - [Store management](store-management.md)
 - [Plans & Pricing](plans-and-pricing.md)
 - [GraphQL](graphql.md)

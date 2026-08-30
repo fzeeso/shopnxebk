@@ -1,0 +1,183 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Modules\Customers\Services\Translations;
+
+use App\Models\TranslationRequest;
+use App\Support\Translations\AutomatedTranslationWriter;
+use App\Support\Translations\Contracts\TranslationContentHandler;
+use App\Support\Translations\StoreTranslationLanguages;
+use App\Support\Translations\TranslationSelection;
+use App\Support\Translations\TranslationSnapshot;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Modules\Customers\Models\CustomerGroup;
+use Modules\Customers\Models\CustomerGroupTranslation;
+use Modules\Stores\Models\Store;
+
+final readonly class CustomerGroupTranslationHandler implements TranslationContentHandler
+{
+    public function __construct(
+        private StoreTranslationLanguages $languages,
+        private AutomatedTranslationWriter $writer,
+    ) {}
+
+    public function contentType(): string
+    {
+        return 'customer_group';
+    }
+
+    public function snapshot(
+        Store $store,
+        int $contentId,
+        TranslationSelection $selection,
+    ): ?TranslationSnapshot {
+        $group = CustomerGroup::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $store->getKey())
+            ->find($contentId);
+        if (! $group instanceof CustomerGroup) {
+            return null;
+        }
+
+        $languages = $this->languages->activeFor($store);
+        $defaultLanguage = $languages->first(fn (object $row): bool => (bool) $row->is_default)
+            ?? $languages->first();
+        if (! is_object($defaultLanguage)) {
+            return null;
+        }
+        $defaultLocale = $this->normalizeLocale((string) $defaultLanguage->locale);
+        if ($selection->expectedSourceLocale !== null
+            && $this->localeKey($selection->expectedSourceLocale) !== $this->localeKey($defaultLocale)) {
+            return null;
+        }
+
+        $source = CustomerGroupTranslation::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $store->getKey())
+            ->where('customer_group_id', $group->getKey())
+            ->where('language_id', (int) $defaultLanguage->id)
+            ->first();
+        if (! $source instanceof CustomerGroupTranslation) {
+            return null;
+        }
+
+        $existing = CustomerGroupTranslation::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $store->getKey())
+            ->where('customer_group_id', $group->getKey())
+            ->get(['language_id', 'lock_it', 'updated_at'])
+            ->keyBy(fn (CustomerGroupTranslation $row): int => (int) $row->language_id);
+        $languagesByKey = $languages->mapWithKeys(fn (object $row): array => [
+            $this->localeKey((string) $row->locale) => $row,
+        ]);
+        $targets = collect($selection->targetLocales ?? $languages->pluck('locale')->all())
+            ->map(fn (mixed $locale): string => $this->normalizeLocale((string) $locale))
+            ->filter(function (string $locale) use ($defaultLanguage, $existing, $languagesByKey, $selection): bool {
+                $language = $languagesByKey->get($this->localeKey($locale));
+                if (! is_object($language) || (int) $language->id === (int) $defaultLanguage->id) {
+                    return false;
+                }
+                $translation = $existing->get((int) $language->id);
+
+                return ! (bool) ($translation?->lock_it ?? false)
+                    && (! $selection->missingOnly || $translation === null);
+            })
+            ->map(fn (string $locale): string => (string) $languagesByKey->get($this->localeKey($locale))->locale)
+            ->unique(fn (string $locale): string => $this->localeKey($locale))
+            ->values()
+            ->all();
+
+        return new TranslationSnapshot(
+            sourceLocale: $defaultLocale,
+            sourceFields: ['name' => (string) $source->name],
+            targetLocales: $targets,
+            contentDescription: 'customer group display name',
+            requiredFields: ['name'],
+            metadata: [
+                'source_updated_at' => $source->updated_at?->toIso8601String(),
+                'target_revisions' => collect($targets)->mapWithKeys(function (string $locale) use ($existing, $languagesByKey): array {
+                    $language = $languagesByKey->get($this->localeKey($locale));
+                    $translation = is_object($language) ? $existing->get((int) $language->id) : null;
+
+                    return [$this->localeKey($locale) => $translation?->updated_at?->toIso8601String()];
+                })->all(),
+            ],
+        );
+    }
+
+    public function apply(
+        TranslationRequest $request,
+        TranslationSnapshot $snapshot,
+        array $translations,
+    ): void {
+        $group = CustomerGroup::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $request->store_id)
+            ->whereKey($request->content_id)
+            ->lockForUpdate()
+            ->firstOrFail();
+        $store = Store::query()->findOrFail($request->store_id);
+        $languages = $this->languages->activeFor($store);
+        $languagesByKey = $languages->mapWithKeys(fn (object $row): array => [
+            $this->localeKey((string) $row->locale) => $row,
+        ]);
+        $targetLanguageIds = collect($snapshot->targetLocales)
+            ->map(fn (string $locale): ?int => is_object($languagesByKey->get($this->localeKey($locale)))
+                ? (int) $languagesByKey->get($this->localeKey($locale))->id
+                : null)
+            ->filter()
+            ->values();
+        $existing = CustomerGroupTranslation::query()
+            ->withoutGlobalScopes()
+            ->where('store_id', $store->getKey())
+            ->where('customer_group_id', $group->getKey())
+            ->whereIn('language_id', $targetLanguageIds)
+            ->get()
+            ->keyBy(fn (CustomerGroupTranslation $row): int => (int) $row->language_id);
+        $now = now();
+        $rows = [];
+
+        foreach ($snapshot->targetLocales as $locale) {
+            $localeKey = $this->localeKey($locale);
+            $language = $languagesByKey->get($localeKey);
+            $fields = $translations[$localeKey] ?? null;
+            if (! is_object($language) || ! is_array($fields)) {
+                throw ValidationException::withMessages([
+                    'translation' => ["Automatic customer-group translation omitted locale [{$locale}]."],
+                ]);
+            }
+            $previous = $existing->get((int) $language->id);
+            if ((bool) ($previous?->lock_it ?? false)) {
+                continue;
+            }
+            $rows[] = [
+                'public_id' => (string) ($previous?->public_id ?? Str::ulid()),
+                'store_id' => $store->getKey(),
+                'customer_group_id' => $group->getKey(),
+                'language_id' => (int) $language->id,
+                'name' => $fields['name'],
+                'created_at' => $previous?->created_at ?? $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        $this->writer->upsert(
+            'customer_group_translations',
+            $rows,
+            ['customer_group_id', 'language_id'],
+            ['name', 'updated_at'],
+        );
+    }
+
+    private function normalizeLocale(string $locale): string
+    {
+        return str_replace('-', '_', trim($locale));
+    }
+
+    private function localeKey(string $locale): string
+    {
+        return Str::lower($this->normalizeLocale($locale));
+    }
+}

@@ -10,6 +10,7 @@ Implemented modules:
 | Themes | Marketplace publishers/categories/listings, immutable releases/review, Store licenses, and installed/customized Store copies |
 | Billing | Platform plan prices, reusable features, add-on assignments, and plan administration |
 | Catalog | Store-local brands, collections, taxonomy, products, variants, fulfillment metadata, custom fields, and explicitly split REST/GraphQL contracts |
+| Customers | Store-local customer profiles, groups, multilingual group names, append-only credit ledger, category access, and targeted group discounts |
 
 The following modules are planned but are not created:
 
@@ -17,7 +18,6 @@ The following modules are planned but are not created:
 | --- | --- | --- |
 | Inventory | stock levels, reservations, adjustments | Catalog |
 | Orders | carts, checkout, order lifecycle | Customers, Inventory, Discounts, Taxes, Shipping, Payments |
-| Customers | customer profiles and addresses | Authentication (identity contract) |
 | Payments | provider-independent payment intents and captures | Orders, Billing |
 | Shipping | rates, labels, fulfillment state | Orders, Inventory |
 | Taxes | jurisdiction and tax calculation adapters | Orders, Catalog |
@@ -48,3 +48,7 @@ extend the aggregate use the
 All modules inherit the
 identifier, Store-language, and authorization rules from
 [application context](context.md).
+
+Customers is documented in the [Customers module](modules/customers.md), the
+[Store Admin customer guide](customers.md), and the
+[legacy conversion runbook](customer-data-conversion.md).

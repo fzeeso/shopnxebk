@@ -44,6 +44,7 @@
             "Modules\\Authentication\\": "Modules/Authentication/app/",
             "Modules\\Billing\\": "Modules/Billing/app/",
             "Modules\\Catalog\\": "Modules/Catalog/app/",
+            "Modules\\Customers\\": "Modules/Customers/app/",
             "Modules\\Settings\\": "Modules/Settings/app/",
             "Modules\\Stores\\": "Modules/Stores/app/",
             "Modules\\Themes\\": "Modules/Themes/app/"

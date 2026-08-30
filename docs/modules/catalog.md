@@ -3,8 +3,8 @@
 `Modules/Catalog` owns the global Platform classification taxonomy plus the
 Store-local merchandising and product persistence foundation, the reusable
 multi-language Product Modifier library, the global
-localized fulfillment catalog, Brand/Fulfillment Type/Product/Custom Field REST
-routes, Category/Product Type/Product/Custom Field GraphQL schema, Catalog models,
+localized fulfillment catalog, Brand/Collection/Fulfillment Type/Product/Custom
+Field REST routes, Category/Product Type/Product/Custom Field GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Product files/fulfillment, search
 projections, and admin screens remain follow-up work.
@@ -17,6 +17,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Resource | Supported API surface |
 | --- | --- |
 | Brand | Store REST CRUD and signed media delivery; no GraphQL fields |
+| Collection | Store REST CRUD, rule/manual-membership replacement, deterministic refresh, membership reads, and read-only AI history; no GraphQL fields |
 | Category | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product Type | GraphQL list/detail/create/update/delete only; no Store REST route |
 | Product | Store REST and GraphQL lifecycle APIs |
@@ -86,6 +87,14 @@ explicit route or GraphQL field is implemented and documented.
 - Categories form the strict merchant-curated taxonomy. Collections are
   merchandising groups and may be manual, rule-based, or AI-generated.
   PostgreSQL permits only one primary category assignment per Store/product.
+- `CollectionManagementService` is the Collection aggregate boundary. Reads
+  require active membership and writes require `manage products`. It resolves
+  every parent/Product ULID in the selected Store, prevents hierarchy cycles,
+  synchronizes localized rows and translation requests, replaces ordered rules
+  and the manual subset of Product memberships, and evaluates allow-listed
+  rules transactionally. Refresh deletes only unpinned automated memberships;
+  manual and pinned includes survive. AI job rows are exposed as read-only audit
+  history until an executor is implemented.
 - Products retain product-level commerce snapshots for SKU and external trade
   identifiers, downloadable-file/availability metadata, six decimal price
   values, inventory thresholds, warranty, shipping dimensions/cost, rating and
@@ -129,7 +138,7 @@ explicit route or GraphQL field is implemented and documented.
   accept global Platform taxonomy-node ULIDs, validate Category cycles, and replace product
   category/primary assignments atomically. Lists use bounded pagination plus
   explicit filter and sort allow-lists.
-- Category, Product Type, and Product translation inputs accept only active Store locales.
+- Collection, Category, Product Type, and Product translation inputs accept only active Store locales.
   Manual `lock_it` values are preserved, source writes create durable
   translation requests, generated localized slugs remain Store/locale unique,
   and entity-specific handlers recheck stale snapshots and locked targets.
@@ -229,7 +238,7 @@ Product files still have no upload, scan, signing, or delivery workflow.
   filters/sorts, exact normalized-locale selection, Product counts, and public
   ULIDs. Create/update/delete require `manage products`; deletion cascades its
   translations and nulls Product references without deleting Products.
-- Catalog's Brand, Category, Product Type, and Product services request automatic translation
+- Catalog's Brand, Collection, Category, Product Type, and Product services request automatic translation
   through the shared `TranslationCoordinator`. Their handlers own only each
   entity's field, slug, locale, and locked-row behavior. They never perform an
   external AI call inside a Catalog write transaction.
@@ -240,13 +249,15 @@ Product files still have no upload, scan, signing, or delivery workflow.
 - Inventory owns stock ledgers/reservations when implemented. The current
   variant quantity and policy are the requested sellability snapshot, not an
   Inventory module substitute.
-- Cart, Orders, Sales Channels, and Customer Groups are not installed modules.
-  Catalog therefore provides `CartModifierSelectionService` and
+- Cart, Orders, and Sales Channels are not installed modules. Customers now
+  owns Customer Groups and exports a Store-scoped public-ULID resolver. Catalog
+  still provides `CartModifierSelectionService` and
   `OrderModifierSnapshotService` integration seams and nullable internal
   audience columns, but no cart/checkout HTTP route. The migration adds
   `cart_items`/`order_items` foreign keys only when those owning tables already
-  exist. Audience IDs are not accepted by the public modifier API until those
-  modules provide public ULIDs and Store-scoped resolvers.
+  exist. Audience IDs are not accepted by the public modifier API until the
+  modifier services explicitly consume the Customers resolver and define
+  deletion/snapshot behavior.
 
 See [Catalog to Stores](../module-communication/catalog-to-stores.md),
 [Catalog to Settings](../module-communication/catalog-to-settings.md), and

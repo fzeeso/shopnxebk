@@ -7,8 +7,11 @@ records. The source of truth is the twenty-two migrations under
 migration; this reference explains their columns,
 relationships, constraints, indexes, deletion behavior, and intended use.
 
-The Brand slice includes Store-scoped models and REST CRUD services. Category
-and Product Type lifecycle APIs are GraphQL-only. Products have both
+The Brand and Collection slices include Store-scoped models and REST CRUD
+services. Collection REST also exposes rule replacement, manual Product
+membership replacement, deterministic refresh, paginated membership reads,
+and read-only AI job history. Category and Product Type lifecycle APIs are
+GraphQL-only. Products have both
 transactional GraphQL lifecycle operations and Store REST CRUD; Product Images
 and Product Options/Variants have nested REST CRUD. Custom Fields expose REST
 and GraphQL definition/option lifecycle plus Product/Variant typed values.
@@ -293,6 +296,13 @@ Primary key: `(brand_id, locale)`. Slug uniqueness:
 Collections are merchandising groups. Unlike categories, they may be populated
 manually, from structured rules, or from AI-generated rules.
 
+Authenticated Store REST is available at `/api/v1/store/collections`. Reads
+require active membership; writes require `manage products`. The aggregate
+service owns hierarchy checks, translation synchronization, ordered rule
+replacement, manual membership replacement, and rule evaluation. The AI job
+ledger is read-only through this release: no HTTP operation invokes an AI
+provider or creates a job.
+
 ### `collections`
 
 Includes the shared entity columns plus:
@@ -346,8 +356,10 @@ shared entity columns plus:
 | `position` | `integer` | Default `0` | Deterministic condition order |
 
 Index: `(store_id, collection_id, position)`. The database does not enumerate
-allowed fields/operators; the future rule service owns that whitelist and
-type-aware value parsing.
+allowed fields/operators; `CollectionManagementService` owns the whitelist and
+type-aware value validation. The REST contract supports string comparisons for
+`vendor`, `sku`, `status`, `product_type`, `title`, `brand`, and `tag`, plus
+numeric comparisons for `price`.
 
 ### `collection_ai_jobs`
 
@@ -367,8 +379,10 @@ plus:
 | `completed_at` | `timestamptz` | Nullable | Terminal completion/failure time |
 
 Index: `(store_id, collection_id, created_at)`. The row does not itself update
-`collection_rules` or `product_collections`; a future transactional job/service
-must do that and preserve pinned assignments.
+`collection_rules` or `product_collections`. A future AI executor must normalize
+its result through the Collection service and then use the same transactional
+membership refresh, which preserves manual and pinned assignments. The current
+REST API exposes this ledger as paginated read-only history.
 
 ### `product_collections`
 
@@ -386,8 +400,12 @@ Primary key: `(collection_id, product_id)`. Both parents must belong to
 `store_id`. Indexes cover `(store_id, product_id)` and
 `(store_id, collection_id, sort_order)`.
 
-Regeneration semantics are an application responsibility: automated refreshes
-should modify unpinned automated rows and preserve pinned merchant decisions.
+`POST /api/v1/store/collections/{collection}/refresh` implements regeneration
+semantics in one transaction: it deletes unpinned `rule`/`ai` rows, preserves
+manual and pinned rows, and inserts current rule matches. The schema represents
+pinned includes only; it has no negative membership row for a pinned exclusion.
+Changing a Collection to `manual` clears its saved rules and removes unpinned
+automated memberships while retaining pinned includes.
 
 ## 6. Categories and tags
 

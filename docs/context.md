@@ -8,6 +8,12 @@ ShopNXE is a multi-store SaaS commerce platform. A **store** is the business/acc
 
 A **user** is an authenticated identity stored in the shared `users` table, but every row has one exclusive `scope`: `platform` or `store`. Platform administrators/support/billing staff are Platform users. Store owners/managers/sales/inventory staff are Store users. A user cannot change scope while memberships, roles, or direct permissions exist.
 
+A **customer** is a Store-owned buyer profile, not a merchant/admin `user`.
+Customers may share an email across different Stores and do not receive Store
+roles, merchant memberships, or merchant Sanctum tokens. Storefront customer
+authentication remains a future Authentication contract; the Customers module
+currently exposes merchant management, grouping, credit, and eligibility data.
+
 ## Access interfaces
 
 The two account classes and interfaces are mutually exclusive:
@@ -153,8 +159,8 @@ Plan administration is Platform-only and requires `manage plans`. `Super Admin` 
 
 ## Catalog persistence contract
 
-Catalog's public API surface is deliberately mixed: Brands use Store REST;
-Categories and Product Types use GraphQL only; Products use both Store REST and
+Catalog's public API surface is deliberately mixed: Brands and Collections use
+Store REST; Categories and Product Types use GraphQL only; Products use both Store REST and
 GraphQL; Product Options, Variants, and Product Images use nested Store REST
 endpoints; and
 Fulfillment Types use Platform/Store REST. There are no Store REST routes for
@@ -178,7 +184,7 @@ import, and AI writers must skip locked rows through
 flag on translation tables added later.
 
 Automatic translation is always asynchronous in Redis-backed environments.
-Brand, Category, Product Type, Product, and Store-policy writes save the source and a Store-scoped
+Brand, Collection, Category, Product Type, Product, Customer Group, Store Page, and Store-policy writes save the source and a Store-scoped
 `translation_requests` ledger row in one transaction. Only after commit may
 `TranslateContentJob` enter the dedicated `translations` queue. The external
 provider call runs without database locks or an open transaction; a short
@@ -196,8 +202,26 @@ after-commit dispatcher, snapshot hashes, `lock_it` recheck, Store-aware job,
 retry policy, and scheduled recovery are shared infrastructure rather than
 feature-specific implementations.
 
+## Store Page persistence contract
+
+Stores owns `pages` and `page_translations`. Core Page rows hold same-Store
+hierarchy, type, lifecycle, sorting/layout, homepage/customer/SEO flags,
+type-specific link/feed/contact configuration, and audit/publication state.
+Translations reference Settings-owned languages and hold localized title,
+Unicode slug, content, summary, SEO/search fields, and `lock_it`. PostgreSQL
+enforces tenant-matching hierarchy and translations, one homepage per Store,
+one translation per Page/language, and case-insensitive slug uniqueness per
+Store/language. Admin reads require active membership; mutations reuse
+`manage policies`. DELETE disables rather than physically removing content.
+See [Store pages](pages.md).
+
 Categories are the strict Store navigation taxonomy; collections are manual,
-rule-based, or AI-generated merchandising groups. Platform taxonomies are
+rule-based, or AI-generated merchandising groups. Collection REST delegates to
+one Store-scoped service for hierarchy, translations, rules, manual memberships,
+and deterministic refresh. Refresh evaluates allow-listed Product fields,
+replaces only unpinned automated `product_collections` rows, and preserves
+manual/pinned includes. `collection_ai_jobs` is readable audit history; no
+public operation starts AI generation yet. Platform taxonomies are
 versioned global classification trees with stable node code/path identity and
 optional node-to-custom-field behavior. Product types are a Store-local
 reference catalog with stable public ULIDs/codes, nullable Platform node
@@ -343,12 +367,43 @@ the requested-locale translation before Store-default and safe internal copy.
 value ownership, free-form input, Store-owned media, and validation rules; it
 recalculates all prices and writes one row per selected value.
 `OrderModifierSnapshotService` creates append-only localized order rows that do
-not depend on later catalog translations or prices. No Cart, Orders, Sales
-Channel, or Customer Group module currently owns public APIs or stable tables,
-so these are integration services rather than registered cart/checkout routes.
-The migration conditionally adds cart/order foreign keys when the owning tables
-exist, and the public modifier APIs prohibit internal audience IDs until public
-ULID resolvers exist.
+not depend on later catalog translations or prices. No Cart, Orders, or Sales
+Channel module currently owns public APIs or stable tables. Customers now owns
+stable customer-group tables and exports a Store-scoped public-ULID resolver,
+but Catalog modifier audience inputs remain prohibited until their services
+explicitly consume that contract and define snapshot/deletion behavior. The
+migration conditionally adds cart/order foreign keys when the owning tables
+exist.
+
+## Customer persistence contract
+
+Customers owns Store-local customer profiles, groups, group display-name
+translations, signed credit ledger rows, explicit group/Category access, and
+group discounts targeting one Category or Product. Addressable rows use bigint
+internal IDs and public ULIDs. Every table repeats the trusted Store key, and
+composite foreign keys reject customer/group/Catalog associations across
+Stores. Lower-cased customer email is unique only within one Store among
+non-deleted rows.
+
+Only the customer-group display name is multilingual. Stable group codes,
+customer identity/contact data, credentials, notes, points, ledger reasons,
+discount methods, percentages, target types, and application rules remain
+language-neutral. Group creation requires its default active Store-language
+name; the shared after-commit translation pipeline fills unlocked missing
+languages under content type `customer_group`.
+
+Customer credits are append-only in the application contract. The balance is a
+signed `SUM(amount)` projection, not a mutable profile field; corrections use
+compensating adjustments. Customer DELETE disables and soft-deletes the profile
+without exposing a credit deletion path. Customer routes never accept or return
+passwords, legacy hashes/salts, internal IDs, or legacy tokens.
+
+Reads require active Store membership, writes require `manage customers`, and
+all routes use Store-bound lookup. Customers exports `CustomerGroupResolver`
+for future Orders/Discounts/Catalog audience consumers and uses a
+`CatalogTargetResolver` port for same-Store Category/Product references. See
+[Customers](customers.md), the [Customers module](modules/customers.md), and the
+[conversion runbook](customer-data-conversion.md).
 
 ## Reusable media boundary
 
@@ -454,7 +509,7 @@ cleanup are separately flagged so one operational change can be rolled back
 without changing the domain contract. See the
 [AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md).
 
-See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Product Detail Store Admin guide](product-detail-guide.md), [Product Detail section-provider contract](module-communication/product-detail-section-providers.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Product Detail Store Admin guide](product-detail-guide.md), [Product Detail section-provider contract](module-communication/product-detail-section-providers.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Store pages](pages.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

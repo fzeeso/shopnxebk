@@ -12,7 +12,7 @@ The maximum is 100. Responses keep records in `data` and add Laravel
 `links` and `meta` pagination objects. This applies to personal access tokens,
 Platform users, Stores, merchants, plans, features, currencies, languages,
 Themes, Theme publishers/categories, installed Store Themes, and selected-Store
-users. Selector/option endpoints such as roles, active Store memberships, and
+users, customers, customer credits, and customer groups. Selector/option endpoints such as roles, active Store memberships, and
 Store language choices remain complete unpaginated lists.
 
 User and merchant administration contracts:
@@ -179,6 +179,46 @@ in the selected set. Language catalog and Store option responses include a
 render-ready `lang_image` and `lang_icon` URLs for storefront/admin switchers
 and translation editors.
 
+Store Page Admin REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/pages` | Paginate/filter Pages or create a draft Page with initial active-language translations. |
+| `GET/PATCH/DELETE` | `/api/v1/store/pages/{page}` | Read, update, or non-destructively disable one selected-Store Page. |
+| `POST` | `/api/v1/store/pages/{page}/enable` | Move disabled to draft. |
+| `POST` | `/api/v1/store/pages/{page}/disable` | Disable and clear publication time. |
+| `POST` | `/api/v1/store/pages/{page}/publish` | Publish after type/default-language validation. |
+| `POST` | `/api/v1/store/pages/{page}/unpublish` | Return published to draft. |
+| `PUT/DELETE` | `/api/v1/store/pages/{page}/translations/{language}` | Upsert/delete localized title/Unicode slug/content/SEO/search fields and overwrite lock. |
+
+Reads require active Store membership; writes reuse `manage policies`. Saving
+the default-language translation creates shared after-commit translation work
+for unlocked active Store languages. DELETE preserves the Page and translations
+by disabling it. No Storefront Page route is included yet. See
+[Store pages](pages.md).
+
+Customer Admin REST contracts:
+
+| Method | Route | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/customers` | Page/search/filter or create selected-Store customer profiles. |
+| `GET/PATCH/DELETE` | `/api/v1/store/customers/{customer}` | Read/edit or disable and soft-delete one customer public ULID. |
+| `GET/POST` | `/api/v1/store/customers/{customer}/credits` | Page the signed ledger or append one non-zero return/gift/adjustment entry. |
+| `GET/POST` | `/api/v1/store/customer-groups` | Page/search groups or create stable logic plus default-language display name. |
+| `GET/PATCH/DELETE` | `/api/v1/store/customer-groups/{customerGroup}` | Read/edit or safely delete an unused non-default group. |
+| `PUT/DELETE` | `/api/v1/store/customer-groups/{customerGroup}/translations/{language}` | Upsert/delete an active Store-language group name; default cannot be deleted. |
+| `PUT` | `/api/v1/store/customer-groups/{customerGroup}/categories` | Replace the explicit Category allow-list for a `specific` group. |
+| `POST` | `/api/v1/store/customer-groups/{customerGroup}/discounts` | Create one same-Store Category/Product discount target. |
+| `PUT/DELETE` | `/api/v1/store/customer-groups/{customerGroup}/discounts/{discount}` | Replace/delete a nested target discount. |
+
+Reads require Store scope, `X-Store-ID`, and active membership; writes add
+`manage customers`. Only group display names are multilingual. Customer
+identity/credentials/notes/points and credit/discount audit/logic fields are
+not translated. Credits are append-only, passwords and legacy IDs are
+prohibited, balance is a ledger sum, and Customer DELETE is soft. See
+[Customer management](customers.md) and the
+[legacy conversion runbook](customer-data-conversion.md).
+
 Store policy REST contracts:
 
 | Method | Route | Scope and purpose |
@@ -209,12 +249,29 @@ write. Provider failures do not roll back source content. The write response's
 nullable `translation_request` can be polled at the generic status URL. See
 [Store policies](store-policies.md).
 
-Catalog API exposure is intentionally mixed. Brands, Products, nested Product
-Images, and Fulfillment Types have REST contracts. Categories and Product Types
+Catalog API exposure is intentionally mixed. Brands, Collections, Products,
+nested Product Images, and Fulfillment Types have REST contracts. Categories and Product Types
 do not: their supported list/detail/create/update/delete contracts are GraphQL
 operations at `POST /graphql`. No `/api/v1/store/categories` or
 `/api/v1/store/product-types` route is registered. Products remain available
 through both REST and GraphQL.
+
+Store Collection REST contracts:
+
+| Method | URL | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/collections` | Page/filter Collections or create language-neutral metadata, localized rows, optional rules, and optional manual memberships. |
+| `GET/PATCH/DELETE` | `/api/v1/store/collections/{collection}` | Read/update one aggregate or delete it with dependent rows while retaining children as roots. |
+| `PUT` | `/api/v1/store/collections/{collection}/rules` | Replace the complete ordered rule set for a non-manual Collection. |
+| `GET/PUT` | `/api/v1/store/collections/{collection}/products` | Page memberships or replace only the manual membership subset. |
+| `POST` | `/api/v1/store/collections/{collection}/refresh` | Evaluate saved rules and atomically replace unpinned automated membership rows. |
+| `GET` | `/api/v1/store/collections/{collection}/ai-jobs` | Page read-only AI execution history; this release does not start AI jobs. |
+
+Reads require active Store membership; writes require `manage products`.
+Every parent/Product ULID is resolved inside the selected Store. Refresh
+preserves manual and pinned includes, records `rule` or `ai` as the source of
+new automated joins, and returns the number of matched Products. See the
+[Collection information flow](api-manual.md#21-collection-rest-information-flow).
 
 Store Brand REST contracts:
 

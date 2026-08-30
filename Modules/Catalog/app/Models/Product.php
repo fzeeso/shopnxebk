@@ -109,6 +109,14 @@ final class Product extends Model
             ->orderByPivot('sort_order');
     }
 
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(Collection::class, 'product_collections')
+            ->withPivot(['store_id', 'sort_order', 'added_by', 'is_pinned'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('position')->orderBy('id');

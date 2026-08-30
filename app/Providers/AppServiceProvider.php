@@ -30,10 +30,12 @@ use Modules\Catalog\Services\ProductDetailReferenceCacheInvalidator;
 use Modules\Catalog\Services\ProductDetailSectionRegistry;
 use Modules\Catalog\Services\Translations\BrandTranslationHandler;
 use Modules\Catalog\Services\Translations\CategoryTranslationHandler;
+use Modules\Catalog\Services\Translations\CollectionTranslationHandler;
 use Modules\Catalog\Services\Translations\ProductTranslationHandler;
 use Modules\Catalog\Services\Translations\ProductTypeTranslationHandler;
 use Modules\Stores\Contracts\StoreContext;
 use Modules\Stores\Models\Store;
+use Modules\Stores\Services\Translations\PageTranslationHandler;
 use Modules\Stores\Services\Translations\StorePolicyTranslationHandler;
 use Modules\Stores\StoreFinder\StoreLookupCache;
 use Modules\Stores\Support\StoreRuntimeDatabaseGuard;
@@ -49,8 +51,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->tag([
             BrandTranslationHandler::class,
             CategoryTranslationHandler::class,
+            CollectionTranslationHandler::class,
             ProductTranslationHandler::class,
             ProductTypeTranslationHandler::class,
+            PageTranslationHandler::class,
             StorePolicyTranslationHandler::class,
         ], TranslationContentHandler::class);
         $this->app->singleton(
@@ -115,6 +119,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->loadMigrationsFrom(base_path('Modules/Catalog/database/migrations'));
         $this->loadRoutesFrom(base_path('routes/brand-api.php'));
+        $this->loadRoutesFrom(base_path('routes/collection-api.php'));
         $this->loadRoutesFrom(base_path('routes/fulfillment-type-api.php'));
         $this->loadRoutesFrom(base_path('routes/product-api.php'));
         $this->loadRoutesFrom(base_path('routes/shared-product-option-api.php'));

@@ -1,0 +1,9 @@
+{
+    "name": "Customers",
+    "alias": "customers",
+    "description": "Store-scoped customer profiles, groups, credit ledger, category access, and targeted group discounts.",
+    "keywords": ["customers", "segments", "credit"],
+    "priority": 20,
+    "providers": ["Modules\\Customers\\Providers\\CustomersServiceProvider"],
+    "files": []
+}

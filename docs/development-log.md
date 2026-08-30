@@ -1,5 +1,90 @@
 # Development log
 
+## 2026-08-31 - Customer tables applied to local PostgreSQL
+
+- Changed: Executed only the named additive Customers migration
+  `2026_08_31_001000_create_customer_domain_tables` against the configured
+  local PostgreSQL database.
+- Reason: The user explicitly authorized creation of the prepared Customers
+  tables so the registered Store-admin APIs have their persistence schema.
+- Data/configuration impact: Created six empty tables: `customer_groups`,
+  `customer_group_translations`, `customers`, `customer_credits`,
+  `customer_group_categories`, and `customer_group_discounts`. No legacy or
+  existing Store row was imported, updated, or deleted.
+- Compatibility or rollout notes: The migration was recorded in batch 42 for
+  this local database only. Other environments still require a separately
+  reviewed named migration and the documented data-import process.
+- Verification: Confirmed the `local` environment and PostgreSQL driver,
+  inspected the migration as additive-only, verified all five dependency
+  tables existed and all six targets were absent, ran the named migration, then
+  verified its `Ran` status, all target tables, and all 18 customer routes.
+
+## 2026-08-31 - Collection aggregate REST services
+
+- Changed: Added Store-scoped Collection/translation/rule/AI-job models,
+  `CollectionManagementService`, REST CRUD, full rule and manual-membership
+  replacement, deterministic rule refresh, paginated Product memberships,
+  read-only AI history, Product reverse relationships, and automatic
+  translation-handler registration.
+- Reason: Collection persistence existed without an application/API boundary,
+  so clients could not safely manage the aggregate or observe how rules and
+  Products become `product_collections` rows.
+- Data/configuration impact: No migration or Store-data operation was run. The
+  service uses the existing five Collection tables and existing `manage
+  products` permission. AI job history is read-only and no provider call is
+  introduced.
+- Compatibility or rollout notes: New additive routes live under
+  `/api/v1/store/collections`. Rule refresh preserves manual and pinned includes
+  and replaces only unpinned automated rows. There is no pinned-exclusion
+  representation in the current schema.
+- Verification: PHP syntax, targeted static analysis, targeted formatting,
+  route discovery for all ten Collection operations, six non-database contract
+  tests (15 assertions), and documentation generation/checks passed. Database-
+  backed tests were not run because repository safety rules forbid test writes.
+
+## 2026-08-31 - Legacy Customer domain PostgreSQL conversion
+
+- Changed: Added the enabled `Customers` module with six additive PostgreSQL
+  tables, Store-safe public-ULID models, customer/group/credit/category-access/
+  targeted-discount services and REST routes, automatic customer-group name
+  translation, a Catalog target port, and an exported customer-group resolver.
+- Reason: The schema-only MariaDB dump contained five MyISAM customer tables
+  with Unix timestamps, plaintext token fields, weak relational integrity, and
+  one mixed presentation/logic group record. The new boundary normalizes the
+  domain without incorrectly translating customer identity or audit data.
+- Data/configuration impact: At implementation time the prepared migration
+  created only new empty tables and remained unapplied. The later explicitly
+  authorized local execution is recorded above. The module is enabled and
+  Composer autoload includes its namespace.
+- Compatibility or rollout notes: Only customer-group display names are
+  multilingual. Customer deletion is soft, credits are append-only, passwords
+  and legacy IDs are prohibited from management APIs, and legacy bearer/reset
+  tokens must expire at cutover. The source dump has no row data; use the
+  documented staged importer/reconciliation plan before any production cutover.
+- Verification: PHP syntax, route discovery, seven non-database contract/request
+  tests (41 assertions), and documentation/source checks passed at this stage.
+  Database-backed tests were not run; the later named local migration execution
+  is recorded above.
+
+## 2026-08-31 - Multilingual Store Pages and Admin APIs
+
+- Changed: Added additive PostgreSQL `pages` and `page_translations` tables,
+  Store-safe hierarchy and localized-slug constraints, Page models/services,
+  paginated Store Admin CRUD/lifecycle/translation routes, Unicode slug support,
+  and a locked-row-safe adapter for the shared after-commit translation queue.
+- Reason: The legacy single-language MySQL Page record needed a normalized,
+  Store-isolated PostgreSQL contract that keeps language-neutral configuration
+  separate from localized content and is usable through supported Admin APIs.
+- Data/configuration impact: Creates two new empty tables only. No existing
+  table, row, permission assignment, Store content, or environment secret is
+  changed. Page writes reuse the existing `manage policies` permission.
+- Compatibility or rollout notes: Page DELETE is non-destructive disable.
+  Storefront Page reads are intentionally not exposed yet. Default-language
+  saves may enqueue translations; `lock_it=true` prevents automated overwrite.
+- Verification: New PHP passed syntax and targeted PHPStan checks; routes
+  registered; six non-database contract/validation tests passed. The migration
+  was inspected as additive before its named local execution.
+
 ## 2026-08-28 - Reversible AWS scale-readiness controls
 
 - Changed: Added disabled-by-default flags for Store lookup and Product Detail

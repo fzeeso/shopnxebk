@@ -1,0 +1,9 @@
+{
+    "name": "shopnxe/customers",
+    "type": "laravel-module",
+    "autoload": {
+        "psr-4": {
+            "Modules\\Customers\\": "app/"
+        }
+    }
+}

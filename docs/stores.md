@@ -125,6 +125,23 @@ languages and owns only Store-specific selection rows. Numeric language and
 Store keys never cross the API; both contracts use public ULIDs. See
 [Platform settings](settings.md).
 
+## Store pages
+
+`pages` stores Store-owned hierarchy, page type, draft/published/disabled
+lifecycle, sorting/layout, homepage/customer/SEO flags, type-specific link/feed
+or contact configuration, and audit timestamps/users. `page_translations`
+stores one title/slug/content/summary/SEO/search record per Page/language and
+uses `lock_it` to protect manual locale copy from automatic overwrite.
+PostgreSQL enforces same-Store parents/translations, one homepage per Store,
+one translation per language, and one case-insensitive slug per Store/language.
+
+Selected-Store Admin routes under `/api/v1/store/pages` provide paginated
+listing, create/read/update, non-destructive disable, enable/publish/unpublish,
+and per-language upsert/delete. Reads require active membership and writes use
+the existing `manage policies` permission. Saving the default-language row
+records after-commit translation work for unlocked active Store languages.
+See [Store pages](pages.md) for the complete schema and API contract.
+
 ## Store policies
 
 Stores owns the Platform policy-type catalog and Store-local policy records.

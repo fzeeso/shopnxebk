@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Brand, Product, composed Product Detail, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types remain GraphQL-only as standalone resources and are documented by the Lighthouse schema; the Product Detail façade exposes bounded selector projections for Store Admin composition.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Customer profiles/groups/credits/eligibility, Brand, Product, composed Product Detail, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types remain GraphQL-only as standalone resources and are documented by the Lighthouse schema; the Product Detail façade exposes bounded selector projections for Store Admin composition.
 servers:
   - url: http://localhost:8000
 tags:
@@ -18,8 +18,14 @@ tags:
     description: Platform marketplace/releases/licenses and Store-installed Theme copies.
   - name: Store Policies
     description: Platform policy-type catalog, Store-local translations/version history, and published storefront reads.
+  - name: Store Pages
+    description: Store Admin hierarchy, lifecycle, configuration, and multilingual Page content.
+  - name: Customers
+    description: Store-scoped buyer profiles, multilingual group display names, append-only credit ledger, Category access, and targeted group discounts.
   - name: Catalog Brands
     description: Store-scoped Brand identity, localized content, official website, and origin management.
+  - name: Catalog Collections
+    description: Store-scoped merchandising collections, localized content, rules, memberships, refreshes, and AI audit history.
   - name: Catalog Products
     description: Store-scoped Product lifecycle, localization, classification, pricing, inventory, and commerce metadata.
   - name: Catalog Custom Fields
@@ -846,6 +852,145 @@ paths:
         '204': {description: Policy type deleted}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Policy type not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/pages:
+    get:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Paginate and filter Pages for the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {name: page, in: query, schema: {type: integer, minimum: 1}}
+        - {name: per_page, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: status, in: query, schema: {type: string, enum: [disabled, draft, published]}}
+        - {name: page_type, in: query, schema: {type: string, enum: [content, contact, external_link, rss]}}
+        - {name: parent_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: root_only, in: query, schema: {type: boolean}}
+        - {name: language_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+      responses:
+        '200': {description: Paginated Store Page list with translations}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    post:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Create a draft Page and initial translations
+      description: Requires manage policies. All language ULIDs must be active for the selected Store.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreatePageRequest'}}}
+      responses:
+        '201': {description: Draft Page created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/pages/{page}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Read one Store Page and all translations
+      responses:
+        '200': {description: Store Page}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Page not found in selected Store}
+    patch:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Update language-neutral Page configuration
+      description: Requires manage policies. Translation content is managed through the language endpoint.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UpdatePageRequest'}}}
+      responses:
+        '200': {description: Page updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Page not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Disable a Page without deleting hierarchy or translations
+      description: Requires manage policies. This non-destructive endpoint clears publication state.
+      responses:
+        '204': {description: Page disabled}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Page not found in selected Store}
+  /api/v1/store/pages/{page}/enable:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Enable a disabled Page as a draft
+      responses:
+        '200': {description: Page enabled}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Page not found in selected Store}
+  /api/v1/store/pages/{page}/disable:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Disable a Page and clear publication time
+      responses:
+        '200': {description: Page disabled}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Page not found in selected Store}
+  /api/v1/store/pages/{page}/publish:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Publish a Page after type and default-language validation
+      responses:
+        '200': {description: Page published}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/pages/{page}/unpublish:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Return a published Page to draft
+      responses:
+        '200': {description: Page unpublished}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/v1/store/pages/{page}/translations/{language}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: page, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: language, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Upsert one complete localized Page record
+      description: A default-language save may queue every other unlocked active Store language after commit.
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/PageTranslationRequest'}}}
+      responses:
+        '200': {description: Page translation saved}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Store Pages]
+      security: [{sanctum: []}]
+      summary: Delete an eligible Page translation
+      description: A published Page must retain its default-language translation.
+      responses:
+        '204': {description: Page translation deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
         '422': {$ref: '#/components/responses/ValidationError'}
   /api/v1/store/policy-types:
     get:
@@ -1908,6 +2053,163 @@ paths:
         '404': {description: Product not found in selected Store}
         '409': {description: Product revision is stale; reload before reapplying pending sections}
         '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/collections:
+    get:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Page Collections for the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+        - {name: parent_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: root_only, in: query, schema: {type: boolean}}
+        - {name: is_active, in: query, schema: {type: boolean}}
+        - {name: collection_type, in: query, schema: {type: string, enum: [manual, rule_based, ai_generated]}}
+        - {name: sort_by, in: query, schema: {type: string, enum: [sort_order, created_at, updated_at]}}
+        - {name: sort_direction, in: query, schema: {type: string, enum: [asc, desc]}}
+      responses:
+        '200': {description: Paginated Store Collections with translations and aggregate counts}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    post:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Create a Store Collection
+      description: Requires manage products. Optional rules and manual Product memberships are committed with the Collection.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCollectionRequest'}}
+      responses:
+        '201': {description: Collection created}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/collections/{collection}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: collection, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Read one Collection with translations, rules, and aggregate counts
+      responses:
+        '200': {description: Store Collection}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+    patch:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Update one Collection
+      description: Requires manage products. Omitted translations, rules, and Products are unchanged. Changing collection_type to manual clears rules and unpinned automated memberships.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CollectionWriteRequest'}}
+      responses:
+        '200': {description: Collection updated}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Delete one Collection and its dependent rows
+      description: Requires manage products. Children remain and their parent_id becomes null.
+      responses:
+        '204': {description: Collection deleted}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+  /api/v1/store/collections/{collection}/rules:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: collection, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Replace the complete rule set for an automated Collection
+      description: Requires manage products. Manual Collections reject rules. This does not refresh membership until the refresh operation is called.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CollectionRuleReplacementRequest'}}
+      responses:
+        '200': {description: Collection with replaced rules}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/collections/{collection}/products:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: collection, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Page the Products assigned to one Collection
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated Product memberships including source, pin, and order metadata}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+    put:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Replace the complete set of manual Product memberships
+      description: Requires manage products. Automated rows are preserved; matching submitted rows become manual.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CollectionProductReplacementRequest'}}
+      responses:
+        '200': {description: Collection with refreshed membership count}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection or submitted Product not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/collections/{collection}/refresh:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: collection, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Evaluate saved rules and refresh automated Product memberships
+      description: Requires manage products. The transaction deletes only unpinned rule/AI rows, preserves manual and pinned rows, and inserts current matches.
+      responses:
+        '200': {description: Refreshed Collection plus meta.matched_count}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/collections/{collection}/ai-jobs:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: collection, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Collections]
+      security: [{sanctum: []}]
+      summary: Page append-only AI Collection job history
+      description: Read-only history in this release; no REST operation starts an AI rule-generation job.
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated AI job audit records}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Collection not found in the selected Store}
   /api/v1/store/products:
     get:
       tags: [Catalog Products]
@@ -2823,6 +3125,261 @@ paths:
             image/webp: {schema: {type: string, contentEncoding: binary}}
         '403': {description: Signed URL is missing, modified, or expired}
         '404': {description: Brand or requested media does not exist}
+  /api/v1/store/customers:
+    get:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Page and search customers in the selected Store
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 255}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/CustomerStatus'}}
+        - {name: customer_group_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      responses:
+        '200': {description: Paginated selected-Store customers with ledger balances}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Create a customer profile
+      description: Requires manage customers. Password, hash, token, and legacy identifier fields are prohibited. An omitted group uses the Store default when present.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCustomerRequest'}}
+      responses:
+        '201':
+          description: Customer created
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customers/{customer}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customer, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Read one selected-Store customer
+      responses:
+        '200':
+          description: Customer profile
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnvelope'}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Customer not found in selected Store}
+    patch:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Update a customer profile
+      description: Requires manage customers. Supplying null customer_group_id explicitly removes the assignment.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomerWriteRequest'}}
+      responses:
+        '200':
+          description: Customer updated
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerEnvelope'}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Customer not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Disable and soft-delete a customer
+      description: Requires manage customers. Credit history is preserved; no physical-delete API is exposed.
+      responses:
+        '204': {description: Customer disabled and soft-deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Customer not found in selected Store}
+  /api/v1/store/customers/{customer}/credits:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customer, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Page append-only customer credit entries
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+      responses:
+        '200': {description: Paginated signed credit ledger}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Customer not found in selected Store}
+    post:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Append a customer credit entry
+      description: Requires manage customers. There is no update/delete route; corrections use compensating adjustments.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCustomerCreditRequest'}}
+      responses:
+        '201':
+          description: Credit entry appended
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerCreditEnvelope'}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Customer not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups:
+    get:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Page and search customer groups
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 255}}
+      responses:
+        '200': {description: Paginated groups with translations, category IDs, and target discounts}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Create a customer group and default-language display name
+      description: Requires manage customers. Only display-name translations are multilingual; code and discount/access logic are stable fields.
+      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CreateCustomerGroupRequest'}}
+      responses:
+        '201':
+          description: Group created and optional after-commit translation requested
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupEnvelope'}}}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups/{customerGroup}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customerGroup, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Read one customer group
+      responses:
+        '200':
+          description: Group detail
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupEnvelope'}}}
+        '404': {description: Group not found in selected Store}
+    patch:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Update customer-group logic fields
+      description: Requires manage customers. Translations and category assignments use their dedicated endpoints.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/UpdateCustomerGroupRequest'}}
+      responses:
+        '200':
+          description: Group updated
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupEnvelope'}}}
+        '404': {description: Group not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Delete an unused non-default customer group
+      responses:
+        '204': {description: Group deleted}
+        '404': {description: Group not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups/{customerGroup}/translations/{language}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customerGroup, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: language, in: path, required: true, description: Active Store Language public ULID, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Customers, Translations]
+      security: [{sanctum: []}]
+      summary: Upsert one customer-group display-name translation
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomerGroupTranslationWriteRequest'}}
+      responses:
+        '200': {description: Translation saved; default-language writes may return translation_request}
+        '404': {description: Group or active Store language not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Customers, Translations]
+      security: [{sanctum: []}]
+      summary: Delete a non-default customer-group translation
+      responses:
+        '204': {description: Translation deleted}
+        '404': {description: Group or translation not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups/{customerGroup}/categories:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customerGroup, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Replace the specific Category access allow-list
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/ReplaceCustomerGroupCategoriesRequest'}}
+      responses:
+        '200':
+          description: Complete Category assignment replaced
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupEnvelope'}}}
+        '404': {description: Group or same-Store Category not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups/{customerGroup}/discounts:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customerGroup, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    post:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Create a Category or Product group discount
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomerGroupDiscountWriteRequest'}}
+      responses:
+        '201':
+          description: Target discount created
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupDiscountEnvelope'}}}
+        '404': {description: Group or same-Store Catalog target not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/customer-groups/{customerGroup}/discounts/{discount}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: customerGroup, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: discount, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Replace one nested target discount
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomerGroupDiscountWriteRequest'}}
+      responses:
+        '200':
+          description: Target discount replaced
+          content: {application/json: {schema: {$ref: '#/components/schemas/CustomerGroupDiscountEnvelope'}}}
+        '404': {description: Nested discount or same-Store Catalog target not found}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Customers]
+      security: [{sanctum: []}]
+      summary: Delete one nested target discount
+      responses:
+        '204': {description: Target discount deleted}
+        '404': {description: Nested discount not found}
   /graphql:
     post:
       summary: Lighthouse GraphQL endpoint
@@ -2848,6 +3405,212 @@ components:
       description: Public Store ULID
       schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
   schemas:
+    CustomerStatus:
+      type: string
+      enum: [active, disabled]
+    CustomerCreditType:
+      type: string
+      enum: [return, gift, adjustment]
+    CustomerGroupCategoryAccess:
+      type: string
+      enum: [none, all, specific]
+    CustomerGroupDiscountTarget:
+      type: string
+      enum: [category, product]
+    CustomerGroupDiscountAppliesTo:
+      type: string
+      enum: [category_only, category_and_descendants, not_applicable]
+    CustomerWriteRequest:
+      type: object
+      minProperties: 1
+      properties:
+        email: {type: string, format: email, maxLength: 320}
+        customer_group_id: {anyOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        company: {type: [string, 'null'], maxLength: 255}
+        first_name: {type: [string, 'null'], maxLength: 100}
+        last_name: {type: [string, 'null'], maxLength: 100}
+        phone: {type: [string, 'null'], maxLength: 50}
+        status: {$ref: '#/components/schemas/CustomerStatus'}
+        registered_ip: {type: [string, 'null'], format: ip}
+        admin_notes: {type: [string, 'null'], maxLength: 10000}
+        points_balance: {type: integer, minimum: 0}
+        redeemed_points: {type: integer, minimum: 0}
+        joined_at: {type: string, format: date-time}
+    CreateCustomerRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CustomerWriteRequest'}
+        - type: object
+          required: [email]
+    Customer:
+      type: object
+      required: [id, email, status, points_balance, redeemed_points, credit_balance, joined_at]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        customer_group_id: {anyOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        email: {type: string, format: email}
+        company: {type: [string, 'null']}
+        first_name: {type: [string, 'null']}
+        last_name: {type: [string, 'null']}
+        phone: {type: [string, 'null']}
+        status: {$ref: '#/components/schemas/CustomerStatus'}
+        registered_ip: {type: [string, 'null']}
+        admin_notes: {type: [string, 'null']}
+        points_balance: {type: integer, minimum: 0}
+        redeemed_points: {type: integer, minimum: 0}
+        credit_balance: {type: string, pattern: '^-?[0-9]+\.[0-9]{4}$'}
+        email_verified_at: {type: [string, 'null'], format: date-time}
+        joined_at: {type: string, format: date-time}
+        last_activity_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CustomerEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/Customer'}
+    CreateCustomerCreditRequest:
+      type: object
+      required: [amount, type, reason]
+      properties:
+        amount: {type: string, pattern: '^-?(?!0+(?:\.0+)?$)[0-9]+(?:\.[0-9]{1,4})?$'}
+        type: {$ref: '#/components/schemas/CustomerCreditType'}
+        external_reference: {type: [string, 'null'], maxLength: 120}
+        reason: {type: string, minLength: 1, maxLength: 200}
+        occurred_at: {type: string, format: date-time}
+    CustomerCredit:
+      type: object
+      required: [id, amount, type, reason, occurred_at, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        amount: {type: string, pattern: '^-?[0-9]+\.[0-9]{4}$'}
+        type: {$ref: '#/components/schemas/CustomerCreditType'}
+        external_reference: {type: [string, 'null']}
+        reason: {type: string}
+        occurred_at: {type: string, format: date-time}
+        created_by:
+          anyOf:
+            - type: object
+              required: [id, name]
+              properties:
+                id: {$ref: '#/components/schemas/PublicUlid'}
+                name: {type: string}
+            - {type: 'null'}
+        created_at: {type: string, format: date-time}
+    CustomerCreditEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CustomerCredit'}
+    CustomerGroupTranslationInput:
+      type: object
+      required: [language_id, name]
+      properties:
+        language_id: {$ref: '#/components/schemas/PublicUlid'}
+        name: {type: string, minLength: 1, maxLength: 255}
+        lock_it: {type: boolean, default: false}
+    CustomerGroupTranslationWriteRequest:
+      type: object
+      required: [name]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 255}
+        lock_it: {type: boolean}
+    CustomerGroupTranslation:
+      type: object
+      required: [id, language, name, lock_it]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        language: {$ref: '#/components/schemas/Language'}
+        name: {type: string}
+        lock_it: {type: boolean}
+    CreateCustomerGroupRequest:
+      type: object
+      required: [code, discount_method, translations]
+      properties:
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$', maxLength: 100}
+        default_discount_percentage: {type: string, pattern: '^(?:100(?:\.0{1,4})?|[0-9]{1,2}(?:\.[0-9]{1,4})?)$'}
+        discount_method: {type: string, minLength: 1, maxLength: 100}
+        is_default: {type: boolean, default: false}
+        category_access_type: {$ref: '#/components/schemas/CustomerGroupCategoryAccess'}
+        category_ids:
+          type: array
+          maxItems: 500
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/CustomerGroupTranslationInput'}
+    UpdateCustomerGroupRequest:
+      type: object
+      minProperties: 1
+      properties:
+        code: {type: string, pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$', maxLength: 100}
+        default_discount_percentage: {type: string, pattern: '^(?:100(?:\.0{1,4})?|[0-9]{1,2}(?:\.[0-9]{1,4})?)$'}
+        discount_method: {type: string, minLength: 1, maxLength: 100}
+        is_default: {type: boolean}
+        category_access_type: {$ref: '#/components/schemas/CustomerGroupCategoryAccess'}
+    ReplaceCustomerGroupCategoriesRequest:
+      type: object
+      required: [category_ids]
+      properties:
+        category_ids:
+          type: array
+          maxItems: 500
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+    CustomerGroupDiscountWriteRequest:
+      type: object
+      required: [target_type, target_id, discount_percentage, applies_to, discount_method]
+      properties:
+        target_type: {$ref: '#/components/schemas/CustomerGroupDiscountTarget'}
+        target_id: {$ref: '#/components/schemas/PublicUlid'}
+        discount_percentage: {type: string, pattern: '^(?:100(?:\.0{1,4})?|[0-9]{1,2}(?:\.[0-9]{1,4})?)$'}
+        applies_to: {$ref: '#/components/schemas/CustomerGroupDiscountAppliesTo'}
+        discount_method: {type: string, minLength: 1, maxLength: 100}
+    CustomerGroupDiscount:
+      type: object
+      required: [id, target_type, target_id, discount_percentage, applies_to, discount_method]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        target_type: {$ref: '#/components/schemas/CustomerGroupDiscountTarget'}
+        target_id: {$ref: '#/components/schemas/PublicUlid'}
+        discount_percentage: {type: string, pattern: '^(?:100(?:\.0{4})?|[0-9]{1,2}\.[0-9]{4})$'}
+        applies_to: {$ref: '#/components/schemas/CustomerGroupDiscountAppliesTo'}
+        discount_method: {type: string}
+    CustomerGroupDiscountEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CustomerGroupDiscount'}
+    CustomerGroup:
+      type: object
+      required: [id, code, default_discount_percentage, discount_method, is_default, category_access_type, category_ids, translations, discounts]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        code: {type: string}
+        default_discount_percentage: {type: string}
+        discount_method: {type: string}
+        is_default: {type: boolean}
+        category_access_type: {$ref: '#/components/schemas/CustomerGroupCategoryAccess'}
+        customer_count: {type: integer, minimum: 0}
+        category_ids:
+          type: array
+          items: {$ref: '#/components/schemas/PublicUlid'}
+        translations:
+          type: array
+          items: {$ref: '#/components/schemas/CustomerGroupTranslation'}
+        discounts:
+          type: array
+          items: {$ref: '#/components/schemas/CustomerGroupDiscount'}
+        translation_request:
+          anyOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
+    CustomerGroupEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: {$ref: '#/components/schemas/CustomerGroup'}
     CreateMediaUploadRequest:
       type: object
       required: [file]
@@ -3008,6 +3771,129 @@ components:
         gtin: {type: [string, 'null'], maxLength: 32, default: ''}
         mpn: {type: [string, 'null'], maxLength: 32, default: ''}
         bpn: {type: [string, 'null'], maxLength: 32, default: ''}
+    CollectionTranslationWrite:
+      type: object
+      required: [locale, title, slug]
+      properties:
+        locale: {type: string, maxLength: 35}
+        title: {type: string, maxLength: 255}
+        slug: {type: string, maxLength: 255}
+        description: {type: [string, 'null']}
+        seo_title: {type: [string, 'null'], maxLength: 255}
+        seo_description: {type: [string, 'null']}
+        lock_it: {type: boolean, default: false}
+    CollectionRuleWrite:
+      type: object
+      required: [field, operator, value]
+      properties:
+        field: {type: string, enum: [vendor, sku, status, product_type, title, brand, tag, price]}
+        operator: {type: string, enum: [equals, not_equals, contains, greater_than, greater_than_or_equal, less_than, less_than_or_equal]}
+        value: {type: string, maxLength: 255}
+        position: {type: integer, minimum: 0, maximum: 4294967295}
+    CollectionProductWrite:
+      type: object
+      required: [product_id]
+      properties:
+        product_id: {$ref: '#/components/schemas/PublicUlid'}
+        sort_order: {type: integer, minimum: 0, maximum: 4294967295}
+        is_pinned: {type: boolean, default: false}
+    CollectionWriteRequest:
+      type: object
+      properties:
+        parent_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        image_url: {type: [string, 'null'], maxLength: 500}
+        is_active: {type: boolean, default: true}
+        sort_order: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        collection_type: {type: string, enum: [manual, rule_based, ai_generated], default: manual}
+        rules_match_type: {type: string, enum: [all, any], default: all}
+        ai_prompt: {type: [string, 'null'], maxLength: 20000}
+        ai_model: {type: [string, 'null'], maxLength: 100}
+        translations:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/CollectionTranslationWrite'}
+        rules:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/CollectionRuleWrite'}
+        products:
+          type: array
+          maxItems: 1000
+          items: {$ref: '#/components/schemas/CollectionProductWrite'}
+    CreateCollectionRequest:
+      allOf:
+        - {$ref: '#/components/schemas/CollectionWriteRequest'}
+        - type: object
+          required: [translations]
+    CollectionRuleReplacementRequest:
+      type: object
+      required: [rules]
+      properties:
+        rules:
+          type: array
+          maxItems: 100
+          items: {$ref: '#/components/schemas/CollectionRuleWrite'}
+    CollectionProductReplacementRequest:
+      type: object
+      required: [products]
+      properties:
+        products:
+          type: array
+          maxItems: 1000
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/CollectionProductWrite'}
+    CollectionRule:
+      allOf:
+        - {$ref: '#/components/schemas/CollectionRuleWrite'}
+        - type: object
+          required: [id, position]
+          properties:
+            id: {$ref: '#/components/schemas/PublicUlid'}
+            created_at: {type: [string, 'null'], format: date-time}
+            updated_at: {type: [string, 'null'], format: date-time}
+    CollectionAiJob:
+      type: object
+      required: [id, prompt, model, status]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        prompt: {type: string}
+        model: {type: string}
+        status: {type: string, enum: [pending, processing, completed, failed]}
+        result_rules: {type: [array, 'null'], items: {type: object, additionalProperties: true}}
+        matched_count: {type: [integer, 'null'], minimum: 0}
+        error_message: {type: [string, 'null']}
+        tokens_used: {type: [integer, 'null'], minimum: 0}
+        completed_at: {type: [string, 'null'], format: date-time}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    CatalogCollection:
+      type: object
+      required: [id, is_active, sort_order, collection_type, rules_match_type, translations, rules]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        parent_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        image_url: {type: [string, 'null']}
+        is_active: {type: boolean}
+        sort_order: {type: integer, minimum: 0}
+        collection_type: {type: string, enum: [manual, rule_based, ai_generated]}
+        rules_match_type: {type: string, enum: [all, any]}
+        ai_prompt: {type: [string, 'null']}
+        ai_model: {type: [string, 'null']}
+        ai_status: {type: [string, 'null'], enum: [pending, processing, completed, failed, null]}
+        ai_last_run_at: {type: [string, 'null'], format: date-time}
+        ai_error_message: {type: [string, 'null']}
+        children_count: {type: integer, minimum: 0}
+        products_count: {type: integer, minimum: 0}
+        rules_count: {type: integer, minimum: 0}
+        ai_jobs_count: {type: integer, minimum: 0}
+        translations: {type: array, items: {$ref: '#/components/schemas/CollectionTranslationWrite'}}
+        rules: {type: array, items: {$ref: '#/components/schemas/CollectionRule'}}
+        translation_request:
+          oneOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
     ProductTranslationWrite:
       type: object
       required: [locale, title, slug]
@@ -4775,6 +5661,107 @@ components:
           maximum: 999999999999.99999999
           description: Target currency units per 1 USD; null clears a non-base rate.
         is_active: {type: boolean}
+    PageTranslationRequest:
+      type: object
+      required: [title, slug]
+      properties:
+        title: {type: string, maxLength: 250}
+        slug: {type: string, maxLength: 250, description: Lowercase Unicode letters/numbers with single hyphens between segments.}
+        content: {type: [string, 'null'], maxLength: 1000000}
+        summary: {type: [string, 'null'], maxLength: 5000}
+        seo_title: {type: [string, 'null'], maxLength: 250}
+        seo_description: {type: [string, 'null'], maxLength: 1000}
+        seo_keywords: {type: [string, 'null'], maxLength: 1000}
+        search_keywords: {type: [string, 'null'], maxLength: 1000}
+        lock_it: {type: boolean, default: false, description: Prevent automated translation writers from overwriting this record.}
+    CreatePageTranslationRequest:
+      allOf:
+        - {$ref: '#/components/schemas/PageTranslationRequest'}
+        - type: object
+          required: [language_id]
+          properties:
+            language_id: {$ref: '#/components/schemas/PublicUlid'}
+    CreatePageRequest:
+      type: object
+      required: [page_type, translations]
+      properties:
+        parent_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        page_type: {type: string, enum: [content, contact, external_link, rss]}
+        sort_order: {type: integer, minimum: 0}
+        layout_key: {type: [string, 'null'], maxLength: 80}
+        is_homepage: {type: boolean, default: false}
+        customers_only: {type: boolean, default: false}
+        seo_enabled: {type: boolean, default: false}
+        external_url: {type: [string, 'null'], format: uri, maxLength: 2048}
+        feed_url: {type: [string, 'null'], format: uri, maxLength: 2048}
+        contact_email: {type: [string, 'null'], format: email, maxLength: 320}
+        contact_fields: {type: array, maxItems: 50, items: {type: object, additionalProperties: true}}
+        translations: {type: array, minItems: 1, items: {$ref: '#/components/schemas/CreatePageTranslationRequest'}}
+    UpdatePageRequest:
+      type: object
+      minProperties: 1
+      properties:
+        parent_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        page_type: {type: string, enum: [content, contact, external_link, rss]}
+        sort_order: {type: integer, minimum: 0}
+        layout_key: {type: [string, 'null'], maxLength: 80}
+        is_homepage: {type: boolean}
+        customers_only: {type: boolean}
+        seo_enabled: {type: boolean}
+        external_url: {type: [string, 'null'], format: uri, maxLength: 2048}
+        feed_url: {type: [string, 'null'], format: uri, maxLength: 2048}
+        contact_email: {type: [string, 'null'], format: email, maxLength: 320}
+        contact_fields: {type: array, maxItems: 50, items: {type: object, additionalProperties: true}}
+    PageTranslation:
+      type: object
+      required: [id, language, title, slug, lock_it]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        language: {$ref: '#/components/schemas/Language'}
+        title: {type: string}
+        slug: {type: string}
+        content: {type: [string, 'null']}
+        summary: {type: [string, 'null']}
+        seo_title: {type: [string, 'null']}
+        seo_description: {type: [string, 'null']}
+        seo_keywords: {type: [string, 'null']}
+        search_keywords: {type: [string, 'null']}
+        lock_it: {type: boolean}
+        translation_request:
+          oneOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
+    Page:
+      type: object
+      required: [id, page_type, status, sort_order, is_homepage, customers_only, seo_enabled, contact_fields, translations]
+      properties:
+        id: {$ref: '#/components/schemas/PublicUlid'}
+        store_id: {$ref: '#/components/schemas/PublicUlid'}
+        parent_id: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        page_type: {type: string, enum: [content, contact, external_link, rss]}
+        status: {type: string, enum: [disabled, draft, published]}
+        sort_order: {type: integer, minimum: 0}
+        layout_key: {type: [string, 'null']}
+        is_homepage: {type: boolean}
+        customers_only: {type: boolean}
+        seo_enabled: {type: boolean}
+        external_url: {type: [string, 'null'], format: uri}
+        feed_url: {type: [string, 'null'], format: uri}
+        contact_email: {type: [string, 'null'], format: email}
+        contact_fields: {type: array, items: {type: object, additionalProperties: true}}
+        published_at: {type: [string, 'null'], format: date-time}
+        children_count: {type: integer, minimum: 0}
+        created_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        updated_by: {oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]}
+        translations: {type: array, items: {$ref: '#/components/schemas/PageTranslation'}}
+        translation_request:
+          oneOf:
+            - {$ref: '#/components/schemas/TranslationRequest'}
+            - {type: 'null'}
+        created_at: {type: [string, 'null'], format: date-time}
+        updated_at: {type: [string, 'null'], format: date-time}
     PolicyType:
       type: object
       required: [id, code, name, is_system, sort_order]

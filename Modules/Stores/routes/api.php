@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\TranslationRequestController;
 use Illuminate\Support\Facades\Route;
+use Modules\Stores\Http\Controllers\Api\V1\PageController;
+use Modules\Stores\Http\Controllers\Api\V1\PageTranslationController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformMerchantController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreController;
 use Modules\Stores\Http\Controllers\Api\V1\PlatformStoreDomainController;
@@ -30,6 +32,17 @@ Route::middleware(['api', 'auth:sanctum', 'user.scope:store'])
             Route::patch('settings', [StoreController::class, 'updateSettings'])->name('settings.update');
             Route::get('languages', [StoreLanguageController::class, 'index'])->name('languages.index');
             Route::put('languages', [StoreLanguageController::class, 'update'])->name('languages.update');
+            Route::get('pages', [PageController::class, 'index'])->name('pages.index');
+            Route::post('pages', [PageController::class, 'store'])->name('pages.store');
+            Route::get('pages/{page}', [PageController::class, 'show'])->name('pages.show');
+            Route::patch('pages/{page}', [PageController::class, 'update'])->name('pages.update');
+            Route::post('pages/{page}/publish', [PageController::class, 'publish'])->name('pages.publish');
+            Route::post('pages/{page}/unpublish', [PageController::class, 'unpublish'])->name('pages.unpublish');
+            Route::post('pages/{page}/enable', [PageController::class, 'enable'])->name('pages.enable');
+            Route::post('pages/{page}/disable', [PageController::class, 'disable'])->name('pages.disable');
+            Route::put('pages/{page}/translations/{language}', [PageTranslationController::class, 'upsert'])->name('pages.translations.upsert');
+            Route::delete('pages/{page}/translations/{language}', [PageTranslationController::class, 'destroy'])->name('pages.translations.destroy');
+            Route::delete('pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
             Route::get('policy-types', [PolicyTypeController::class, 'storeIndex'])->name('policy-types.index');
             Route::get('policies', [StorePolicyManagementController::class, 'index'])->name('policies.index');
             Route::post('policies', [StorePolicyManagementController::class, 'store'])->name('policies.store');
