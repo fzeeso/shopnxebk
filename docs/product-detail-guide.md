@@ -173,7 +173,7 @@ Suggested manifests:
 | Product summary | `sections=product&with_reference_data=false` |
 | Media tab | `sections=product,images,media&with_reference_data=false` |
 | Variant tab | `sections=product,options,variants&with_reference_data=false` |
-| Customization tab | `sections=product,custom_fields,modifier_groups,modifiers&with_reference_data=false` |
+| Customization tab | `sections=product,custom_fields,custom_objects,modifier_groups,modifiers&with_reference_data=false` |
 | Full editor | Omit `sections`; include reference data as needed |
 
 ### Save only dirty data
@@ -206,6 +206,7 @@ unsubmitted dirty state.
 | `images` | Gallery metadata and localized alt text | `upsert`, `delete` |
 | `media` | Reusable Product/Variant media attachments | `attach`, `detach`, `variant_attach`, `variant_detach`, `primary_media_id` |
 | `custom_fields` | Product- and Variant-scoped typed values | `upsert`, `delete` |
+| `custom_objects` | Ordered references to reusable multilingual Custom Object entries | `replace`, `clear` |
 | `options` | Option dimensions and Values | `upsert`, `delete`, `value_upsert`, `value_delete` |
 | `variants` | Sellable combinations and prices | `upsert`, `delete` |
 | `shared_options` | Store library Option assignments | `upsert`, `delete` |
@@ -215,6 +216,12 @@ unsubmitted dirty state.
 New modules may add more keys. Do not hard-code this table as the complete
 future list; use `capabilities.writable_sections` to discover the active
 contract and release UI support intentionally.
+
+Each `custom_objects.replace` item supplies a Custom Field `definition_id` and
+the complete ordered `entry_ids` list for that definition. `clear` is a list of
+definition ULIDs. Selector searches use the paginated Custom Object options API
+because bounded Product Detail reference data is not guaranteed to contain
+every entry. See [Custom Objects](custom-objects.md).
 
 ## Request-local references
 

@@ -21,6 +21,8 @@ name, company, and phone. `customer_group_id` is the group public ULID.
   "first_name": "Amina",
   "last_name": "Khan",
   "phone": "+92-300-0000000",
+  "password": "StrongPassword1!",
+  "password_confirmation": "StrongPassword1!",
   "status": "active",
   "registered_ip": "203.0.113.10",
   "admin_notes": "B2B account",
@@ -36,9 +38,13 @@ trimmed/lower-cased and unique among non-deleted customers in the selected
 Store. `PATCH /customers/{customer}` accepts the same editable properties;
 `DELETE` disables and soft-deletes the customer.
 
-Passwords, legacy IDs, hashes, salts, reset tokens, and API tokens are
-prohibited. This is a merchant-management API, not a storefront customer-login
-API.
+`password` is optional during creation. When supplied, matching
+`password_confirmation` is required and the value must be at least 12
+characters with uppercase, lowercase, number, and symbol characters. Laravel
+hashes it before persistence; neither the password nor its hash is returned.
+Password fields remain prohibited on `PATCH`. Legacy IDs, hashes, salts, reset
+tokens, and API tokens are always prohibited. This is still a
+merchant-management API; a storefront customer-login/reset API is not exposed.
 
 Customer responses include the selected group public ULID and
 `credit_balance`, derived from the ledger. Monetary decimals are strings:

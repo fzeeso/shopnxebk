@@ -26,6 +26,7 @@ final readonly class ProductDetailWriteService
         private ProductOptionManagementService $options,
         private ProductVariantManagementService $variants,
         private CustomFieldManagementService $customFields,
+        private CustomObjectReferenceService $customObjects,
         private SharedProductOptionService $sharedOptions,
         private ProductModifierAssignmentService $modifiers,
         private MediaService $media,
@@ -81,6 +82,7 @@ final readonly class ProductDetailWriteService
         $references = new ProductDetailReferenceMap;
 
         $this->deleteCustomFields($user, $productPublicId, $sections['custom_fields']['delete'] ?? [], $references);
+        $this->clearCustomObjects($user, $productPublicId, $sections['custom_objects']['clear'] ?? []);
         $this->deleteMedia($user, $productPublicId, $sections['media'] ?? [], $references);
         $this->deleteImages($user, $productPublicId, $sections['images']['delete'] ?? []);
         $this->deleteModifiers($user, $productPublicId, $sections['modifiers']['delete'] ?? []);
@@ -95,6 +97,7 @@ final readonly class ProductDetailWriteService
         $this->upsertVariants($user, $productPublicId, $sections['variants']['upsert'] ?? [], $references);
         $this->upsertImages($user, $productPublicId, $sections['images']['upsert'] ?? [], $references);
         $this->upsertCustomFields($user, $productPublicId, $sections['custom_fields']['upsert'] ?? [], $references);
+        $this->replaceCustomObjects($user, $productPublicId, $sections['custom_objects']['replace'] ?? []);
         $this->upsertModifierGroups($user, $productPublicId, $sections['modifier_groups']['upsert'] ?? [], $references);
         $this->upsertSharedOptions($user, $productPublicId, $sections['shared_options']['upsert'] ?? []);
         $this->upsertModifiers($user, $productPublicId, $sections['modifiers']['upsert'] ?? [], $references);
@@ -150,6 +153,28 @@ final readonly class ProductDetailWriteService
         if ($actual === null || ! $actual->equalTo($candidate)) {
             throw new ConflictHttpException(
                 'The Product changed after it was loaded. Reload it and reapply the pending sections.',
+            );
+        }
+    }
+
+    /** @param iterable<mixed> $definitionIds */
+    private function clearCustomObjects(User $user, string $productId, iterable $definitionIds): void
+    {
+        foreach ($definitionIds as $definitionId) {
+            $this->customObjects->clear($user, 'product', $productId, (string) $definitionId);
+        }
+    }
+
+    /** @param iterable<array<string, mixed>> $commands */
+    private function replaceCustomObjects(User $user, string $productId, iterable $commands): void
+    {
+        foreach ($commands as $command) {
+            $this->customObjects->replace(
+                $user,
+                'product',
+                $productId,
+                (string) $command['definition_id'],
+                array_map('strval', $command['entry_ids']),
             );
         }
     }

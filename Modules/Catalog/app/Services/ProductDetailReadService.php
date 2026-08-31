@@ -11,6 +11,8 @@ use Illuminate\Support\Collection;
 use Modules\Authentication\Models\User;
 use Modules\Catalog\Models\Category;
 use Modules\Catalog\Models\CustomFieldDefinition;
+use Modules\Catalog\Models\CustomObjectReference;
+use Modules\Catalog\Models\CustomObjectType;
 use Modules\Catalog\Models\ModifierDefinition;
 use Modules\Catalog\Models\PlatformTaxonomyNode;
 use Modules\Catalog\Models\ProductCustomFieldValue;
@@ -134,6 +136,20 @@ final readonly class ProductDetailReadService
                 $sectionLimit,
             );
         }
+        if ($this->includesSection($selectedSections, 'custom_objects')) {
+            [$sections['custom_objects'], $sectionMeta['custom_objects']] = $this->limited(
+                CustomObjectReference::query()
+                    ->where('store_id', $storeId)
+                    ->where('source_type', 'product')
+                    ->where('source_id', $productId)
+                    ->with([
+                        'definition.translations', 'definition.referenceObjectType.translations',
+                        'type.translations', 'entry.translations',
+                    ])
+                    ->orderBy('custom_field_definition_id')->orderBy('sort_order')->orderBy('id'),
+                $sectionLimit,
+            );
+        }
         if ($this->includesSection($selectedSections, 'shared_options')) {
             [$sections['shared_options'], $sectionMeta['shared_options']] = $this->limited(
                 ProductSharedOptionAssignment::query()
@@ -240,8 +256,14 @@ final readonly class ProductDetailReadService
             $limit,
         );
         [$customFields, $customFieldMeta] = $this->limited(CustomFieldDefinition::query()->where('store_id', $storeId)
-            ->with(['translations', 'options.translations'])->withCount('values')
+            ->with(['translations', 'options.translations', 'referenceObjectType.translations'])->withCount('values')
             ->orderBy('position')->orderBy('id'), $limit);
+        [$customObjectTypes, $customObjectTypeMeta] = $this->limited(
+            CustomObjectType::query()->where('store_id', $storeId)->where('status', 'active')
+                ->with(['translations', 'fields.translations', 'fields.referenceObjectType.translations'])
+                ->withCount('entries')->orderBy('handle')->orderBy('id'),
+            $limit,
+        );
         [$sharedOptions, $sharedOptionMeta] = $this->limited(SharedProductOption::query()->where('store_id', $storeId)
             ->with(['translations', 'values.translations'])->withCount('assignments')
             ->orderBy('position')->orderBy('id'), $limit);
@@ -260,6 +282,7 @@ final readonly class ProductDetailReadService
                 'product_types' => $productTypeMeta,
                 'platform_taxonomy_nodes' => $taxonomyMeta,
                 'custom_fields' => $customFieldMeta,
+                'custom_object_types' => $customObjectTypeMeta,
                 'shared_options' => $sharedOptionMeta,
                 'modifiers' => $modifierMeta,
             ],
@@ -298,6 +321,7 @@ final readonly class ProductDetailReadService
             ])->values(),
             'fulfillment_types' => $this->fulfillmentTypes->listStore($user),
             'custom_fields' => $customFields,
+            'custom_object_types' => $customObjectTypes,
             'shared_options' => $sharedOptions,
             'modifiers' => $modifiers,
             'languages' => $this->languages->presentationFor($store),

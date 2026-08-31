@@ -17,6 +17,7 @@ use Modules\Stores\Models\Store;
     'product_type',
     'field_key',
     'field_type',
+    'reference_object_type_id',
     'is_required',
     'is_filterable',
     'position',
@@ -50,6 +51,21 @@ final class CustomFieldDefinition extends Model
     public function values(): HasMany
     {
         return $this->hasMany(ProductCustomFieldValue::class, 'definition_id');
+    }
+
+    public function referenceObjectType(): BelongsTo
+    {
+        return $this->belongsTo(CustomObjectType::class, 'reference_object_type_id');
+    }
+
+    public function objectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'custom_field_definition_id');
+    }
+
+    public function referenceObjectTypePublicId(): ?string
+    {
+        return $this->referenceObjectType?->public_id;
     }
 
     protected function casts(): array

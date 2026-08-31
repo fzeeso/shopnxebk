@@ -88,6 +88,7 @@ final readonly class CustomerManagementService
                 'last_name' => $data['last_name'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'status' => $data['status'] ?? CustomerStatus::Active,
+                'password' => $data['password'] ?? null,
                 'registered_ip' => $data['registered_ip'] ?? null,
                 'admin_notes' => $data['admin_notes'] ?? null,
                 'points_balance' => $data['points_balance'] ?? 0,

@@ -74,6 +74,13 @@ final class Collection extends Model
             ->orderBy('products.id');
     }
 
+    public function customObjectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'source_id')
+            ->where('source_type', 'collection')
+            ->orderBy('custom_field_definition_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function parentPublicId(): ?string
     {
         return $this->parent?->public_id;

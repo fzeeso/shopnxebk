@@ -4,7 +4,7 @@
 Store-local merchandising and product persistence foundation, the reusable
 multi-language Product Modifier library, the global
 localized fulfillment catalog, Brand/Collection/Fulfillment Type/Product/Custom
-Field REST routes, Category/Product Type/Product/Custom Field GraphQL schema, Catalog models,
+Field/Custom Object REST routes, Category/Product Type/Product/Custom Field GraphQL schema, Catalog models,
 transactional services, resolvers, translation handlers, and authorization
 boundary. Product files/fulfillment, search
 projections, and admin screens remain follow-up work.
@@ -25,6 +25,7 @@ and query patterns are in the [Catalog schema reference](../catalog.md).
 | Product Option and Variant | Nested Store REST multilingual CRUD; no GraphQL fields |
 | Product Image | Nested Store REST metadata CRUD only |
 | Custom Field | Store REST and GraphQL definition/option lifecycle plus Product/Variant typed values |
+| Custom Object | Store REST type/field/entry/value lifecycle, selectors, polymorphic references, and Product Detail integration; no GraphQL fields |
 | Modifier Library | Store REST category/definition lifecycle; nested translations, values, rules, and prices |
 | Product Modifier | Nested Store REST groups/assignments/reorder plus resolved storefront DTO |
 | Fulfillment Type | Platform/Store REST only |
@@ -50,6 +51,7 @@ explicit route or GraphQL field is implemented and documented.
 | Shared Product options | `shared_product_options`, `shared_product_option_translations`, `shared_product_option_values`, `shared_product_option_value_translations`, `product_shared_option_assignments` |
 | Media and fulfillment | `product_images`, `product_image_translations`, `product_digital_assets`, `product_digital_asset_translations`, `product_license_keys` |
 | Custom fields | `custom_field_definitions`, `custom_field_definition_translations`, `custom_field_options`, `custom_field_option_translations`, `product_custom_field_values`, `product_custom_field_value_translations`, `product_custom_field_value_options` |
+| Custom Objects | `custom_object_types`, `custom_object_type_translations`, `custom_object_fields`, `custom_object_field_translations`, `custom_object_entries`, `custom_object_entry_translations`, `custom_object_values`, `custom_object_value_translations`, `custom_object_value_references`, `custom_object_references` |
 
 ## Persistence rules
 
@@ -168,7 +170,9 @@ explicit route or GraphQL field is implemented and documented.
   images, digital assets, license keys, and variant-level custom fields attached
   to the same Store and product.
 - Custom-field definitions support typed scalar, translated text/URL, select,
-  and multi-select values. PostgreSQL enforces one value per
+  multi-select, object-reference, and multi-object-reference values. Reference
+  definitions identify one same-Store Custom Object Type and store selections
+  in relational reference rows rather than value JSON. PostgreSQL enforces one value per
   definition/product/optional-variant scope and prevents mixed-definition
   option assignments.
 - `CustomFieldManagementService` exposes definition/option CRUD and Product- or
@@ -178,6 +182,23 @@ explicit route or GraphQL field is implemented and documented.
   Product Type-code applicability, nested Variant ownership, and
   same-definition option selection before composite foreign keys provide the
   final boundary.
+- `CustomObjectTypeService`, `CustomObjectFieldService`, and
+  `CustomObjectEntryService` are the narrow Store-scoped application boundaries
+  used by HTTP controllers. They expose lifecycle, translation, field-order,
+  and value operations while delegating shared validation and transactions to
+  `CustomObjectManagementService`. Core rows use public ULIDs plus
+  language-neutral handles; translated type metadata, field labels, entry
+  metadata, and localized field values use locale rows validated against active
+  Store languages. `CustomObjectValueService` applies dynamic typed field
+  rules, media ownership, uniqueness, required values, and ordered relational
+  object references inside the entry transaction.
+- `CustomObjectReferenceService` connects an existing object-reference Custom
+  Field to ordered Custom Object entries for Products, Collections, Categories,
+  Brands, and Pages. It resolves both the polymorphic source and every entry
+  inside the selected Store, enforces Product Type applicability, and protects
+  referenced types/entries from deletion. Product Detail exposes the same
+  service as the `custom_objects` read/write section. See the dedicated
+  [Custom Objects API reference](../custom-objects.md).
 - Modifier definitions are Store-owned reusable catalog records, never copied
   when attached to Products. Product assignments may override required/min/max
   state, translated presentation, enabled/default values, settings, grouping,

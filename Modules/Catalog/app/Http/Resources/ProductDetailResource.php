@@ -24,6 +24,7 @@ final class ProductDetailResource extends JsonResource
             'images' => ProductImageResource::class,
             'media' => ProductMediaResource::class,
             'custom_fields' => ProductCustomFieldValueResource::class,
+            'custom_objects' => CustomObjectReferenceResource::class,
             'options' => ProductOptionResource::class,
             'variants' => ProductVariantResource::class,
             'shared_options' => ProductSharedOptionAssignmentResource::class,
@@ -60,6 +61,9 @@ final class ProductDetailResource extends JsonResource
                     ...$references,
                     'fulfillment_types' => FulfillmentTypeResource::collection($references['fulfillment_types'])->resolve($request),
                     'custom_fields' => CustomFieldDefinitionResource::collection($references['custom_fields'])->resolve($request),
+                    'custom_object_types' => CustomObjectTypeResource::collection(
+                        $references['custom_object_types'] ?? [],
+                    )->resolve($request),
                     'shared_options' => SharedProductOptionResource::collection($references['shared_options'])->resolve($request),
                     'modifiers' => ModifierDefinitionResource::collection($references['modifiers'])->resolve($request),
                     'currencies' => CurrencyResource::collection($references['currencies'])->resolve($request),

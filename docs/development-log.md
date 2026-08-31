@@ -1,5 +1,88 @@
 # Development log
 
+## 2026-08-31 - Creation-only customer password persistence
+
+- Changed: `POST /api/v1/store/customers` now accepts an optional confirmed
+  password using the shared 12-character mixed-case/number/symbol policy. The
+  Customer model allows the field only for persistence and applies Laravel's
+  `hashed` cast; responses continue to omit passwords and hashes.
+- Reason: The prepared schema already included nullable modern-password
+  storage, but the management create contract prohibited the field, so clients
+  could not initialize it.
+- Data/configuration impact: No migration or database command was required and
+  no existing customer row changed.
+- Compatibility or rollout notes: Password remains optional so merchants can
+  create non-login profiles. `PATCH /customers/{customer}` rejects password and
+  confirmation fields. Storefront login, reset, sessions, and tokens remain
+  unimplemented and require a future Authentication-owned contract.
+- Verification: Focused request/contract tests cover optional password,
+  confirmation, strength, update rejection, hashed persistence configuration,
+  and response exclusion; formatting, static analysis, routes, OpenAPI source,
+  and generated documentation were checked.
+
+## 2026-08-31 - Multilingual Custom Objects and relational metaobject API
+
+- Changed: Added Catalog-owned multilingual Custom Object type, field, entry,
+  typed-value, nested-reference, and polymorphic-reference persistence; extended
+  existing Custom Fields with relational object-reference types; exposed
+  Store REST CRUD, paginated localized selectors, generic/Product assignment
+  APIs, and the Product Detail `custom_objects` section. Type, Field, and Entry
+  controllers now depend on dedicated lifecycle services, with atomic field
+  reordering and explicit archive/translation/value operations exposed for
+  internal module consumers.
+- Reason: Merchants need reusable structured records such as Designers, Size
+  Guides, Care Guides, and Authors that can be translated once and referenced
+  from multiple commerce/content entities without adding core table columns or
+  storing relationship IDs in JSON.
+- Data/configuration impact: Prepared two ordered migrations. The additive
+  `2026_08_31_020000_create_custom_object_tables` migration created ten empty,
+  Store-scoped tables in local database batch 43. The second migration, which
+  adds the nullable referenced-type column/constraint to
+  `custom_field_definitions`, remains pending because it changes an existing
+  table. No existing Store row was inserted, updated, or deleted.
+- Compatibility or rollout notes: Public identities remain ULIDs, translations
+  use existing Store-validated locale rows, and reads fall back from requested
+  locale to Store default and first available translation. Existing primitive
+  Custom Field APIs remain compatible; only the two new types use the reference
+  service. Reference-backed Custom Field writes require the pending companion
+  migration; it must be applied outside Codex under the repository's database
+  safety policy. Other environments require their own reviewed rollout.
+- Verification: Confirmed the local environment, pending status, and absence of
+  all ten targets before applying only the additive migration, then confirmed
+  its batch-43 `Ran` status and the companion migration's pending status. Route
+  discovery reports 22 Custom Object routes. All 113 non-database Unit tests
+  pass with 536 assertions, including 17 Custom Object contract tests with 88
+  assertions; generated documentation was refreshed and checked.
+
+## 2026-08-31 - Safe HTTP idempotency foundation and initial Store workflows
+
+- Changed: Added a disabled-by-default universal `Idempotency-Key` core with a
+  create-only PostgreSQL ledger migration, UUIDv4 parsing, actor/Store/operation
+  HMAC scope, exact request fingerprints, advisory transaction locks, encrypted
+  response snapshots, integrity-checked replay, bounded pruning, browser CORS
+  headers, and authorization preflight. Additional Store creation, direct
+  Platform Store creation, Platform merchant creation, and selected-Store user
+  creation now support the executor when the feature is enabled.
+- Reason: Clients need a safe way to retry provisioning/account-creation
+  mutations after timeouts without duplicating Store, membership, role,
+  notification, or related transactional effects.
+- Data/configuration impact: The migration
+  `2026_08_31_010000_create_idempotency_records_table` was prepared but not
+  executed. `IDEMPOTENCY_ENABLED` defaults to `false`, Tier A defaults to
+  `supported`, and no current request behavior or Store data changes until an
+  authorized rollout supplies a stable HMAC key, applies the named migration,
+  and enables the switch.
+- Compatibility or rollout notes: Replays occur only after current Form Request,
+  authentication, Store membership, and permission preflight. Only successful
+  JSON `2xx` responses are recorded. Auth/session, streams, uploads, GraphQL,
+  webhooks, Customer credits, and general CRUD remain outside this increment.
+- Verification: New PHP passed syntax checks and targeted Pint formatting; the
+  idempotency core passed PHPStan level 6. Route and command discovery passed,
+  21 non-database unit/contract tests passed with 54 assertions, and generated
+  documentation was refreshed and checked. Database-backed tests and the
+  migration were not run because repository safety rules prohibit unrequested
+  database mutation.
+
 ## 2026-08-31 - Customer tables applied to local PostgreSQL
 
 - Changed: Executed only the named additive Customers migration

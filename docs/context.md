@@ -171,7 +171,8 @@ documented.
 Catalog owns global Platform taxonomies/nodes alongside Store-local brands,
 collections, categories, tags, product types, products, options, variants,
 the global localized fulfillment-type catalog, media/fulfillment metadata,
-software license-key pools, and typed custom fields. Addressable rows use
+software license-key pools, typed custom fields, and reusable multilingual
+Custom Objects. Addressable rows use
 bigint primary keys, public ULIDs, and timezone
 timestamps; Store-owned rows additionally carry non-null indexed Store IDs. Translation and
 relationship rows retain Store IDs so composite foreign keys reject cross-Store
@@ -260,6 +261,19 @@ a duplicate locale within one Value's own translation collection. These
 records do not replace the Product-scoped option/variant matrix and do not
 model customer-input Modifiers.
 
+Custom Objects are merchant-defined reusable Catalog records. Store-neutral
+handles and dynamic field schemas are separate from locale translations for
+type metadata, labels, entry metadata, and optionally localized values. The
+system extends existing Custom Fields with relational `object_reference` and
+`multi_object_reference` types and supports ordered assignments from Products,
+Collections, Categories, Brands, and Pages. Every public lookup is a ULID
+resolved inside active Store context; composite foreign keys protect type,
+entry, field, media, and translation ownership. Nested Custom Object values and
+core-entity assignments use dedicated reference tables rather than opaque JSON
+IDs. Dedicated type, field, entry, value, reference, and locale-resolution
+services keep HTTP controllers free of domain logic. See
+[Custom Objects](custom-objects.md).
+
 Nested Product image REST CRUD exposes Store-scoped gallery locator metadata,
 pixel dimensions, position, optional same-product variant association, and
 localized alt text. Image reads require active membership and writes require
@@ -272,7 +286,7 @@ and the Product's current Catalog-owned sections in one HTTP response. Its
 create/update contract applies only supplied dirty sections, delegates to the
 existing section services, and commits all Catalog-owned changes in one outer
 transaction. Request-local references connect newly created Options, Values,
-Variants, Modifier groups, images, Custom Fields, and media attachments without
+Variants, Modifier groups, images, Custom Fields, Custom Objects, and media attachments without
 exposing bigint keys. `expected_updated_at` provides optimistic conflict
 detection. The façade does not make Catalog the owner of future Discounts,
 Inventory, Search, Shipping, or Analytics data; those modules integrate through
@@ -395,8 +409,11 @@ languages under content type `customer_group`.
 Customer credits are append-only in the application contract. The balance is a
 signed `SUM(amount)` projection, not a mutable profile field; corrections use
 compensating adjustments. Customer DELETE disables and soft-deletes the profile
-without exposing a credit deletion path. Customer routes never accept or return
-passwords, legacy hashes/salts, internal IDs, or legacy tokens.
+without exposing a credit deletion path. Customer creation may accept one
+confirmed modern password under the shared strength policy; the Customer model
+stores only its adaptive hash. Update routes reject password fields, and no
+route returns passwords, hashes, internal IDs, or legacy tokens. Saving the hash
+does not introduce storefront login, reset, session, or token endpoints.
 
 Reads require active Store membership, writes require `manage customers`, and
 all routes use Store-bound lookup. Customers exports `CustomerGroupResolver`
@@ -456,6 +473,18 @@ cross-Store model saves and deletes. Store/GraphQL HTTP requests cannot issue
 database schema commands. AI media and translation operations have fixed,
 allowlisted behavior and no database, SQL, shell, or arbitrary tool access.
 
+Safe mutation retries use a separate `Idempotency-Key` from `X-Request-ID`.
+The feature is disabled by default and currently supports only additional Store,
+direct Platform Store, Platform merchant, and selected-Store user creation. A
+supplied UUIDv4 is HMAC-scoped to the authenticated User, active internal Store
+when present, and stable route operation; method, target, normalized query, media
+type, and raw body hash form the request fingerprint. Form Request validation and
+current authorization preflight complete before a replay lookup can return data.
+The successful business mutation and encrypted response snapshot commit in one
+PostgreSQL transaction under a non-blocking advisory lock. Same-request retries
+replay the original result; concurrent attempts return `409`; changed requests
+return `422`. See [Universal HTTP idempotency](idempotency-key-design.md).
+
 ## Roles and permissions
 
 Roles and permissions are data, not hard-coded user types. Both have a `scope` of `platform` or `store`, and the catalog is extendable.
@@ -491,7 +520,7 @@ Platform roles are evaluated without an active store team. Store-role assignment
   the Store-provisioning installer contract.
 - Billing owns plan prices, reusable features, plan-feature/add-on assignments, and Platform plan administration. Subscription/provider/invoice workflows remain future work.
 - Catalog owns global Platform classification plus Store-local merchandising,
-  products, variants, fulfillment metadata, and custom fields. Inventory,
+  products, variants, fulfillment metadata, custom fields, and Custom Objects. Inventory,
   Files, Search, and Orders consume its
   stable identifiers through future contracts/events rather than writing its
   tables.
@@ -509,7 +538,7 @@ cleanup are separately flagged so one operational change can be rolled back
 without changing the domain contract. See the
 [AWS scaling and deployment decision guide](aws-scaling-deployment-guide.md).
 
-See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Product Detail Store Admin guide](product-detail-guide.md), [Product Detail section-provider contract](module-communication/product-detail-section-providers.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Store pages](pages.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
+See the [API manual](api-manual.md), [Authentication module](modules/authentication.md), [Settings module](modules/settings.md), [Stores module](modules/stores.md), [Themes module](modules/themes.md), [Billing module](modules/billing.md), [Catalog module](modules/catalog.md), [Catalog schema](catalog.md), [Custom Objects](custom-objects.md), [Product Detail Store Admin guide](product-detail-guide.md), [Product Detail section-provider contract](module-communication/product-detail-section-providers.md), [Theme marketplace](themes.md), [Platform settings](settings.md), [admin component guides](components.md), [Store management](store-management.md), [Store pages](pages.md), [Plans & Pricing](plans-and-pricing.md), and the directional communication contracts in [module communication](module-communication/).
 
 ## Change rule
 

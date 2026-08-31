@@ -124,6 +124,7 @@ class AppServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(base_path('routes/product-api.php'));
         $this->loadRoutesFrom(base_path('routes/shared-product-option-api.php'));
         $this->loadRoutesFrom(base_path('routes/custom-field-api.php'));
+        $this->loadRoutesFrom(base_path('routes/custom-object-api.php'));
         $this->loadRoutesFrom(base_path('routes/modifier-api.php'));
 
         if ((bool) config('scalability.product_detail_reference_cache.enabled', false)) {

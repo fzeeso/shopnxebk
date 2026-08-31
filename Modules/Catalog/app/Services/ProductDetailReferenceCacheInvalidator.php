@@ -14,6 +14,11 @@ use Modules\Catalog\Models\CustomFieldDefinition;
 use Modules\Catalog\Models\CustomFieldDefinitionTranslation;
 use Modules\Catalog\Models\CustomFieldOption;
 use Modules\Catalog\Models\CustomFieldOptionTranslation;
+use Modules\Catalog\Models\CustomObjectEntry;
+use Modules\Catalog\Models\CustomObjectField;
+use Modules\Catalog\Models\CustomObjectFieldTranslation;
+use Modules\Catalog\Models\CustomObjectType;
+use Modules\Catalog\Models\CustomObjectTypeTranslation;
 use Modules\Catalog\Models\FulfillmentType;
 use Modules\Catalog\Models\FulfillmentTypeTranslation;
 use Modules\Catalog\Models\ModifierDefinition;
@@ -53,6 +58,11 @@ final readonly class ProductDetailReferenceCacheInvalidator
         CustomFieldDefinitionTranslation::class,
         CustomFieldOption::class,
         CustomFieldOptionTranslation::class,
+        CustomObjectType::class,
+        CustomObjectTypeTranslation::class,
+        CustomObjectField::class,
+        CustomObjectFieldTranslation::class,
+        CustomObjectEntry::class,
         SharedProductOption::class,
         SharedProductOptionTranslation::class,
         SharedProductOptionValue::class,

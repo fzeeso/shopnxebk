@@ -30,6 +30,17 @@ Platform Store, merchant, and selected-Store user table lists are paginated.
 They accept `page`/`per_page`, default to 25, cap at 100, and return `data`,
 `links`, and `meta`; Store role and language-option catalogs stay complete.
 
+Additional Store creation, direct Platform Store creation, Platform merchant
+creation, and selected-Store user creation are the initial consumers of the
+global safe-retry executor. When the disabled-by-default feature is enabled and
+a UUIDv4 `Idempotency-Key` is supplied, each controller finishes Form Request
+validation and calls its service's read-only authorization preflight before any
+completed response can be replayed. The service repeats the permission check,
+and its Store/membership/role writes plus encrypted replay response share one
+outer PostgreSQL transaction. Existing clients remain compatible because the
+initial route policy is `supported`. See
+[Universal HTTP idempotency](../idempotency-key-design.md).
+
 ## Identifier behavior
 
 `stores.id`, `store_users.id`, and `store_domains.id` are bigint internal

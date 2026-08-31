@@ -13,6 +13,12 @@ Schedule::command('sanctum:prune-expired --hours=24')
     ->daily()
     ->withoutOverlapping();
 
+if ((bool) config('idempotency.enabled', false)) {
+    Schedule::command('idempotency:prune')
+        ->hourly()
+        ->withoutOverlapping();
+}
+
 Schedule::call(fn (): int => app(TranslationRequestDispatcher::class)->dispatchPending())
     ->name('translations:dispatch-pending')
     ->everyMinute()

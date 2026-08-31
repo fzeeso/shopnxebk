@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Modules\Stores\Http\Controllers\Api\V1;
 
 use App\Http\Requests\PaginatedIndexRequest;
+use App\Support\Idempotency\IdempotencyExecutor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -30,12 +31,23 @@ final class StoreUserController extends Controller
         CreateStoreUserRequest $request,
         StoreContext $context,
         StoreUserAdminService $service,
+        IdempotencyExecutor $idempotency,
     ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
-        $user = $service->create($actor, $context->require(), $request->validated());
+        $store = $context->require();
+        $data = $request->validated();
 
-        return response()->json(['data' => new StoreUserResource($user)], 201);
+        return $idempotency->execute(
+            request: $request,
+            operation: 'api.v1.store.users.store',
+            preflight: function () use ($actor, $service, $store): void {
+                $service->authorizeCreation($actor, $store);
+            },
+            action: fn (): JsonResponse => response()->json([
+                'data' => new StoreUserResource($service->create($actor, $store, $data)),
+            ], 201),
+        );
     }
 
     public function roles(Request $request, StoreContext $context, StoreUserAdminService $service): JsonResponse

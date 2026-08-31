@@ -21,6 +21,12 @@ final readonly class StoreUserAdminService
         private ScopedRoleAssignmentService $roleAssignments,
     ) {}
 
+    public function authorizeCreation(User $actor, Store $store): void
+    {
+        $this->access->ensureCanManageMembers($actor, $store);
+        $this->access->ensureCanManageRoles($actor, $store);
+    }
+
     /** @return LengthAwarePaginator<int, User> */
     public function list(User $actor, Store $store, int $perPage = 25): LengthAwarePaginator
     {
@@ -32,8 +38,7 @@ final readonly class StoreUserAdminService
     /** @param array{name: string, email: string, password: string, roles: list<string>} $data */
     public function create(User $actor, Store $store, array $data): User
     {
-        $this->access->ensureCanManageMembers($actor, $store);
-        $this->access->ensureCanManageRoles($actor, $store);
+        $this->authorizeCreation($actor, $store);
 
         $user = DB::transaction(function () use ($store, $data): User {
             $user = User::query()->create([

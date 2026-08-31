@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Modules\Authentication\Models\User;
+use Modules\Catalog\Models\CustomObjectReference;
 use Modules\Stores\Enums\PageStatus;
 use Modules\Stores\Enums\PageType;
 use Modules\Stores\Models\Concerns\StoreScoped;
@@ -67,6 +68,13 @@ final class Page extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function customObjectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'source_id')
+            ->where('source_type', 'page')
+            ->orderBy('custom_field_definition_id')->orderBy('sort_order')->orderBy('id');
     }
 
     public function statusValue(): string

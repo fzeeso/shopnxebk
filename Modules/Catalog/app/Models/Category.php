@@ -48,6 +48,13 @@ final class Category extends Model
             ->orderByPivot('sort_order');
     }
 
+    public function customObjectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'source_id')
+            ->where('source_type', 'category')
+            ->orderBy('custom_field_definition_id')->orderBy('sort_order')->orderBy('id');
+    }
+
     public function parentPublicId(): ?string
     {
         return $this->parent?->public_id;

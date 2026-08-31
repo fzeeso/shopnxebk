@@ -117,11 +117,12 @@ copies, and the Theme installer used by Store provisioning.
 Store-local brands, collections, categories, Product Types, products, options,
 variants, reusable multi-language Product Modifier definitions and Product
 assignments, the global localized fulfillment-type catalog, media/fulfillment
-metadata, license-key pools, and typed custom fields. Brands expose
+metadata, license-key pools, typed custom fields, and multilingual reusable
+Custom Objects. Brands expose
 Store-scoped CRUD services and REST routes.
 Categories, Product Types, Products, and Custom Fields expose Store-scoped
 models, transactional services, and GraphQL queries/mutations. Product
-options/values, variants, and Custom Fields also expose Store REST management;
+options/values, variants, Custom Fields, and Custom Objects also expose Store REST management;
 the remaining Catalog areas are still persistence-only. Localized
 category persistence includes independent image and banner locators, SEO metadata,
 optional page titles and search keywords, and a category-specific rendering
@@ -131,7 +132,10 @@ template.
 multilingual group display names, append-only credit entries, Category access,
 and Category/Product-targeted group discounts. Its REST services use public
 ULIDs, active Store context, and `manage customers`; storefront customer login
-is deliberately outside this module. Only group display names enter the shared
+is deliberately outside this module. Customer creation may accept an optional
+confirmed strong password, which is stored through an Eloquent `hashed` cast
+and never serialized; password changes and customer login/reset remain outside
+the current API. Only group display names enter the shared
 translation queue. The exported `CustomerGroupResolver` is the integration
 boundary for future Orders, Discounts, and Catalog audience support. See the
 [Customers module](modules/customers.md) and
@@ -393,10 +397,11 @@ both GraphQL and Store REST. Product Image metadata is nested REST-only, and
 Fulfillment Types use Platform/Store REST. Treat models and migrations as
 persistence contracts, not evidence that an HTTP API exists.
 
-Catalog owns 38 normalized tables spanning global Platform taxonomies, brands,
+Catalog owns 48 normalized tables spanning global Platform taxonomies, brands,
 manual/rule/AI collections, strict Store category trees, tags, Product Types,
 products, translated content, product assignments, options/values, variants,
-images, digital assets, software license-key pools, and typed custom fields.
+images, digital assets, software license-key pools, typed custom fields, and
+merchant-defined Custom Object schemas, entries, values, and references.
 Addressable rows use bigint internal IDs, public ULIDs, and timezone timestamps;
 Store-owned rows also use indexed Store IDs. Translations and Store-local
 relationship rows carry Store IDs for composite foreign keys even when their
@@ -460,6 +465,22 @@ loopback HTTP—so there remains one business-rule implementation per domain.
 Request-local `ref`/`@ref` mappings allow dependent entities to be created in
 one command. Binary upload is intentionally outside the transaction; attach a
 completed media ULID through the aggregate command.
+
+Custom Objects are Catalog's dynamic reusable-content layer. Their schema
+follows the existing bigint/public-ULID, `StoreScoped`, composite tenant-FK,
+locale-translation, audit, and soft-delete conventions. Existing Custom Field
+definitions add `object_reference` and `multi_object_reference` with one
+same-Store reference type. Controllers depend on the narrow
+`CustomObjectTypeService`, `CustomObjectFieldService`, and
+`CustomObjectEntryService` lifecycle boundaries; they share validation and
+transaction logic through `CustomObjectManagementService`.
+`CustomObjectReferenceService` owns ordered relational assignments for
+Products, Collections, Categories, Brands, and Pages. Nested object-field references use
+`custom_object_value_references`; core-entity assignments use
+`custom_object_references`, so object IDs are never stored as value JSON.
+Product Detail includes the built-in `custom_objects` section and active type
+reference data. See [Custom Objects](custom-objects.md) for the complete API
+and payload contract.
 
 Product Detail is extensible without editing the façade for every new module.
 Implement `ProductDetailSectionProvider` in the owning module and tag the
@@ -745,6 +766,34 @@ flowchart TD
 `EnsureStoreMembership` requires an active membership, rejects a bearer token issued for another store, activates the Spatie permission team, and adds store/user IDs to logs.
 
 `ClearRequestContext` executes in a `finally` block. Store state, permission-team state, guards, locale, and log context are cleared even after an exception. Octane repeats cleanup after worker termination.
+
+### Safe mutation retry boundary
+
+`IdempotencyExecutor` provides the disabled-by-default PostgreSQL-backed retry
+boundary for selected JSON creates. Form Requests validate before controller
+execution. Each integrated controller then runs a read-only authorization
+preflight before the executor is allowed to look up and replay a response; the
+owning service repeats authorization inside the action as defense in depth. The
+executor HMAC-scopes the UUIDv4 key by User, Store, and stable route name,
+fingerprints the request, tries a PostgreSQL advisory transaction lock, executes
+the existing nested transactional service, serializes the final JSON, and inserts
+an encrypted response record before the outer commit. A crash before commit rolls
+back both; a lost response after commit can be replayed without repeating the
+service or its after-commit notifications.
+
+The prepared migration is
+`2026_08_31_010000_create_idempotency_records_table`. It has not been executed.
+After separately reviewing and applying that named create-only migration, set a
+stable `IDEMPOTENCY_HMAC_KEY`, enable `IDEMPOTENCY_ENABLED`, and keep
+`IDEMPOTENCY_TIER_A_MODE=supported` during client rollout. Only then consider
+`required`. The first operations are additional Store, direct Platform Store,
+Platform merchant, and selected-Store user creation. `idempotency:prune` runs
+hourly only while the feature is enabled and deletes expired records in bounded
+batches. Use a dedicated random HMAC secret; do not rotate it until every record
+created with the old secret has expired and been pruned, because an early change
+would create a new lookup namespace. Never enable the feature before the table
+exists. See
+[Universal HTTP idempotency](idempotency-key-design.md).
 
 ### REST list pagination
 
@@ -1267,6 +1316,7 @@ Automation cannot infer why a business decision was made. That part remains a sh
 - [Catalog module](modules/catalog.md)
 - [Customers module](modules/customers.md)
 - [Catalog schema reference](catalog.md)
+- [Custom Objects API and implementation reference](custom-objects.md)
 - [Product Detail Store Admin guide](product-detail-guide.md)
 - [Product Detail section-provider contract](module-communication/product-detail-section-providers.md)
 - [Module communication contracts](module-communication/)

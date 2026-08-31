@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
 
 final class CustomerWriteRequestTest extends TestCase
 {
-    public function test_customer_create_accepts_identity_fields_but_rejects_credentials(): void
+    public function test_customer_create_accepts_an_optional_confirmed_secure_password(): void
     {
         $payload = [
             'email' => 'buyer@example.com',
@@ -23,8 +23,26 @@ final class CustomerWriteRequestTest extends TestCase
         ];
         self::assertTrue($this->customerValidator($payload)->passes());
 
-        $payload['password'] = 'must-not-cross-this-contract';
+        $payload['password'] = 'StrongPassword1!';
+        $payload['password_confirmation'] = 'StrongPassword1!';
+        self::assertTrue($this->customerValidator($payload)->passes());
+
+        unset($payload['password_confirmation']);
         self::assertTrue($this->customerValidator($payload)->fails());
+
+        $payload['password'] = 'weak';
+        $payload['password_confirmation'] = 'weak';
+        self::assertTrue($this->customerValidator($payload)->fails());
+    }
+
+    public function test_customer_update_prohibits_password_fields(): void
+    {
+        $payload = [
+            'password' => 'StrongPassword1!',
+            'password_confirmation' => 'StrongPassword1!',
+        ];
+
+        self::assertTrue($this->customerValidator($payload, 'PATCH')->fails());
     }
 
     public function test_group_create_requires_language_safe_display_name_and_logic_code(): void
@@ -46,9 +64,9 @@ final class CustomerWriteRequestTest extends TestCase
     }
 
     /** @param array<string, mixed> $payload */
-    private function customerValidator(array $payload): Validator
+    private function customerValidator(array $payload, string $method = 'POST'): Validator
     {
-        $request = CustomerWriteRequest::create('/api/v1/store/customers', 'POST', $payload);
+        $request = CustomerWriteRequest::create('/api/v1/store/customers', $method, $payload);
 
         return $this->factory()->make($payload, $request->rules());
     }

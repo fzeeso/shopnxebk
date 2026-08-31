@@ -9,8 +9,8 @@ return [
     'allowed_methods' => ['*'],
     'allowed_origins' => $origins,
     'allowed_origins_patterns' => [],
-    'allowed_headers' => ['Accept', 'Authorization', 'Content-Type', 'Origin', 'X-Requested-With', 'X-Store-ID', 'X-Request-ID', 'X-CSRF-TOKEN', 'X-XSRF-TOKEN'],
-    'exposed_headers' => ['X-Request-ID'],
+    'allowed_headers' => ['Accept', 'Authorization', 'Content-Type', 'Idempotency-Key', 'Origin', 'X-Requested-With', 'X-Store-ID', 'X-Request-ID', 'X-CSRF-TOKEN', 'X-XSRF-TOKEN'],
+    'exposed_headers' => ['Idempotency-Replayed', 'Idempotency-Original-Request-ID', 'X-Request-ID'],
     'max_age' => 600,
     'supports_credentials' => true,
 ];

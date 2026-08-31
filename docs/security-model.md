@@ -8,6 +8,17 @@ token `store_id` match; an account-only or unbound bearer token cannot enter
 Store context. Password reset revokes every bearer token owned by the user.
 Expired token rows are pruned daily.
 
+The optional HTTP idempotency subsystem never treats its key as authorization.
+It accepts only UUIDv4 values, stores HMAC hashes instead of raw keys, scopes
+lookups by authenticated User, Store, and operation, and re-runs current
+validation and authorization before replay. Successful JSON response bodies are
+encrypted with Laravel's application encryption and checked for integrity;
+credentials, cookies, streams, uploads, and authentication endpoints are not
+eligible. PostgreSQL, rather than Redis, atomically commits the domain change and
+response record. Required mode fails closed when the ledger is unavailable. The
+global switch defaults off until the additive table exists and a stable HMAC key
+is configured.
+
 Store/entity public IDs are ULIDs; bigint IDs and bigint foreign keys remain internal. Store context is request scoped and cleared for Octane and queue workers. Store-owned data must use foreign keys, scopes, policies, and composite uniqueness. Search documents and cache keys are filtered with internal `store_id`. Private media paths use Store and media ULIDs. Incoming webhooks must verify raw-body signatures and idempotency keys before processing.
 
 Store Admin mutations have three application-level isolation checks. Store

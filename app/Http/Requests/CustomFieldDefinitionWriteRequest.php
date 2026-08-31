@@ -21,7 +21,8 @@ final class CustomFieldDefinitionWriteRequest extends FormRequest
         return [
             'product_type' => ['sometimes', 'nullable', 'string', 'max:255'],
             'field_key' => [$required, 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9_.-]*$/'],
-            'field_type' => [$required, 'in:text,number,boolean,select,multi_select,date,url'],
+            'field_type' => [$required, 'in:text,number,boolean,select,multi_select,date,url,object_reference,multi_object_reference'],
+            'reference_object_type_id' => ['sometimes', 'nullable', 'ulid'],
             'is_required' => ['sometimes', 'boolean'],
             'is_filterable' => ['sometimes', 'boolean'],
             'position' => ['sometimes', 'integer', 'min:0', 'max:4294967295'],

@@ -31,12 +31,17 @@ final readonly class CreateStoreService
 
     public function __construct(private StoreProvisioner $storeProvisioner) {}
 
-    /** @param array<string, mixed> $data */
-    public function create(User $owner, array $data): Store
+    public function authorizeCreation(User $owner): void
     {
         if (! $owner->isStoreUser()) {
             throw new AccessDeniedHttpException('Only Store-scoped accounts may create Stores.');
         }
+    }
+
+    /** @param array<string, mixed> $data */
+    public function create(User $owner, array $data): Store
+    {
+        $this->authorizeCreation($owner);
 
         return DB::transaction(function () use ($owner, $data): Store {
             $preferences = isset($data['preferences']) && is_array($data['preferences'])

@@ -140,6 +140,15 @@ final class Product extends Model
             ->orderBy('id');
     }
 
+    public function customObjectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'source_id')
+            ->where('source_type', 'product')
+            ->orderBy('custom_field_definition_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public function modifierGroups(): HasMany
     {
         return $this->hasMany(ProductModifierGroup::class)->orderBy('sort_order')->orderBy('id');

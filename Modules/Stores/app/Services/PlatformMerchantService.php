@@ -46,6 +46,11 @@ final readonly class PlatformMerchantService
         private ScopedRoleAssignmentService $roleAssignments,
     ) {}
 
+    public function authorizeCreation(User $actor): void
+    {
+        $this->access->ensureCanManageMerchants($actor);
+    }
+
     /** @return LengthAwarePaginator<int, Store> */
     public function list(User $actor, int $perPage = 25): LengthAwarePaginator
     {
@@ -59,7 +64,7 @@ final readonly class PlatformMerchantService
     /** @param array<string, mixed> $data */
     public function create(User $actor, array $data): Store
     {
-        $this->access->ensureCanManageMerchants($actor);
+        $this->authorizeCreation($actor);
 
         $store = DB::transaction(function () use ($data): Store {
             /** @var array{name: string, email: string, password: string} $ownerData */

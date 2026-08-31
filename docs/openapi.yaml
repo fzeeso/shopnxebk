@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: shopnxebk REST API
   version: 1.0.0
-  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Customer profiles/groups/credits/eligibility, Brand, Product, composed Product Detail, multilingual Product Option/Variant, typed Custom Field, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types remain GraphQL-only as standalone resources and are documented by the Lighthouse schema; the Product Detail façade exposes bounded selector projections for Store Admin composition.
+  description: Authentication, Store management, Theme marketplace, Platform settings, Plans & Pricing, Customer profiles/groups/credits/eligibility, Brand, Product, composed Product Detail, multilingual Product Option/Variant, typed Custom Field, multilingual Custom Object, Product Image, reusable Media, and Fulfillment Type REST endpoints. Categories and Product Types remain GraphQL-only as standalone resources and are documented by the Lighthouse schema; the Product Detail façade exposes bounded selector projections for Store Admin composition.
 servers:
   - url: http://localhost:8000
 tags:
@@ -30,6 +30,8 @@ tags:
     description: Store-scoped Product lifecycle, localization, classification, pricing, inventory, and commerce metadata.
   - name: Catalog Custom Fields
     description: Store-scoped typed field definitions, select options, and Product or Variant values.
+  - name: Catalog Custom Objects
+    description: Store-scoped multilingual metaobject schemas, entries, values, selectors, and relational assignments.
   - name: Store Media
     description: Reusable Store-owned uploads, processing, authenticated delivery, and Product or Variant attachment.
   - name: Translations
@@ -369,6 +371,7 @@ paths:
       security: [{sanctum: []}]
       summary: Create a merchant
       description: Atomically creates a Store user, draft Store, settings, platform domain, Theme license, published installed Theme copy, active membership, and Store roles; Owner is always included.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
         required: true
         content:
@@ -377,6 +380,9 @@ paths:
       responses:
         '201':
           description: Merchant created
+          headers:
+            Idempotency-Replayed: {description: Present and true only when the original successful response is replayed., schema: {type: boolean}}
+            Idempotency-Original-Request-ID: {description: Request ID of the original successful execution when replayed., schema: {type: string}}
           content:
             application/json:
               schema:
@@ -387,7 +393,10 @@ paths:
                   dashboard_url: {type: string, format: uri}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+        '400': {$ref: '#/components/responses/IdempotencyBadRequest'}
+        '409': {$ref: '#/components/responses/IdempotencyInProgress'}
+        '422': {$ref: '#/components/responses/ValidationOrIdempotencyConflict'}
+        '503': {$ref: '#/components/responses/IdempotencyUnavailable'}
   /api/v1/platform/merchants/{merchant}:
     get:
       tags: [Platform Accounts]
@@ -456,6 +465,7 @@ paths:
       security: [{sanctum: []}]
       summary: Create an unassigned Store
       description: Requires manage stores. Creates normalized locale/settings and platform/custom domain records, but no owner, membership, role, plan, or subscription; status defaults to draft.
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
         required: true
         content:
@@ -464,12 +474,18 @@ paths:
       responses:
         '201':
           description: Store created
+          headers:
+            Idempotency-Replayed: {description: Present and true only when the original successful response is replayed., schema: {type: boolean}}
+            Idempotency-Original-Request-ID: {description: Request ID of the original successful execution when replayed., schema: {type: string}}
           content:
             application/json:
               schema: {$ref: '#/components/schemas/StoreResponse'}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+        '400': {$ref: '#/components/responses/IdempotencyBadRequest'}
+        '409': {$ref: '#/components/responses/IdempotencyInProgress'}
+        '422': {$ref: '#/components/responses/ValidationOrIdempotencyConflict'}
+        '503': {$ref: '#/components/responses/IdempotencyUnavailable'}
   /api/v1/platform/stores/{store}:
     parameters:
       - {name: store, in: path, required: true, schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}, description: Public Store ULID}
@@ -641,17 +657,26 @@ paths:
       security: [{sanctum: []}]
       summary: Create a user in the selected Store
       description: Requires manage store members and manage store roles. Only Store roles are accepted.
-      parameters: [{$ref: '#/components/parameters/StoreId'}]
+      parameters:
+        - {$ref: '#/components/parameters/StoreId'}
+        - {$ref: '#/components/parameters/IdempotencyKey'}
       requestBody:
         required: true
         content:
           application/json:
             schema: {$ref: '#/components/schemas/CreateManagedUserRequest'}
       responses:
-        '201': {description: Store user and active membership created}
+        '201':
+          description: Store user and active membership created
+          headers:
+            Idempotency-Replayed: {description: Present and true only when the original successful response is replayed., schema: {type: boolean}}
+            Idempotency-Original-Request-ID: {description: Request ID of the original successful execution when replayed., schema: {type: string}}
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+        '400': {$ref: '#/components/responses/IdempotencyBadRequest'}
+        '409': {$ref: '#/components/responses/IdempotencyInProgress'}
+        '422': {$ref: '#/components/responses/ValidationOrIdempotencyConflict'}
+        '503': {$ref: '#/components/responses/IdempotencyUnavailable'}
   /api/v1/platform/settings/currencies:
     get:
       tags: [Platform Settings]
@@ -1313,6 +1338,7 @@ paths:
     post:
       security: [{sanctum: []}]
       summary: Create an additional Store and Owner membership
+      parameters: [{$ref: '#/components/parameters/IdempotencyKey'}]
       requestBody:
         required: true
         content:
@@ -1321,6 +1347,9 @@ paths:
       responses:
         '201':
           description: Complete draft Store created
+          headers:
+            Idempotency-Replayed: {description: Present and true only when the original successful response is replayed., schema: {type: boolean}}
+            Idempotency-Original-Request-ID: {description: Request ID of the original successful execution when replayed., schema: {type: string}}
           content:
             application/json:
               schema:
@@ -1329,8 +1358,11 @@ paths:
                 properties:
                   data: {$ref: '#/components/schemas/Store'}
                   dashboard_url: {type: string, format: uri}
+        '400': {$ref: '#/components/responses/IdempotencyBadRequest'}
         '403': {$ref: '#/components/responses/Forbidden'}
-        '422': {$ref: '#/components/responses/ValidationError'}
+        '409': {$ref: '#/components/responses/IdempotencyInProgress'}
+        '422': {$ref: '#/components/responses/ValidationOrIdempotencyConflict'}
+        '503': {$ref: '#/components/responses/IdempotencyUnavailable'}
   /api/v1/store:
     get:
       security: [{sanctum: []}]
@@ -2671,6 +2703,297 @@ paths:
         '401': {$ref: '#/components/responses/Unauthenticated'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {description: Product, Variant, definition, or value not found}
+  /api/v1/store/custom-object-types:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Page multilingual Custom Object Types
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/CustomObjectLifecycleStatus'}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Paginated Custom Object Types}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Create a Custom Object Type and optional initial fields
+      description: Requires manage products. Translation locales must be active for the selected Store.
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectTypeWrite'}}
+      responses:
+        '201': {description: Custom Object Type created}
+        '401': {$ref: '#/components/responses/Unauthenticated'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-types/{type}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: type, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Read a Custom Object Type and field schema
+      parameters:
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Custom Object Type}
+        '404': {description: Type not found in the selected Store}
+    patch:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Update a Custom Object Type
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectTypeWrite'}}
+      responses:
+        '200': {description: Custom Object Type updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Type not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Soft-delete an unreferenced non-system Custom Object Type
+      responses:
+        '204': {description: Type deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Type not found in the selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-types/{type}/fields:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: type, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: List ordered fields for a Custom Object Type
+      responses:
+        '200': {description: Custom Object fields}
+        '404': {description: Type not found in the selected Store}
+    post:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Add a field to a Custom Object Type
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectFieldWrite'}}
+      responses:
+        '201': {description: Custom Object field created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Type or referenced type not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-fields/{field}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: field, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Read a Custom Object field
+      responses:
+        '200': {description: Custom Object field}
+        '404': {description: Field not found in selected Store}
+    patch:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Update a Custom Object field
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectFieldWrite'}}
+      responses:
+        '200': {description: Custom Object field updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Field or referenced type not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Soft-delete an unused Custom Object field
+      responses:
+        '204': {description: Field deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Field not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-types/{type}/entries:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: type, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Page and search entries for a Custom Object Type
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: status, in: query, schema: {$ref: '#/components/schemas/CustomObjectLifecycleStatus'}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Paginated entries with typed values}
+        '404': {description: Type not found in selected Store}
+    post:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Create an entry, translations, and typed values
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectEntryWrite'}}
+      responses:
+        '201': {description: Custom Object entry created}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Type, field, media, or referenced entry not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-types/{type}/entries/options:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: type, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Page active locale-resolved entry selector options
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/PerPage'}
+        - {name: search, in: query, schema: {type: string, maxLength: 200}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Paginated compact selector options}
+        '404': {description: Type not found in selected Store}
+  /api/v1/store/custom-object-entries/{entry}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: entry, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Read one Custom Object entry with translations and values
+      responses:
+        '200': {description: Custom Object entry}
+        '404': {description: Entry not found in selected Store}
+    patch:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Update an entry and submitted values
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectEntryWrite'}}
+      responses:
+        '200': {description: Custom Object entry updated}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Entry, field, media, or referenced entry not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Soft-delete an unreferenced Custom Object entry
+      responses:
+        '204': {description: Entry deleted}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Entry not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-references:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Read relational Custom Object assignments for one source
+      parameters:
+        - {name: source_type, in: query, required: true, schema: {$ref: '#/components/schemas/CustomObjectSourceType'}}
+        - {name: source_id, in: query, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: definition_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Ordered relational assignments}
+        '404': {description: Source or definition not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /api/v1/store/custom-object-references/{definition}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Replace one source field's ordered Custom Object entries
+      requestBody:
+        required: true
+        content:
+          application/json: {schema: {$ref: '#/components/schemas/CustomObjectReferenceWrite'}}
+      responses:
+        '200': {description: Replaced assignments}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Source, definition, or entry not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Clear one source field's Custom Object entries
+      parameters:
+        - {name: source_type, in: query, required: true, schema: {$ref: '#/components/schemas/CustomObjectSourceType'}}
+        - {name: source_id, in: query, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      responses:
+        '204': {description: Assignments cleared}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Source or definition not found in selected Store}
+  /api/v1/store/products/{product}/custom-object-references:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    get:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Read a Product's ordered Custom Object assignments
+      parameters:
+        - {name: definition_id, in: query, schema: {$ref: '#/components/schemas/PublicUlid'}}
+        - {name: locale, in: query, schema: {type: string, maxLength: 35}}
+      responses:
+        '200': {description: Product Custom Object assignments}
+        '404': {description: Product or definition not found in selected Store}
+  /api/v1/store/products/{product}/custom-object-references/{definition}:
+    parameters:
+      - {$ref: '#/components/parameters/StoreId'}
+      - {name: product, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+      - {name: definition, in: path, required: true, schema: {$ref: '#/components/schemas/PublicUlid'}}
+    put:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Replace one Product Custom Object assignment list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_ids]
+              properties:
+                entry_ids: {type: array, maxItems: 100, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
+      responses:
+        '200': {description: Replaced Product assignments}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product, definition, or entry not found in selected Store}
+        '422': {$ref: '#/components/responses/ValidationError'}
+    delete:
+      tags: [Catalog Custom Objects]
+      security: [{sanctum: []}]
+      summary: Clear one Product Custom Object assignment list
+      responses:
+        '204': {description: Product assignments cleared}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {description: Product or definition not found in selected Store}
   /api/v1/store/options:
     parameters:
       - {$ref: '#/components/parameters/StoreId'}
@@ -3404,6 +3727,12 @@ components:
       required: true
       description: Public Store ULID
       schema: {type: string, pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'}
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Optional in the initial supported rollout. Send one UUIDv4 per logical create and reuse it only with the exact same request. The feature is inactive while IDEMPOTENCY_ENABLED is false.
+      schema: {type: string, format: uuid, pattern: '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'}
   schemas:
     CustomerStatus:
       type: string
@@ -3441,6 +3770,20 @@ components:
         - {$ref: '#/components/schemas/CustomerWriteRequest'}
         - type: object
           required: [email]
+          dependentRequired:
+            password: [password_confirmation]
+          properties:
+            password:
+              type: string
+              format: password
+              minLength: 12
+              writeOnly: true
+              description: Optional creation-only password requiring uppercase, lowercase, number, and symbol characters.
+            password_confirmation:
+              type: string
+              format: password
+              minLength: 12
+              writeOnly: true
     Customer:
       type: object
       required: [id, email, status, points_balance, redeemed_points, credit_balance, joined_at]
@@ -4001,6 +4344,24 @@ components:
                   - {$ref: '#/components/schemas/PublicUlid'}
                   - {type: 'null'}
       additionalProperties: false
+    ProductDetailCustomObjectSection:
+      type: object
+      properties:
+        replace:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [definition_id, entry_ids]
+            properties:
+              definition_id: {$ref: '#/components/schemas/PublicUlid'}
+              entry_ids: {type: array, maxItems: 100, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
+        clear:
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items: {$ref: '#/components/schemas/PublicUlid'}
+      additionalProperties: false
     ProductDetailMediaSection:
       type: object
       properties:
@@ -4017,6 +4378,7 @@ components:
         images: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
         media: {$ref: '#/components/schemas/ProductDetailMediaSection'}
         custom_fields: {$ref: '#/components/schemas/ProductDetailCustomFieldSection'}
+        custom_objects: {$ref: '#/components/schemas/ProductDetailCustomObjectSection'}
         options: {$ref: '#/components/schemas/ProductDetailOptionsSection'}
         variants: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
         shared_options: {$ref: '#/components/schemas/ProductDetailUpsertSection'}
@@ -4145,9 +4507,104 @@ components:
         data: {type: array, items: {$ref: '#/components/schemas/Product'}}
         links: {$ref: '#/components/schemas/PaginationLinks'}
         meta: {$ref: '#/components/schemas/PaginationMeta'}
+    CustomObjectLifecycleStatus:
+      type: string
+      enum: [draft, active, archived]
+    CustomObjectFieldStatus:
+      type: string
+      enum: [active, archived]
+    CustomObjectSourceType:
+      type: string
+      enum: [product, collection, category, brand, page]
+    CustomObjectFieldType:
+      type: string
+      enum: [text, textarea, rich_text, number, decimal, boolean, date, datetime, url, email, media, image, select, multi_select, object_reference, multi_object_reference]
+    CustomObjectTypeTranslationWrite:
+      type: object
+      required: [locale, name]
+      properties:
+        locale: {type: string, maxLength: 35}
+        name: {type: string, maxLength: 255}
+        description: {type: [string, 'null']}
+        lock_it: {type: boolean, default: false}
+    CustomObjectFieldTranslationWrite:
+      type: object
+      required: [locale, label]
+      properties:
+        locale: {type: string, maxLength: 35}
+        label: {type: string, maxLength: 255}
+        description: {type: [string, 'null']}
+        help_text: {type: [string, 'null']}
+        placeholder: {type: [string, 'null'], maxLength: 255}
+        lock_it: {type: boolean, default: false}
+    CustomObjectValueTranslationWrite:
+      type: object
+      required: [locale]
+      properties:
+        locale: {type: string, maxLength: 35}
+        value_text: {type: string}
+        value_json: {type: array, items: {type: string}}
+        lock_it: {type: boolean, default: false}
+      description: Supply exactly one of value_text or value_json according to the localized field type.
+    CustomObjectValueWrite:
+      type: object
+      required: [field_id]
+      properties:
+        field_id: {$ref: '#/components/schemas/PublicUlid'}
+        delete: {type: boolean, default: false}
+        value_text: {type: string}
+        value_number: {type: number}
+        value_boolean: {type: boolean}
+        value_date: {type: string, format: date}
+        value_datetime: {type: string, format: date-time}
+        value_json: {type: array, items: {type: string}}
+        media_id: {$ref: '#/components/schemas/PublicUlid'}
+        entry_ids: {type: array, maxItems: 100, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
+        translations: {type: array, minItems: 1, items: {$ref: '#/components/schemas/CustomObjectValueTranslationWrite'}}
+      description: Supply delete=true or exactly one type-specific value property. See docs/custom-objects.md.
+    CustomObjectFieldWrite:
+      type: object
+      properties:
+        handle: {type: string, maxLength: 150, pattern: '^[a-z][a-z0-9-]*$'}
+        field_type: {$ref: '#/components/schemas/CustomObjectFieldType'}
+        is_required: {type: boolean, default: false}
+        is_unique: {type: boolean, default: false}
+        is_localized: {type: boolean, default: false}
+        is_searchable: {type: boolean, default: false}
+        is_filterable: {type: boolean, default: false}
+        sort_order: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        reference_object_type_id:
+          oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]
+        settings: {type: [object, 'null'], additionalProperties: true}
+        validation_rules: {type: [object, 'null'], additionalProperties: true}
+        status: {$ref: '#/components/schemas/CustomObjectFieldStatus'}
+        translations: {type: array, minItems: 1, items: {$ref: '#/components/schemas/CustomObjectFieldTranslationWrite'}}
+    CustomObjectTypeWrite:
+      type: object
+      properties:
+        handle: {type: string, maxLength: 150, pattern: '^[a-z][a-z0-9-]*$'}
+        status: {$ref: '#/components/schemas/CustomObjectLifecycleStatus'}
+        is_system: {type: boolean, default: false, description: Platform Super Admin only.}
+        translations: {type: array, minItems: 1, items: {$ref: '#/components/schemas/CustomObjectTypeTranslationWrite'}}
+        fields: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/CustomObjectFieldWrite'}}
+    CustomObjectEntryWrite:
+      type: object
+      properties:
+        handle: {type: string, maxLength: 150, pattern: '^[a-z][a-z0-9-]*$'}
+        status: {$ref: '#/components/schemas/CustomObjectLifecycleStatus'}
+        sort_order: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
+        translations: {type: array, minItems: 1, items: {$ref: '#/components/schemas/CustomObjectTypeTranslationWrite'}}
+        values: {type: array, maxItems: 100, items: {$ref: '#/components/schemas/CustomObjectValueWrite'}}
+    CustomObjectReferenceWrite:
+      type: object
+      required: [source_type, source_id, entry_ids]
+      properties:
+        source_type: {$ref: '#/components/schemas/CustomObjectSourceType'}
+        source_id: {$ref: '#/components/schemas/PublicUlid'}
+        entry_ids: {type: array, maxItems: 100, uniqueItems: true, items: {$ref: '#/components/schemas/PublicUlid'}}
     CustomFieldType:
       type: string
-      enum: [text, number, boolean, select, multi_select, date, url]
+      enum: [text, number, boolean, select, multi_select, date, url, object_reference, multi_object_reference]
     CustomFieldDefinitionTranslationWrite:
       type: object
       required: [locale, label]
@@ -4187,6 +4644,8 @@ components:
         product_type: {type: [string, 'null'], maxLength: 255, description: Nullable Product Type code; null makes the definition global.}
         field_key: {type: string, maxLength: 100, pattern: '^[A-Za-z][A-Za-z0-9_.-]*$'}
         field_type: {$ref: '#/components/schemas/CustomFieldType'}
+        reference_object_type_id:
+          oneOf: [{$ref: '#/components/schemas/PublicUlid'}, {type: 'null'}]
         is_required: {type: boolean, default: false}
         is_filterable: {type: boolean, default: false}
         position: {type: integer, minimum: 0, maximum: 4294967295, default: 0}
@@ -4243,6 +4702,7 @@ components:
         product_type: {type: [string, 'null']}
         field_key: {type: string}
         field_type: {$ref: '#/components/schemas/CustomFieldType'}
+        reference_object_type: {type: [object, 'null'], additionalProperties: true}
         is_required: {type: boolean}
         is_filterable: {type: boolean}
         position: {type: integer, minimum: 0}
@@ -6064,6 +6524,32 @@ components:
           properties:
             user: {$ref: '#/components/schemas/User'}
   responses:
+    IdempotencyBadRequest:
+      description: Idempotency-Key is missing when required, duplicated, malformed, or not UUIDv4.
+      content: {application/json: {schema: {type: object, required: [message, code, request_id], properties: {message: {type: string}, code: {type: string, enum: [idempotency_key_required, idempotency_key_invalid]}, request_id: {type: string}}}}}
+    IdempotencyInProgress:
+      description: The same scoped operation is still executing. Retry the exact request after Retry-After.
+      headers: {Retry-After: {schema: {type: integer, minimum: 1}}}
+      content: {application/json: {schema: {type: object, required: [message, code, request_id], properties: {message: {type: string}, code: {type: string, enum: [idempotency_in_progress]}, request_id: {type: string}}}}}
+    IdempotencyUnavailable:
+      description: Durable idempotency protection is unavailable and the protected mutation was not committed.
+      content: {application/json: {schema: {type: object, required: [message, code, request_id], properties: {message: {type: string}, code: {type: string, enum: [idempotency_unavailable]}, request_id: {type: string}}}}}
+    ValidationOrIdempotencyConflict:
+      description: Request validation failed, or the scoped Idempotency-Key was already used with a different request.
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - type: object
+                properties:
+                  message: {type: string}
+                  errors: {type: object}
+              - type: object
+                required: [message, code, request_id]
+                properties:
+                  message: {type: string}
+                  code: {type: string, enum: [idempotency_key_reused]}
+                  request_id: {type: string}
     Unauthenticated:
       description: Authentication required
       content: {application/json: {schema: {type: object, properties: {message: {type: string}}}}}

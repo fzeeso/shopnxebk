@@ -64,6 +64,8 @@ enum CustomFieldType {
     MULTI_SELECT @enum(value: "multi_select")
     DATE @enum(value: "date")
     URL @enum(value: "url")
+    OBJECT_REFERENCE @enum(value: "object_reference")
+    MULTI_OBJECT_REFERENCE @enum(value: "multi_object_reference")
 }
 
 enum CustomFieldSortField {
@@ -163,6 +165,7 @@ type CustomFieldDefinition {
     productType: String @rename(attribute: "product_type")
     fieldKey: String! @rename(attribute: "field_key")
     fieldType: CustomFieldType! @rename(attribute: "field_type")
+    referenceObjectTypeId: ID @method(name: "referenceObjectTypePublicId")
     isRequired: Boolean! @rename(attribute: "is_required")
     isFilterable: Boolean! @rename(attribute: "is_filterable")
     position: Int!
@@ -395,6 +398,7 @@ input CreateCustomFieldInput {
     productType: String
     fieldKey: String!
     fieldType: CustomFieldType!
+    referenceObjectTypeId: ID
     isRequired: Boolean
     isFilterable: Boolean
     position: Int
@@ -406,6 +410,7 @@ input UpdateCustomFieldInput {
     productType: String
     fieldKey: String
     fieldType: CustomFieldType
+    referenceObjectTypeId: ID
     isRequired: Boolean
     isFilterable: Boolean
     position: Int

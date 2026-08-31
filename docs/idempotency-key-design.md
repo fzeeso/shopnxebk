@@ -1,6 +1,6 @@
 # Universal HTTP `Idempotency-Key` design for ShopNXE
 
-Status: proposed architecture; not implemented  
+Status: Phase 1 core and initial REST integrations implemented; migration prepared but not executed
 Prepared: 2026-08-31  
 Audience: backend, frontend, mobile, integration, SRE, security, and QA teams
 
@@ -37,6 +37,31 @@ middleware that immediately replays responses is unsafe in this application
 because fine-grained authorization currently also occurs in policies, Form
 Requests, services, and GraphQL actions. A replay must never bypass those current
 checks.
+
+## Implementation status
+
+The first safe increment now exists behind `IDEMPOTENCY_ENABLED=false`:
+
+- a create-only `idempotency_records` migration is prepared but has not been
+  executed;
+- PostgreSQL advisory transaction locking, HMAC-scoped UUIDv4 keys, exact request
+  fingerprints, encrypted JSON snapshots, integrity checks, replay headers, and
+  bounded pruning are implemented;
+- CORS accepts `Idempotency-Key` and exposes replay/correlation headers;
+- additional Store creation, direct Platform Store creation, Platform merchant
+  creation, and selected-Store user creation use authorization preflight plus the
+  atomic executor;
+- the four operations start in `supported` mode, so existing clients may omit the
+  header; `required` enforcement is a later rollout decision;
+- GraphQL, Customer credits, payments/orders, webhooks, uploads, and general CRUD
+  are not yet integrated.
+
+Enabling requires an explicit review and authorized execution of
+`2026_08_31_010000_create_idempotency_records_table`, a stable non-empty
+`IDEMPOTENCY_HMAC_KEY`, and then `IDEMPOTENCY_ENABLED=true`. The migration was
+not executed as part of this implementation. Use a dedicated random HMAC secret
+and retain it until all records written with it have expired and been pruned;
+rotating it sooner would move retries into a new lookup namespace.
 
 ## Why ShopNXE needs it
 

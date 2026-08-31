@@ -23,6 +23,7 @@ use Modules\Stores\Models\Store;
     'last_name',
     'phone',
     'status',
+    'password',
     'registered_ip',
     'admin_notes',
     'points_balance',
@@ -62,6 +63,7 @@ final class Customer extends Model
     {
         return [
             'status' => CustomerStatus::class,
+            'password' => 'hashed',
             'points_balance' => 'integer',
             'redeemed_points' => 'integer',
             'email_verified_at' => 'immutable_datetime',

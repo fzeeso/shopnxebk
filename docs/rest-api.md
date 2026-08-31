@@ -6,6 +6,19 @@ Reserved route families are intentionally not implemented yet: uploads and presi
 
 Every response receives `X-Request-ID`. 401, 403, 404, and 422 responses are structured JSON and never redirect to a login page.
 
+When `IDEMPOTENCY_ENABLED=true`, four high-risk create routes support an optional
+`Idempotency-Key`: `POST /api/v1/stores`, `POST /api/v1/platform/stores`,
+`POST /api/v1/platform/merchants`, and `POST /api/v1/store/users`. Send one
+quoted or unquoted UUIDv4 for a logical operation and reuse the exact key only
+with the same method, URL, Store, query, and byte-identical JSON body. The server
+rechecks current authorization before replay. A completed retry returns the
+original `2xx` with `Idempotency-Replayed: true` and
+`Idempotency-Original-Request-ID`; an in-flight duplicate returns `409` with
+`Retry-After`; changed reuse returns `422`; malformed/missing-required keys return
+`400`; unavailable protection returns `503` without running the mutation. Tier A
+starts in `supported` mode, so omission keeps legacy behavior. See
+[Universal HTTP idempotency](idempotency-key-design.md).
+
 Table-style list endpoints accept `page` and `per_page`. The usual default page
 size is 25; the Platform Store catalog defaults to 10 for its admin directory.
 The maximum is 100. Responses keep records in `data` and add Laravel
@@ -358,3 +371,23 @@ separately and attached by public media ULID. See the
 [Product Detail Store Admin guide](product-detail-guide.md) for client flow and
 the [API manual](api-manual.md#611-product-detail-composition-and-intelligent-save)
 for the complete request contract.
+
+Custom Object (metaobject) contracts:
+
+| Method | URL | Scope and purpose |
+| --- | --- | --- |
+| `GET/POST` | `/api/v1/store/custom-object-types` | Page/search or create multilingual type schemas. |
+| `GET/PATCH/DELETE` | `/api/v1/store/custom-object-types/{type}` | Read, edit, or soft-delete one type. |
+| `GET/POST` | `/api/v1/store/custom-object-types/{type}/fields` | List or add dynamic fields. |
+| `GET/PATCH/DELETE` | `/api/v1/store/custom-object-fields/{field}` | Read, edit, archive/delete one field. |
+| `GET/POST` | `/api/v1/store/custom-object-types/{type}/entries` | Page/search or create translated typed entries. |
+| `GET` | `/api/v1/store/custom-object-types/{type}/entries/options` | Fetch compact active locale-aware selector options. |
+| `GET/PATCH/DELETE` | `/api/v1/store/custom-object-entries/{entry}` | Read, edit, archive/delete one entry. |
+| `GET/PUT/DELETE` | `/api/v1/store/custom-object-references[/{definition}]` | Read, replace, or clear polymorphic assignments. |
+| `GET/PUT/DELETE` | `/api/v1/store/products/{product}/custom-object-references[/{definition}]` | Product convenience assignment API. |
+
+Reads require membership and writes require `manage products`. Public ULIDs,
+active Store locales, relational references, and requested/default-language
+fallback are mandatory. Product Detail exposes the same assignments as
+`custom_objects`. See [Custom Objects](custom-objects.md) for exact request
+bodies and field-type value shapes.

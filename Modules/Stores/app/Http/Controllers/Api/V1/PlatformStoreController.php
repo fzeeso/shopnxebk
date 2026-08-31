@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Stores\Http\Controllers\Api\V1;
 
+use App\Support\Idempotency\IdempotencyExecutor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Modules\Authentication\Models\User;
@@ -25,14 +26,25 @@ final class PlatformStoreController extends Controller
         return PlatformStoreListResource::collection($service->paginate($actor, $request->validated()))->response();
     }
 
-    public function store(CreatePlatformStoreRequest $request, PlatformStoreAdminService $service): JsonResponse
-    {
+    public function store(
+        CreatePlatformStoreRequest $request,
+        PlatformStoreAdminService $service,
+        IdempotencyExecutor $idempotency,
+    ): JsonResponse {
         /** @var User $actor */
         $actor = $request->user();
+        $data = $request->validated();
 
-        return response()->json([
-            'data' => new StoreResource($service->create($actor, $request->validated())),
-        ], 201);
+        return $idempotency->execute(
+            request: $request,
+            operation: 'api.v1.platform.stores.store',
+            preflight: function () use ($actor, $service): void {
+                $service->authorizeCreation($actor);
+            },
+            action: fn (): JsonResponse => response()->json([
+                'data' => new StoreResource($service->create($actor, $data)),
+            ], 201),
+        );
     }
 
     public function show(

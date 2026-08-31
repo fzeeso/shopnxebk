@@ -12,6 +12,7 @@ use Illuminate\Validation\ValidationException;
 use Modules\Authentication\Models\User;
 use Modules\Catalog\Models\CustomFieldDefinition;
 use Modules\Catalog\Models\CustomFieldOption;
+use Modules\Catalog\Models\CustomObjectType;
 use Modules\Catalog\Models\Product;
 use Modules\Catalog\Models\ProductCustomFieldValue;
 use Modules\Catalog\Models\ProductVariant;
@@ -20,7 +21,10 @@ use Modules\Stores\Models\Store;
 
 final readonly class CustomFieldManagementService
 {
-    public const TYPES = ['text', 'number', 'boolean', 'select', 'multi_select', 'date', 'url'];
+    public const TYPES = [
+        'text', 'number', 'boolean', 'select', 'multi_select', 'date', 'url',
+        'object_reference', 'multi_object_reference',
+    ];
 
     public function __construct(
         private StoreContext $context,
@@ -105,6 +109,7 @@ final readonly class CustomFieldManagementService
     {
         $store = $this->store($user, true);
         $data = $this->validateDefinition($this->normalizeDefinitionInput($input), true);
+        $this->ensureReferenceConfiguration($data, (string) $data['field_type']);
         $this->ensureFieldKeyAvailable($store, (string) $data['field_key']);
         $this->ensureOptionsAllowed((string) $data['field_type'], $data['options'] ?? []);
 
@@ -114,6 +119,9 @@ final readonly class CustomFieldManagementService
                 'product_type' => $data['product_type'] ?? null,
                 'field_key' => trim((string) $data['field_key']),
                 'field_type' => $data['field_type'],
+                'reference_object_type_id' => isset($data['reference_object_type_id'])
+                    ? $this->referenceObjectType($store, (string) $data['reference_object_type_id'])->getKey()
+                    : null,
                 'is_required' => $data['is_required'] ?? false,
                 'is_filterable' => $data['is_filterable'] ?? false,
                 'position' => $data['position'] ?? 0,
@@ -142,10 +150,11 @@ final readonly class CustomFieldManagementService
         if (isset($data['field_key'])) {
             $this->ensureFieldKeyAvailable($store, (string) $data['field_key'], (int) $definition->getKey());
         }
+        $this->ensureReferenceConfiguration($data, (string) ($data['field_type'] ?? $definition->field_type), $definition);
         if (isset($data['field_type']) && $data['field_type'] !== $definition->field_type) {
-            if ($definition->values()->exists()) {
+            if ($definition->values()->exists() || $definition->objectReferences()->exists()) {
                 throw ValidationException::withMessages([
-                    'field_type' => ['A field type cannot change after Product or Variant values exist.'],
+                    'field_type' => ['A field type cannot change after Product, Variant, or Custom Object references exist.'],
                 ]);
             }
             if (! in_array($data['field_type'], ['select', 'multi_select'], true) && $definition->options()->exists()) {
@@ -154,19 +163,41 @@ final readonly class CustomFieldManagementService
                 ]);
             }
         }
+        if (isset($data['reference_object_type_id'])) {
+            $referenceType = $this->referenceObjectType($store, (string) $data['reference_object_type_id']);
+            if ((int) $referenceType->getKey() !== (int) $definition->reference_object_type_id
+                && $definition->objectReferences()->exists()) {
+                throw ValidationException::withMessages([
+                    'reference_object_type_id' => ['Clear active Custom Object references before changing the reference type.'],
+                ]);
+            }
+        }
 
         return DB::transaction(function () use ($store, $definition, $data): CustomFieldDefinition {
             if (isset($data['field_key'])) {
                 $data['field_key'] = trim((string) $data['field_key']);
             }
-            $definition->fill(array_intersect_key($data, array_flip([
+            $attributes = array_intersect_key($data, array_flip([
                 'product_type',
                 'field_key',
                 'field_type',
                 'is_required',
                 'is_filterable',
                 'position',
-            ])))->save();
+            ]));
+            if (isset($data['reference_object_type_id'])) {
+                $attributes['reference_object_type_id'] = $this->referenceObjectType(
+                    $store,
+                    (string) $data['reference_object_type_id'],
+                )->getKey();
+            } elseif (isset($data['field_type']) && ! in_array(
+                $data['field_type'],
+                ['object_reference', 'multi_object_reference'],
+                true,
+            )) {
+                $attributes['reference_object_type_id'] = null;
+            }
+            $definition->fill($attributes)->save();
             if (isset($data['translations'])) {
                 $this->syncDefinitionTranslations($store, $definition, $data['translations']);
             }
@@ -178,7 +209,13 @@ final readonly class CustomFieldManagementService
     public function deleteDefinition(User $user, string $publicId): void
     {
         $store = $this->store($user, true);
-        $this->definition($store, $publicId)->delete();
+        $definition = $this->definition($store, $publicId);
+        if ($definition->objectReferences()->exists()) {
+            throw ValidationException::withMessages([
+                'definition' => ['Clear active Custom Object references before deleting this Custom Field.'],
+            ]);
+        }
+        $definition->delete();
     }
 
     /** @return list<CustomFieldOption> */
@@ -375,6 +412,7 @@ final readonly class CustomFieldManagementService
             'product_type' => ['sometimes', 'nullable', 'string', 'max:255'],
             'field_key' => [$required, 'string', 'max:100', 'regex:/^[A-Za-z][A-Za-z0-9_.-]*$/'],
             'field_type' => [$required, 'in:'.implode(',', self::TYPES)],
+            'reference_object_type_id' => ['sometimes', 'nullable', 'ulid'],
             'is_required' => ['sometimes', 'boolean'],
             'is_filterable' => ['sometimes', 'boolean'],
             'position' => ['sometimes', 'integer', 'min:0', 'max:4294967295'],
@@ -428,6 +466,9 @@ final readonly class CustomFieldManagementService
             'date' => 'value_date',
             'select' => 'option_id',
             'multi_select' => 'option_ids',
+            'object_reference', 'multi_object_reference' => throw ValidationException::withMessages([
+                'definition' => ['Use the Custom Object reference endpoint for relational object values.'],
+            ]),
             default => throw ValidationException::withMessages(['definition' => ['Unsupported custom-field type.']]),
         };
         $supplied = array_values(array_intersect(
@@ -455,6 +496,7 @@ final readonly class CustomFieldManagementService
             'productType' => 'product_type',
             'fieldKey' => 'field_key',
             'fieldType' => 'field_type',
+            'referenceObjectTypeId' => 'reference_object_type_id',
             'isRequired' => 'is_required',
             'isFilterable' => 'is_filterable',
         ] as $from => $to) {
@@ -690,6 +732,38 @@ final readonly class CustomFieldManagementService
             ->firstOrFail();
     }
 
+    private function referenceObjectType(Store $store, string $publicId): CustomObjectType
+    {
+        return CustomObjectType::query()
+            ->where('store_id', $store->getKey())
+            ->where('public_id', $publicId)
+            ->firstOrFail();
+    }
+
+    /** @param array<string, mixed> $data */
+    private function ensureReferenceConfiguration(
+        array $data,
+        string $fieldType,
+        ?CustomFieldDefinition $existing = null,
+    ): void {
+        $isReference = in_array($fieldType, ['object_reference', 'multi_object_reference'], true);
+        $reference = array_key_exists('reference_object_type_id', $data)
+            ? $data['reference_object_type_id']
+            : (array_key_exists('field_type', $data) && ! $isReference
+                ? null
+                : $existing?->reference_object_type_id);
+        if ($isReference && $reference === null) {
+            throw ValidationException::withMessages([
+                'reference_object_type_id' => ['Reference Custom Fields require a Custom Object Type.'],
+            ]);
+        }
+        if (! $isReference && array_key_exists('reference_object_type_id', $data) && $data['reference_object_type_id'] !== null) {
+            throw ValidationException::withMessages([
+                'reference_object_type_id' => ['Only object reference Custom Fields may specify a Custom Object Type.'],
+            ]);
+        }
+    }
+
     private function option(
         Store $store,
         CustomFieldDefinition $definition,
@@ -731,7 +805,12 @@ final readonly class CustomFieldManagementService
     /** @return list<string> */
     private function definitionRelations(): array
     {
-        return ['translations', 'options.definition', 'options.translations'];
+        return [
+            'translations',
+            'options.definition',
+            'options.translations',
+            'referenceObjectType.translations',
+        ];
     }
 
     /** @return list<string> */

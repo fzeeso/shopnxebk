@@ -71,6 +71,15 @@ final class ProductDetailWriteRequest extends FormRequest
             'sections.custom_fields.delete.*.definition_id' => ['required', 'ulid'],
             'sections.custom_fields.delete.*.variant_id' => ['sometimes', 'nullable', 'ulid'],
 
+            'sections.custom_objects' => ['sometimes', 'array:replace,clear'],
+            'sections.custom_objects.replace' => ['sometimes', 'array', 'list', 'max:100'],
+            'sections.custom_objects.replace.*' => ['required', 'array'],
+            'sections.custom_objects.replace.*.definition_id' => ['required', 'ulid', 'distinct'],
+            'sections.custom_objects.replace.*.entry_ids' => ['required', 'array', 'list', 'max:100'],
+            'sections.custom_objects.replace.*.entry_ids.*' => ['required', 'ulid', 'distinct'],
+            'sections.custom_objects.clear' => ['sometimes', 'array', 'list', 'max:100'],
+            'sections.custom_objects.clear.*' => ['required', 'ulid', 'distinct'],
+
             'sections.options' => ['sometimes', 'array:upsert,delete,value_upsert,value_delete'],
             'sections.options.upsert' => ['sometimes', 'array', 'list', 'max:100'],
             'sections.options.upsert.*' => ['required', 'array'],

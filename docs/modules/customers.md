@@ -91,12 +91,14 @@ points, and discount configuration never enter this translation flow.
 
 ## Deletion and security
 
-Customer management requests prohibit password and legacy identifier fields.
-Resources never serialize password, legacy hashes/salts, internal IDs, or
-legacy audit identifiers. Legacy bearer/reset tokens are not represented in the
-new schema and must be expired at cutover. The nullable credential-migration
-columns exist only for a controlled future rehash-on-login bridge; storefront
-customer authentication is not exposed by this module.
+Customer creation accepts an optional confirmed password under the shared
+12-character mixed-case/number/symbol policy. The model's `hashed` cast hashes
+it before persistence. Customer update prohibits password fields, and resources
+never serialize passwords, hashes/salts, internal IDs, or legacy audit
+identifiers. Legacy bearer/reset tokens are not represented in the new schema
+and must be expired at cutover. The nullable credential-migration columns exist
+only for a controlled future rehash-on-login bridge; storefront customer login,
+reset, session, and token endpoints are not exposed by this module.
 
 Store deletion cascades Store-owned customer data. Category or Product deletion
 cascades only the corresponding access/discount rule. A physical customer
@@ -106,8 +108,9 @@ the row level and preserves the ledger.
 ## Verification
 
 Safe non-database contract tests cover additive schema shape, Store-safe keys,
-the single translated concept, credential exclusion, append-only credits,
-route coverage, request validation, and the exported group resolver. PostgreSQL
+the single translated concept, creation-only password validation/hashing and
+credential response exclusion, append-only credits, route coverage, request
+validation, and the exported group resolver. PostgreSQL
 integration tests should be added/run only in an authorized disposable database
 because repository policy prohibits database-mutating verification by default.
 

@@ -64,13 +64,17 @@ final class CustomerModuleContractTest extends TestCase
         self::assertStringNotContainsString('credits/{credit}', $routes);
     }
 
-    public function test_services_keep_credentials_private_and_credits_append_only(): void
+    public function test_services_hash_new_customer_passwords_keep_them_private_and_keep_credits_append_only(): void
     {
         $customerRequest = $this->source('Modules/Customers/app/Http/Requests/CustomerWriteRequest.php');
+        $customerModel = $this->source('Modules/Customers/app/Models/Customer.php');
+        $customerService = $this->source('Modules/Customers/app/Services/CustomerManagementService.php');
         $customerResource = $this->source('Modules/Customers/app/Http/Resources/CustomerResource.php');
         $creditService = $this->source('Modules/Customers/app/Services/CustomerCreditService.php');
 
-        self::assertStringContainsString("'password' => ['prohibited']", $customerRequest);
+        self::assertStringContainsString('Password::min(12)->mixedCase()->numbers()->symbols()', $customerRequest);
+        self::assertStringContainsString("'password' => 'hashed'", $customerModel);
+        self::assertStringContainsString("'password' => \$data['password'] ?? null", $customerService);
         self::assertStringNotContainsString("'password' =>", $customerResource);
         self::assertStringContainsString('CustomerCredit::query()->create(', $creditService);
         self::assertStringNotContainsString('->update(', $creditService);

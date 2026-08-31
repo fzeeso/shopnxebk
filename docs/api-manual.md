@@ -39,7 +39,39 @@ X-Store-ID: <store-public-ulid>
 Accept: application/json
 ```
 
-### 1.1 Catalog API exposure matrix
+### 1.1 Safe REST mutation retries
+
+The initial idempotency rollout covers these create operations when the global
+feature is enabled:
+
+- `POST /api/v1/stores`;
+- `POST /api/v1/platform/stores`;
+- `POST /api/v1/platform/merchants`;
+- `POST /api/v1/store/users`.
+
+Generate one UUIDv4 for the user's logical action and retain it across network,
+page, mobile, or token-refresh retries:
+
+```http
+Idempotency-Key: "8e03978e-40d5-43e8-bc93-6894a57f9324"
+X-Request-ID: <new ID for this network attempt>
+```
+
+Retry only with the same method, target, Store, normalized query, media type,
+and byte-identical body. A changed request is a new intent and needs a new key.
+Do not generate a new key merely to escape a timeout or `409`. On `409`, honor
+`Retry-After` and retry the exact request with jitter. A `422` idempotency reuse
+error is a client state bug; stop automatic retry. A replay returns the original
+successful JSON and adds `Idempotency-Replayed: true` plus the original request
+ID while the current attempt retains its own `X-Request-ID`.
+
+Tier A currently defaults to `supported`, not `required`. The server re-runs
+current authentication, Store membership, binding, permission, and validation
+before every protected lookup. Authentication/token endpoints, uploads, streams,
+webhooks, GraphQL, and other mutations are not protected by this first increment.
+See [Universal HTTP idempotency](idempotency-key-design.md).
+
+### 1.2 Catalog API exposure matrix
 
 | Resource | REST exposure | GraphQL exposure |
 | --- | --- | --- |
@@ -52,6 +84,7 @@ Accept: application/json
 | Product Options and Variants | Nested multilingual CRUD under `/api/v1/store/products/{product}` | Not exposed |
 | Product Images | Nested metadata CRUD under `/api/v1/store/products/{product}/images` | Not exposed |
 | Custom Fields | Definition/option CRUD plus Product/Variant typed-value operations under `/api/v1/store` | Full definition/option lifecycle plus Product/Variant typed-value operations |
+| Custom Objects | Type/field/entry/value CRUD, selectors, polymorphic assignments, and Product convenience routes under `/api/v1/store` | Not exposed |
 | Reusable Media | Upload/complete/list/detail/content/delete plus Product and Variant attachment under `/api/v1/store` | Not exposed |
 | Modifier Library | Store category/definition lifecycle with nested translations, values, validation, and pricing | Not exposed |
 | Product Modifiers | Nested group/assignment/reorder APIs and resolved storefront DTO | Not exposed |
@@ -707,7 +740,9 @@ same Product/Option pair.
 Custom Fields are Store-level definitions with public ULIDs, stable `field_key`
 values, optional Product Type-code applicability, localized labels/help text,
 and optional ordered choices. Supported `field_type` values are `text`,
-`number`, `boolean`, `select`, `multi_select`, `date`, and `url`.
+`number`, `boolean`, `select`, `multi_select`, `date`, `url`,
+`object_reference`, and `multi_object_reference`. The object types require a
+`reference_object_type_id` and use the relational Custom Object API.
 
 Definition and option REST operations are:
 
@@ -771,7 +806,8 @@ Product references that Product Type code; a null `product_type` is global.
 Changing a definition's type is rejected once any values exist, and deleting a
 selected option is rejected. Deleting a definition intentionally follows the
 documented database cascade and removes all of its owned translations, options,
-and Product/Variant values.
+and Product/Variant values. Definitions with Custom Object assignments must be
+cleared before deletion.
 
 GraphQL exposes the same rules through `customFields`, `customField`,
 `productCustomFieldValues`, `productCustomFieldValue`, the definition/option
@@ -794,6 +830,38 @@ mutation SetCustomField($productId: ID!, $definitionId: ID!, $optionId: ID!) {
   }
 }
 ```
+
+### 6.1.5 Custom Objects (metaobjects)
+
+Custom Objects are Store-owned reusable records defined at runtime. Types,
+fields, entries, values, and translations use public ULIDs and active Store
+locales. Handles and reference IDs remain language-neutral. Reads resolve
+`locale`, then `Accept-Language`, then the Store default and first available
+translation while retaining all translations for Admin editing.
+
+| Method | Endpoint |
+| --- | --- |
+| `GET`, `POST` | `/api/v1/store/custom-object-types` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/custom-object-types/{type}` |
+| `GET`, `POST` | `/api/v1/store/custom-object-types/{type}/fields` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/custom-object-fields/{field}` |
+| `GET`, `POST` | `/api/v1/store/custom-object-types/{type}/entries` |
+| `GET` | `/api/v1/store/custom-object-types/{type}/entries/options` |
+| `GET`, `PATCH`, `DELETE` | `/api/v1/store/custom-object-entries/{entry}` |
+| `GET` | `/api/v1/store/custom-object-references` |
+| `PUT`, `DELETE` | `/api/v1/store/custom-object-references/{definition}` |
+| `GET` | `/api/v1/store/products/{product}/custom-object-references` |
+| `PUT`, `DELETE` | `/api/v1/store/products/{product}/custom-object-references/{definition}` |
+
+Reference replacement is ordered and atomic. `object_reference` accepts at
+most one entry; `multi_object_reference` accepts up to 100 distinct active
+entries from the configured same-Store type. Generic sources are Product,
+Collection, Category, Brand, and Page. Product Detail exposes the same service
+through `sections.custom_objects`.
+
+The complete request schemas, field/value matrix, locale fallback, selector
+behavior, deletion guards, and implementation references are in
+[Custom Objects](custom-objects.md).
 
 ### 6.2 Product image REST lifecycle
 
@@ -1004,10 +1072,15 @@ and Store-owned bindings. Reads require membership; mutations require
 
 Profile writes accept normalized email/contact/name/company, a group public
 ULID, `active`/`disabled`, notes, non-negative point counters, registered IP,
-and joined time. They prohibit password, legacy ID, hash, salt, and token
-fields. Omitting the group on create assigns the current default when present;
-explicit null leaves it ungrouped. Email is lower-cased and unique among
-non-deleted customers only inside the selected Store.
+and joined time. Create additionally accepts an optional confirmed password of
+at least 12 characters with uppercase, lowercase, number, and symbol
+characters; the Customer model hashes it before persistence. Password fields
+are prohibited on profile update and never serialized. Legacy IDs, hashes,
+salts, and token fields are always prohibited. Omitting the group on create
+assigns the current default when present; explicit null leaves it ungrouped.
+Email is lower-cased and unique among non-deleted customers only inside the
+selected Store. Saving a password does not expose storefront customer login or
+reset endpoints.
 
 Credits use decimal strings, types `return`, `gift`, or `adjustment`, optional
 opaque `external_reference`, reason, and occurrence time. Negative adjustments
@@ -1162,7 +1235,8 @@ Clients should:
 2. Log the response `X-Request-ID` for support correlation.
 3. Show field validation messages without exposing traces.
 4. Treat missing/cross-Store ULIDs as not found rather than trying another internal ID.
-5. Retry only transport failures and explicitly retryable jobs; do not blindly replay mutations.
+5. Retry a protected REST create only with its original `Idempotency-Key` and
+   byte-identical request; do not blindly replay other mutations.
 
 Common failures include missing `X-Store-ID`, inactive membership, token/Store mismatch, missing `manage products`, inactive translation locale, duplicate localized slug, invalid Product Type code, unknown taxonomy-node ULID, invalid category tree, and a primary category absent from `categoryIds`.
 

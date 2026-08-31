@@ -4,6 +4,14 @@ The application is a modular monolith: one Laravel process, one PostgreSQL share
 
 HTTP is API-only. REST is versioned under `/api/v1` and serves authentication, administrative resources, selected Catalog lifecycles, files/uploads/downloads, exports, webhooks, broadcasting authentication, and health. Lighthouse serves the GraphQL business contracts at `/graphql`; not every persisted resource is exposed through both protocols. Queue work uses Redis/Horizon; Reverb handles WebSockets; Scout targets Meilisearch or the database driver; private media uses a store-prefixed path generator.
 
+Selected high-risk REST creates can enter a disabled-by-default idempotency
+boundary after validation and current authorization. PostgreSQL advisory
+transaction locks serialize the same User/Store/operation/key, while the domain
+write and encrypted successful-response record share one commit. Redis is not
+the correctness source. The initial Store/provisioning routes remain in optional
+supported mode until the additive ledger migration is explicitly applied and
+the feature is enabled. See [Universal HTTP idempotency](idempotency-key-design.md).
+
 ## Product Detail application façade
 
 The Store Admin Product editor uses `/api/v1/store/product-detail` as an

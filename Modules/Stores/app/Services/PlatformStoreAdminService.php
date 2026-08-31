@@ -40,6 +40,11 @@ final readonly class PlatformStoreAdminService
         private EnsureStorePolicyCatalog $storePolicies,
     ) {}
 
+    public function authorizeCreation(User $actor): void
+    {
+        $this->access->ensureCanManageStores($actor);
+    }
+
     /**
      * @param  array<string, mixed>  $filters
      * @return LengthAwarePaginator<Store>
@@ -97,7 +102,7 @@ final readonly class PlatformStoreAdminService
     /** @param array<string, mixed> $data */
     public function create(User $actor, array $data): Store
     {
-        $this->access->ensureCanManageStores($actor);
+        $this->authorizeCreation($actor);
 
         return DB::transaction(function () use ($actor, $data): Store {
             $attributes = Arr::only($data, self::WRITABLE_FIELDS);

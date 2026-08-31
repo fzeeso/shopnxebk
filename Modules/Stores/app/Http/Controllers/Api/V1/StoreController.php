@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Modules\Stores\Http\Controllers\Api\V1;
 
+use App\Support\Idempotency\IdempotencyExecutor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -46,15 +47,27 @@ final class StoreController extends Controller
         CreateStoreRequest $request,
         CreateStoreService $service,
         StoreDashboardUrl $dashboardUrl,
+        IdempotencyExecutor $idempotency,
     ): JsonResponse {
         /** @var User $user */
         $user = $request->user();
-        $store = $service->create($user, $request->validated());
+        $data = $request->validated();
 
-        return response()->json([
-            'data' => new StoreResource($store),
-            'dashboard_url' => $dashboardUrl->for($store),
-        ], 201);
+        return $idempotency->execute(
+            request: $request,
+            operation: 'api.v1.stores.store',
+            preflight: function () use ($service, $user): void {
+                $service->authorizeCreation($user);
+            },
+            action: function () use ($dashboardUrl, $data, $service, $user): JsonResponse {
+                $store = $service->create($user, $data);
+
+                return response()->json([
+                    'data' => new StoreResource($store),
+                    'dashboard_url' => $dashboardUrl->for($store),
+                ], 201);
+            },
+        );
     }
 
     public function show(Request $request, StoreContext $context, ViewStoreService $service): JsonResponse

@@ -57,7 +57,7 @@ discount rules are deliberately not translated.
 | `salt` | `legacy_password_salt` | Empty string becomes null; never expose through API. |
 | `custpassword` | `legacy_password_hash` | Preserve only for a controlled rehash bridge; do not copy into `password`. |
 | `custimportpassword` | `legacy_import_password_hash` | Preserve only when non-empty; never expose. |
-| — | `password` | Null during import unless a separate Authentication-owned flow creates a modern adaptive hash. |
+| — | `password` | Keep null during legacy import unless a separately approved identity flow creates a modern hash. New merchant-created profiles may save a validated modern password through `POST /customers`; never reuse a legacy hash here. |
 | `custconcompany` | `company` | Trim; empty string becomes null. |
 | `custconfirstname` | `first_name` | Trim; empty string becomes null. |
 | `custconlastname` | `last_name` | Trim; empty string becomes null. |

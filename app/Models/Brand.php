@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Modules\Catalog\Models\CustomObjectReference;
 use Modules\Stores\Models\Concerns\StoreScoped;
 use Modules\Stores\Models\Store;
 use Spatie\MediaLibrary\HasMedia;
@@ -31,6 +32,13 @@ final class Brand extends Model implements HasMedia
     public function translations(): HasMany
     {
         return $this->hasMany(BrandTranslation::class)->orderBy('locale');
+    }
+
+    public function customObjectReferences(): HasMany
+    {
+        return $this->hasMany(CustomObjectReference::class, 'source_id')
+            ->where('source_type', 'brand')
+            ->orderBy('custom_field_definition_id')->orderBy('sort_order')->orderBy('id');
     }
 
     public function registerMediaCollections(): void

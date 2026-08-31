@@ -13,6 +13,7 @@ final class ProductDetailSectionRegistry
         'images',
         'media',
         'custom_fields',
+        'custom_objects',
         'options',
         'variants',
         'shared_options',
