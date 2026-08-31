@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Translation\ArrayLoader;
 use Illuminate\Translation\Translator;
 use Illuminate\Validation\Factory;
 use Modules\Customers\Http\Requests\CustomerGroupWriteRequest;
 use Modules\Customers\Http\Requests\CustomerWriteRequest;
-use PHPUnit\Framework\TestCase;
+use Modules\Customers\Models\Customer;
+use Tests\TestCase;
 
 final class CustomerWriteRequestTest extends TestCase
 {
@@ -43,6 +45,17 @@ final class CustomerWriteRequestTest extends TestCase
         ];
 
         self::assertTrue($this->customerValidator($payload, 'PATCH')->fails());
+    }
+
+    public function test_customer_model_hashes_a_new_password_without_exposing_plaintext(): void
+    {
+        $plainPassword = 'StrongPassword1!';
+        $customer = new Customer(['password' => $plainPassword]);
+        $storedPassword = (string) $customer->getAttributes()['password'];
+
+        self::assertNotSame($plainPassword, $storedPassword);
+        self::assertTrue(Hash::check($plainPassword, $storedPassword));
+        self::assertContains('password', $customer->getHidden());
     }
 
     public function test_group_create_requires_language_safe_display_name_and_logic_code(): void
